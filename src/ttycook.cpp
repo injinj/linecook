@@ -264,8 +264,8 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
 {
   DIR           * dirp;
   struct dirent * dp;
-  int             is_dot = ( len > 0 && buf[ off ] == '.' ),
-                  cnt = 0;
+  int             cnt = 0;
+  bool            is_dot = ( len > 0 && buf[ off ] == '.' );
 
   if ( comp_type == 'v' || ( len > 0 && buf[ off ] == '$' ) ) {
     if ( environ != NULL ) { /* env var complete */
@@ -296,6 +296,8 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
       for ( i = len; ; ) { /* find if a directory prefix exists */
         if ( ptr[ i - 1 ] == '/' ) {
           if ( i + 1 < sizeof( path ) ) {
+            if ( i < len && ptr[ i ] == '.' )
+              is_dot = true;
             ::memcpy( path, ptr, i );
             path[ i ] = '\0';
             path_search = path;
@@ -444,7 +446,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
             }
             /* any file complete */
             if ( comp_type == 'f' || comp_type == 0 ) {
-              if ( dp->d_name[ 0 ] != '.' || ( is_dot && pstart ) ) {
+              if ( dp->d_name[ 0 ] != '.' || is_dot ) {
                 if ( d_type == DT_DIR )
                   p[ sz++ ] = '/';
                 lc_add_completion( state, comp_type, p, sz );

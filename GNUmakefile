@@ -61,7 +61,7 @@ all_depends :=
 major_num   := 1
 minor_num   := 0
 patch_num   := 0
-build_num   := 2
+build_num   := 3
 version     := $(major_num).$(minor_num).$(patch_num)
 ver_build   := $(version)-$(build_num)
 defines     := -DLC_VER=$(ver_build)
