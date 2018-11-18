@@ -413,8 +413,10 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
           dirpath = path3;
         }
       }
-      if ( path2[ i - 1 ] != '/' )
+      if ( path2[ i - 1 ] != '/' ) {
         path2[ i++ ] = '/';
+        path2[ i ] = '\0';
+      }
       dirp = opendir( dirpath );
       if ( dirp != NULL ) {
         while ( (dp = readdir( dirp )) != NULL ) {
