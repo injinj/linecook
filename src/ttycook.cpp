@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <termios.h>
 #include <dirent.h>
+#include <pwd.h>
 #include <linecook/linecook.h>
 #include <linecook/ttycook.h>
 
@@ -240,6 +241,22 @@ do_write( LineCook *state,  const void *buf,  size_t buflen )
   return n;
 }
 
+static size_t
+catp( char *p,  const char *q,  const char *r,  const char *s = NULL )
+{
+  size_t i = 0;
+  while ( *q != '\0' && i < 1023 )
+    p[ i++ ] = *q++;
+  while ( *r != '\0' && i < 1023 )
+    p[ i++ ] = *r++;
+  if ( s != NULL ) {
+    while ( *s != '\0' && i < 1023 )
+      p[ i++ ] = *s++;
+  }
+  p[ i ] = '\0';
+  return i;
+}
+
 extern char ** environ;
 int
 lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
@@ -271,14 +288,16 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
   else {
     const char *path_search = NULL, * e;
     const char *ptr = &buf[ off ];
-    char path[ 1024 ], path2[ 1024 ];
+    char path[ 1024 ], path2[ 1024 ], path3[ 1024 ];
     size_t i, pstart = 1;
     if ( len > 0 ) {
+      if ( len >= 1024 )
+        return 0;
       for ( i = len; ; ) { /* find if a directory prefix exists */
         if ( ptr[ i - 1 ] == '/' ) {
           if ( i + 1 < sizeof( path ) ) {
-            memcpy( path, ptr, i );
-            path[ i ] = 0;
+            ::memcpy( path, ptr, i );
+            path[ i ] = '\0';
             path_search = path;
             pstart = 0;
           }
@@ -287,15 +306,23 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
         if ( --i == 0 )
           break;
       }
+      if ( path_search == NULL ) {
+        if ( ptr[ 0 ] == '~' ) {
+          ::memcpy( path, ptr, len );
+          path[ len ] = '\0';
+          path_search = path;
+          pstart = 0;
+        }
+      }
     }
     if ( path_search == NULL ) {
       if ( comp_type == 'e' ) { /* use PATH if no prefix */
         path_search = getenv( "PATH" );
-        pstart = 1;
+        pstart = 1; /* don't include directory */
       }
       else if ( comp_type == 'd' ) { /* use CDPATH if no prefix */
         path_search = getenv( "CDPATH" );
-        pstart = 0;
+        pstart = 0; /* include directory */
       }
       if ( path_search == NULL ) { /* if no path, use pwd */
         path_search = ".";
@@ -316,8 +343,6 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
       i = (size_t) ( e - path_search );
       if ( i > 0 && i + 2 < sizeof( path2 ) ) {
         ::memcpy( path2, path_search, i );
-        if ( path2[ i - 1 ] != '/' )
-          path2[ i++ ] = '/';
         path2[ i ] = '\0';
       }
       else {
@@ -328,7 +353,69 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
       if ( bad_path )
         continue;
 
-      dirp = opendir( path2 );
+      char *dirpath = path2;
+      size_t j = 0;
+      /* check if home directory expansion (~u/) */
+      if ( path2[ 0 ] == '~' ) {
+        char user[ 1024 ], pw_dir[ 1024 ];
+        const char *dstart = ::strchr( path2, '/' );
+        const char *p = NULL;
+        size_t len;
+        if ( dstart == NULL )
+          dstart = &path2[ ::strlen( path2 ) ];
+        len = (size_t) ( dstart - &path2[ 1 ] );
+        pw_dir[ 0 ] = '\0';
+        if ( len > 0 ) {
+          ::strncpy( user, &path2[ 1 ], len );
+          user[ len ] = '\0';
+        }
+        else {
+          user[ 0 ] = '\0';
+          p = getenv( "HOME" ); /* my home */
+          if ( p != NULL && ::strlen( p ) < sizeof( pw_dir ) ) {
+            ::strcpy( pw_dir, p );
+            p = pw_dir;
+          }
+        }
+        if ( user[ 0 ] != '\0' ) { /* some user other home */
+          bool found_pw = false;
+          for (;;) {
+            struct passwd *pw = getpwent();
+            if ( pw == NULL )
+              break;
+            if ( ::strncmp( user, pw->pw_name, len ) == 0 ) {
+              if ( dstart[ 0 ] == '\0' ) { /* if no '/', complete users */
+                j = catp( pw_dir, "~", pw->pw_name, "/" );
+                lc_add_completion( state, comp_type, pw_dir, j );
+                cnt++;
+              }
+              /* dstart[ 0 ] == '/' */
+              else if ( pw->pw_name[ len ] == '\0' ) {
+                if ( ::strlen( pw->pw_dir ) < sizeof( pw_dir ) ) {
+                  ::strcpy( pw_dir, pw->pw_dir );
+                  found_pw = true;
+                }
+                break;
+              }
+            }
+          }
+          endpwent();
+          if ( ! found_pw )
+            continue;
+          p = pw_dir;
+        }
+        /* concat home with path3 */
+        if ( p != NULL ) {
+          if ( dstart[ 0 ] == '\0' )
+            j = catp( path3, p, "/" );
+          else
+            j = catp( path3, p, dstart );
+          dirpath = path3;
+        }
+      }
+      if ( path2[ i - 1 ] != '/' )
+        path2[ i++ ] = '/';
+      dirp = opendir( dirpath );
       if ( dirp != NULL ) {
         while ( (dp = readdir( dirp )) != NULL ) {
           struct stat s;
@@ -337,11 +424,14 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
           char    * p          = ( pstart ? &path2[ i ] : path2 );
           size_t    dlen       = ::strlen( dp->d_name ),
                     sz         = ( pstart ? dlen : i + dlen );
-          if ( i + dlen + 2 < sizeof( path2 ) ) {
+          if ( i + dlen + 2 < sizeof( path2 ) &&
+               j + dlen + 2 < sizeof( path3 ) ) {
             ::strcpy( &path2[ i ], dp->d_name );
             /* resolve sym links and/or get st_mode */
             if ( d_type == DT_LNK || comp_type == 'e' ) {
-              if ( stat( path2, &s ) == 0 ) {
+              if ( dirpath == path3 )
+                ::strcpy( &path3[ j ], dp->d_name );
+              if ( stat( dirpath, &s ) == 0 ) {
                 switch ( s.st_mode & S_IFMT ) {
                   case S_IFDIR: d_type = DT_DIR; break;
                   case S_IFREG: d_type = DT_REG; break;

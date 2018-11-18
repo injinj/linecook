@@ -61,7 +61,7 @@ init_tty( TTYCook *tty )
                     * sel1   = ANSI_RED     "["     ANSI_NORMAL,
                     * sel2   = ANSI_RED     "]"     ANSI_NORMAL,
                     * brk    = " \t\n\\'`><=;|&{()}",
-                    * qc     = " \t\n\\\"'@<>=;|&()#$`?*[!:{~";
+                    * qc     = " \t\n\\\"'@<>=;|&()#$`?*[!:{";
 
   lc_tty_set_locale(); /* setlocale( LC_ALL, "" ) */
   lc_set_completion_break( tty->lc, brk, strlen( brk ) );

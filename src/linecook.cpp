@@ -77,7 +77,7 @@ using namespace linecook;
 State::State( int num_cols,  int num_lines )
 {
   static const char def_brk[]   = " \t\n!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~";
-  static const char def_plete[] = " \t\n\\\"';:{[($`?*~|";
+  static const char def_plete[] = " \t\n\\\"';:{[($`?*|";
   static const char def_quote[] = " \t\n\\\"'@<>=;:|&#$`{}[]()";
   ::memset( this, 0, sizeof( *this ) );
   this->left_prompt_needed = true;
@@ -220,9 +220,8 @@ State::reset_state( void )
   LineSave::reset( this->comp ); /* reset any completions */
   LineSave::reset( this->edit ); /* reset any history edits */
 
-  this->complete_off = 0;  /* reset complete positions */
-  this->complete_len = 0;
-  this->complete_tab = 0;
+  this->reset_complete();
+  this->reset_yank();
   this->visual_off   = 0;  /* reset visual position */
 }
 
@@ -983,6 +982,30 @@ State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
       buf[ i-1 ] = '>';
   }
   return true;
+}
+
+void
+State::reset_yank( void )
+{
+  if ( this->yank.max > 0 ) {
+    if ( this->yank.max > 4 * 1024 ) {
+      size_t off;
+      for ( off = this->yank.first; off < this->yank.max; ) {
+        if ( this->yank.max - off <= 4 * 1024 )
+          break;
+        LineSave &ls = LineSave::line( this->yank, off );
+        if ( ls.next_off == 0 )
+          break;
+        off = ls.next_off;
+      }
+      if ( off != this->yank.first && off != this->yank.max )
+        LineSave::shrink_range( this->yank, off, this->yank.max );
+    }
+  }
+  if ( this->yank.cnt > 0 )
+    this->yank.idx = this->yank.cnt + 1;
+  else
+    this->yank.idx = 0;
 }
 
 void

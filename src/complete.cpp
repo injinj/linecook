@@ -18,19 +18,21 @@ using namespace linecook;
 size_t
 State::quote_line_length( const char32_t *buf,  size_t len )
 {
-  size_t extra = 2;
-  bool   needs_quotes = false;
-  if ( this->complete_type != 'v' ) {
-    for ( size_t i = 0; i < len; i++ ) {
-      if ( this->is_quote_char( buf[ i ] ) ) {
-        needs_quotes = true;
-        if ( char32_eq( this->quote_char, buf[ i ] ) || buf[ i ] == '\\' )
-          extra++;
+  if ( ! this->complete_has_quote ) {
+    size_t extra = 2;
+    bool   needs_quotes = false;
+    if ( this->complete_type != 'v' ) {
+      for ( size_t i = 0; i < len; i++ ) {
+        if ( this->is_quote_char( buf[ i ] ) ) {
+          needs_quotes = true;
+          if ( char32_eq( this->quote_char, buf[ i ] ) || buf[ i ] == '\\' )
+            extra++;
+        }
       }
     }
+    if ( needs_quotes )
+      len += extra;
   }
-  if ( needs_quotes )
-    len += extra;
   return len;
 }
 
@@ -85,24 +87,62 @@ failed:
     ::free( p );
 }
 
+void
+State::reset_complete( void )
+{
+  this->complete_off = 0;
+  this->complete_len = 0;
+  this->complete_tab = 0;
+  this->complete_type = 0;
+  this->complete_has_quote = false;
+}
+
 bool
 State::tab_first_completion( int ctype )
 {
   size_t start_off,
          off  = this->cursor_pos - this->prompt.cols, /* offset into line[] */
-         coff = this->skip_prev_word( off, this->plete_brk ),
-         cend = this->skip_next_word( off, this->plete_brk ),
-         caft = this->edited_len - cend,
-         replace_len = cend - coff,
+         coff,
+         cend,
+         caft,
+         replace_len,
          quote_len,
          match_len   = 0,
          match_cnt   = 0;
   bool   found_match = false;
 
-  this->complete_off = 0;
-  this->complete_len = 0;
-  this->complete_tab = 0;
-  this->complete_type = 0;
+  this->reset_complete();
+  if ( off < this->edited_len &&
+       this->line[ off ] == (uint8_t) this->quote_char ) {
+    for ( coff = off; ; coff-- ) {
+      if ( coff == 0 )
+        break;
+      if ( this->line[ coff - 1 ] == (uint8_t) this->quote_char ) {
+        cend = off;
+        goto matched_quotes_fwd;
+      }
+    }
+  }
+  if ( off > 1 && this->line[ off - 1 ] == (uint8_t) this->quote_char ) {
+    for ( coff = off - 1; ; coff-- ) {
+      if ( coff == 0 )
+        break;
+      if ( this->line[ coff - 1 ] == (uint8_t) this->quote_char )
+        goto matched_quotes_back;
+    }
+  }
+  coff = this->skip_prev_word( off, this->plete_brk );
+  cend = this->skip_next_word( off, this->plete_brk );
+  if ( 0 ) {
+matched_quotes_back:;
+    this->move_cursor_back( 1 );
+    cend = --off;
+matched_quotes_fwd:;
+    this->complete_has_quote = true;
+  }
+  caft = this->edited_len - cend;
+  replace_len = cend - coff;
+
   LineSave::reset( this->comp ); /* reset any completions */
   this->completion8( coff, replace_len, ctype );
   LineSave::sort( this->comp );
@@ -171,10 +211,7 @@ State::tab_first_completion( int ctype )
       this->complete_len = replace_len;
   }
   else { /* otherwise no completion match */
-    this->complete_off = 0;
-    this->complete_len = 0;
-    this->complete_tab = 0;
-    this->complete_type = 0;
+    this->reset_complete();
   }
   return found_match;
 }
@@ -268,10 +305,7 @@ State::completion_accept( void )
       this->erase_eol_with_right_prompt();
   }
   this->show_clear();
-  this->complete_off = 0;
-  this->complete_len = 0;
-  this->complete_tab = 0;
-  this->complete_type = 0;
+  this->reset_complete();
 }
 
 void

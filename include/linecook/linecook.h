@@ -82,7 +82,8 @@ int lc_add_history( LineCook *state,  const char *line,  size_t len );
 /* Compress history database to unique items */
 int lc_compress_history( LineCook *state );
 /* Add line to completion list */
-int lc_add_completion( LineCook *state,  int ctype,  const char *line,  size_t len );
+int lc_add_completion( LineCook *state,  int ctype,  const char *line,
+                       size_t len );
 /* If any timers are active, calc timeout */
 int lc_max_timeout( LineCook *state,  int time_ms );
 
@@ -402,7 +403,8 @@ struct LineCook_s {
   size_t       complete_off,    /* Offset into line where completion starts */
                complete_len,    /* Length of completion phrase */
                complete_tab;    /* Length of tabbed completion */
-  int          complete_type;   /* Type of completion */
+  int          complete_type;   /* Type of completion ('d', 'e', 'v', 'f') */
+  uint8_t      complete_has_quote; /* Completing a quoted phrase */
 
   /* Visual mode highlighting */
   size_t       visual_off;      /* Offset into line where visual starts */
@@ -803,6 +805,7 @@ struct State : public LineCook_s {
   int line_copy( char *out ); /* Utf8 copy line, not null terminated */
 
   /* Add to yank buffer */
+  void reset_yank( void );
   void add_yank( const char32_t *buf,  size_t size ); /* copy to yank buffer */
   bool get_yank_buf( char32_t *&buf,  size_t &size );
   bool get_yank_pop( char32_t *&buf,  size_t &size );
@@ -842,6 +845,7 @@ struct State : public LineCook_s {
   void quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len );
   bool tab_complete( int ctype,  bool reverse );
   void completion8( size_t off,  size_t len,  int ctype );
+  void reset_complete( void );
   bool tab_first_completion( int ctype );
   bool tab_next_completion( int ctype,  bool reverse );
   int add_completion( int ctype,  const char *buf,  size_t len );
