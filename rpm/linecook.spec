@@ -3,7 +3,7 @@ Version:	999.999
 Release:	99999%{?dist}
 Summary:	Command line editor
 
-Group:		Rai
+Group:		Development/Libraries
 License:	BSD
 URL:		https://github.com/injinj/%{name}
 Source0:	%{name}-%{version}-99999.tar.gz
