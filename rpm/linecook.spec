@@ -52,5 +52,5 @@ rm -f /etc/ld.so.conf.d/linecook.conf
 ldconfig
 
 %changelog
-* Tue Nov 09 2018 <gchrisanderson@gmail.com>
-- Test RPM build
+* __DATE__ <gchrisanderson@gmail.com>
+- Hello world

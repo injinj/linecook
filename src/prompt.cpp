@@ -396,7 +396,7 @@ State::get_prompt_vars( void )
           case '[': /* bash escapes */
           case ']':
             break;
-          case 'j': /* jobs */
+          case 'j': /* jobs XXX */
             break;
           case '!': /* hist number */
           case '#': /* command number */
@@ -412,8 +412,8 @@ State::get_prompt_vars( void )
             break;
           case 'v': /* version string */
           case 'V':
-            ::strcpy( pr.vers, "0.93" );
-            pr.vers_len = 4;
+            ::strcpy( pr.vers, "1" ); /* XXX */
+            pr.vers_len = 1;
             break;
           case 'h': /* host */
           case 'H': /* host.domain */

@@ -54,20 +54,17 @@ DEFINES     ?=
 defines     := $(DEFINES)
 cpp_lnk     :=
 
+.PHONY: everything
+everything: all
+
+# version vars
+-include .copr/Makefile
+
 all_exes    :=
 all_libs    :=
 all_dlls    :=
 all_depends :=
-major_num   := 1
-minor_num   := 0
-patch_num   := 0
-build_num   := 3
-version     := $(major_num).$(minor_num).$(patch_num)
-ver_build   := $(version)-$(build_num)
-defines     := -DLC_VER=$(ver_build)
-
-.PHONY: everything
-everything: all
+#defines     := -DLC_VER=$(ver_build)
 
 liblinecook_files := linecook dispatch history complete prompt \
                      linesave keycook lineio ttycook kewb_utf \
@@ -139,13 +136,7 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example
 
 .PHONY: dist_rpm
-dist_rpm:
-	mkdir -p rpmbuild/{RPMS,SRPMS,BUILD,SOURCES,SPECS}
-	sed -e "s/99999/${build_num}/" \
-	    -e "s/999.999/${version}/" < rpm/linecook.spec > rpmbuild/SPECS/linecook.spec
-	mkdir -p rpmbuild/SOURCES/linecook-${version}
-	ln -sf ../../../src ../../../test ../../../include ../../../GNUmakefile rpmbuild/SOURCES/linecook-${version}/
-	( cd rpmbuild/SOURCES && tar chzf linecook-${ver_build}.tar.gz --exclude=".*.sw*" linecook-${version} && rm -r -f linecook-${version} )
+dist_rpm: srpm
 	( cd rpmbuild && rpmbuild --define "-topdir `pwd`" -ba SPECS/linecook.spec )
 
 # force a remake of depend using 'make -B depend'
