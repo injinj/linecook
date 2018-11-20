@@ -1,10 +1,7 @@
 outdir ?= rpmbuild/SRPMS
 name   := linecook
 spec   := rpm/$(name).spec
-gitdir := $(dir $(spec))/.git
-
 #rev    := $(shell ref="$$(cat $(gitdir)/HEAD)"; [[ "$$ref" == "ref: "* ]] && ref="$$(cat "$(gitdir)/$${ref\#ref: }")"; echo "$${ref:0:7}")
-#date   := $(shell date +%Y%m%d.%H%M)
 date   := $(shell date +"%a %b %d %Y")
 
 major_num   := 1
