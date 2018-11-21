@@ -8,7 +8,7 @@ major_num   := 1
 minor_num   := 0
 patch_num   := 0
 #build_num   := $(shell git log --no-decorate -n 1 --oneline | sed 's/ .*//')
-build_num   := 5
+build_num   := 6
 version     := $(major_num).$(minor_num).$(patch_num)
 ver_build   := $(version)-$(build_num)
 
