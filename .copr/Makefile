@@ -25,6 +25,6 @@ rpmbuild/SOURCES/$(name)-$(ver_build).tar.gz:
 	    -e "s/999.999/${version}/" \
 	    -e "s/__DATE__/${date}/" < rpm/$(name).spec > rpmbuild/SPECS/$(name).spec
 	mkdir -p rpmbuild/SOURCES/$(name)-${version}
-	ln -sf ../../../src ../../../test ../../../include ../../../GNUmakefile ../../../.copr rpmbuild/SOURCES/$(name)-${version}/
+	ln -sf ../../../{src,test,include,GNUmakefile,.copr} rpmbuild/SOURCES/$(name)-${version}/
 	( cd rpmbuild/SOURCES && tar chzf $(name)-${ver_build}.tar.gz --exclude=".*.sw*" $(name)-${version} && rm -r -f $(name)-${version} )
 

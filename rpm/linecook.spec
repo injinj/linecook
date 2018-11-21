@@ -9,7 +9,6 @@ URL:		https://github.com/injinj/%{name}
 Source0:	%{name}-%{version}-99999.tar.gz
 BuildRoot:	${_tmppath}
 BuildArch:      x86_64
-BuildRequires:  git
 BuildRequires:  gcc-c++
 Prefix:	        /usr
 
