@@ -36,6 +36,7 @@ cpplink     := $(CC)
 gcc_wflags  := -Wall -Wextra -Werror
 fpicflags   := -fPIC
 soflag      := -shared
+rpath       := -Wl,-rpath,$(libd)
 
 ifdef DEBUG
 default_cflags := -ggdb
@@ -134,6 +135,8 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 
 .PHONY: dist_bins
 dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example
+	chrpath -d $(libd)/liblinecook.so
+	chrpath -d $(libd)/lc_example
 
 .PHONY: dist_rpm
 dist_rpm: srpm
@@ -168,11 +171,11 @@ $(libd)/%.a:
 	ar rc $@ $($(*)_objs)
 
 $(libd)/%.so:
-	$(cpplink) $(soflag) $(cflags) -o $@.$($(*)_spec) -Wl,-soname=$(@F).$($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(cpp_dll_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
+	$(cpplink) $(soflag) $(rpath) $(cflags) -o $@.$($(*)_spec) -Wl,-soname=$(@F).$($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(cpp_dll_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
 	cd $(libd) && ln -f -s $(@F).$($(*)_spec) $(@F).$($(*)_ver) && ln -f -s $(@F).$($(*)_ver) $(@F)
 
 $(bind)/%:
-	$(cpplink) $(cflags) -o $@ $($(*)_objs) -L$(libd) $($(*)_lnk) $(cpp_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib)
+	$(cpplink) $(cflags) $(rpath) -o $@ $($(*)_objs) -L$(libd) $($(*)_lnk) $(cpp_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib)
 
 $(dependd)/%.d: src/%.cpp
 	gcc -x c++ $(arch_cflags) $(defines) $(includes) $($(notdir $*)_includes) $($(notdir $*)_defines) -MM $< -MT $(objd)/$(*).o -MF $@

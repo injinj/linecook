@@ -10,6 +10,7 @@ Source0:	%{name}-%{version}-99999.tar.gz
 BuildRoot:	${_tmppath}
 BuildArch:      x86_64
 BuildRequires:  gcc-c++
+BuildRequires:  chrpath
 Prefix:	        /usr
 
 %description
