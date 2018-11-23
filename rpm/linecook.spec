@@ -12,6 +12,8 @@ BuildArch:      x86_64
 BuildRequires:  gcc-c++
 BuildRequires:  chrpath
 Prefix:	        /usr
+Requires(post): /sbin/ldconfig
+Requires(postun): /sbin/ldconfig
 
 %description
 A command line editing library.
@@ -46,12 +48,14 @@ rm -rf %{buildroot}
 /usr/include/*
 
 %post
-echo "${RPM_INSTALL_PREFIX}/lib64" > /etc/ld.so.conf.d/linecook.conf
-ldconfig
+echo "${RPM_INSTALL_PREFIX}/lib64" > /etc/ld.so.conf.d/%{name}.conf
+/sbin/ldconfig
 
 %postun
-rm -f /etc/ld.so.conf.d/linecook.conf
-ldconfig
+if [ $1 -eq 0 ] ; then
+rm -f /etc/ld.so.conf.d/%{name}.conf
+fi
+/sbin/ldconfig
 
 %changelog
 * __DATE__ <gchrisanderson@gmail.com>
