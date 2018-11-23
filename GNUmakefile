@@ -136,7 +136,7 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 .PHONY: dist_bins
 dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example
 	chrpath -d $(libd)/liblinecook.so
-	chrpath -d $(libd)/lc_example
+	chrpath -d $(bind)/lc_example
 
 .PHONY: dist_rpm
 dist_rpm: srpm
