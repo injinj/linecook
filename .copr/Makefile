@@ -1,14 +1,12 @@
 outdir ?= rpmbuild/SRPMS
 name   := linecook
 spec   := rpm/$(name).spec
-#rev    := $(shell ref="$$(cat $(gitdir)/HEAD)"; [[ "$$ref" == "ref: "* ]] && ref="$$(cat "$(gitdir)/$${ref\#ref: }")"; echo "$${ref:0:7}")
 date   := $(shell date +"%a %b %d %Y")
 
 major_num   := 1
 minor_num   := 0
 patch_num   := 0
-#build_num   := $(shell git log --no-decorate -n 1 --oneline | sed 's/ .*//')
-build_num   := 6
+build_num   := 7
 version     := $(major_num).$(minor_num).$(patch_num)
 ver_build   := $(version)-$(build_num)
 
