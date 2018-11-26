@@ -104,7 +104,11 @@ main( void )
       n = lc_tty_poll_wait( tty, 250 ); /* wait on terminal for 250ms */
     if ( n < 0 ) /* if error in one of the above */
       break;
-    if ( tty->lc_status == LINE_STATUS_SUSPEND ) {
+    if ( tty->lc_status == LINE_STATUS_INTERRUPT ) {
+      lc_tty_set_continue( tty, 0 ); /* cancel continue */
+      lc_tty_break_history( tty );   /* cancel buffered line */
+    }
+    else if ( tty->lc_status == LINE_STATUS_SUSPEND ) {
       lc_tty_normal_mode( tty ); /* set terminal to normal */
       raise( SIGSTOP ); /* suspend */
     }

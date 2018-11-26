@@ -315,17 +315,17 @@ State::input_available( void )
 int
 State::fill_input( void ) /* read input, move input bytes to make space */
 {
-  if ( this->input_off <= this->input_len ) {
-    if ( this->input_off < this->input_len )
-      ::memmove( this->input_buf, &this->input_buf[ this->input_off ],
-                 this->input_len - this->input_off );
-    this->input_len -= this->input_off;
-    this->input_off  = 0;
+  if ( this->input_off != this->input_len ) {
+    ::memmove( this->input_buf, &this->input_buf[ this->input_off ],
+               this->input_len - this->input_off );
   }
-  if ( ! this->realloc_input( this->input_off + LINE_BUF_LEN_INCR ) )
+  this->input_len -= this->input_off;
+  this->input_off  = 0;
+
+  if ( ! this->realloc_input( this->input_len + LINE_BUF_LEN_INCR * 16 ) )
     return LINE_STATUS_ALLOC_FAIL;
-  int n = this->read( &this->input_buf[ this->input_off ],
-                      this->input_buflen - this->input_off );
+  int n = this->read( &this->input_buf[ this->input_len ],
+                      this->input_buflen - this->input_len );
   if ( n <= 0 ) {
     if ( n < -1 )
       return this->error = LINE_STATUS_RD_FAIL;

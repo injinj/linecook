@@ -488,12 +488,15 @@ TTY::TTY( LineCook *lc )
   this->lc     = lc;
   this->in_fd  = -1;
   this->out_fd = -1;
-  lc->closure  = this;
-
-  if ( lc->read_cb == NULL )
+  /* only use closure when _cb() are used */
+  if ( lc->read_cb == NULL ) {
     lc->read_cb = do_read;
-  if ( lc->write_cb == NULL )
+    lc->closure  = this;
+  }
+  if ( lc->write_cb == NULL ) {
     lc->write_cb = do_write;
+    lc->closure  = this;
+  }
   if ( lc->complete_cb == NULL )
     lc->complete_cb = lc_tty_file_completion;
 }
@@ -957,6 +960,7 @@ TTY::break_history( void )
 {
   TTYHistory &h = this->hist;
   h.hist_len = 0;
+  this->push_len = 0;
 }
 
 int
@@ -977,6 +981,10 @@ TTY::close_history( void )
 int
 TTY::raw_mode( void )
 {
+  if ( this->in_fd == -1 ) { /* if no in_fd */
+    this->set( TTYS_IS_RAW );
+    return 0;
+  }
   if ( this->orig == NULL ) {
     if ( (this->orig = ::malloc( sizeof( struct termios ) )) == NULL )
       return -1;
@@ -1025,9 +1033,14 @@ int
 TTY::non_block( void )
 {
   if ( this->test( TTYS_IS_NONBLOCK ) == 0 ) {
-    this->in_mode  = ::fcntl( this->in_fd, F_GETFL );
-    this->out_mode = ::fcntl( this->out_fd, F_GETFL );
-    if ( fcntl( this->in_fd, F_SETFL, this->in_mode | O_NONBLOCK ) != 0 ||
+    if ( this->in_fd != -1 )
+      this->in_mode  = ::fcntl( this->in_fd, F_GETFL );
+    if ( this->out_fd != -1 )
+      this->out_mode = ::fcntl( this->out_fd, F_GETFL );
+    if ( this->in_fd != -1 &&
+         fcntl( this->in_fd, F_SETFL, this->in_mode | O_NONBLOCK ) != 0 )
+      return -1;
+    if ( this->out_fd != -1 &&
          fcntl( this->out_fd, F_SETFL, this->out_mode | O_NONBLOCK ) != 0 )
       return -1;
     this->set( TTYS_IS_NONBLOCK );
@@ -1039,10 +1052,12 @@ int
 TTY::reset_raw( void )
 {
   if ( this->test( TTYS_IS_RAW ) != 0 ) {
-    if ( this->orig == NULL )
-      return -1;
-    struct termios &o = *(struct termios *) this->orig;
-    ::tcsetattr( this->in_fd, TCSAFLUSH, &o );
+    if ( this->in_fd != -1 ) {
+      if ( this->orig == NULL )
+        return -1;
+      struct termios &o = *(struct termios *) this->orig;
+      ::tcsetattr( this->in_fd, TCSAFLUSH, &o );
+    }
     this->clear( TTYS_IS_RAW );
   }
   return 0;
@@ -1052,8 +1067,10 @@ int
 TTY::reset_non_block( void )
 {
   if ( this->test( TTYS_IS_NONBLOCK ) != 0 ) {
-    ::fcntl( this->in_fd, F_SETFL, this->in_mode );
-    ::fcntl( this->out_fd, F_SETFL, this->out_mode );
+    if ( this->in_fd != -1 )
+      ::fcntl( this->in_fd, F_SETFL, this->in_mode );
+    if ( this->out_fd != -1 )
+      ::fcntl( this->out_fd, F_SETFL, this->out_mode );
     this->clear( TTYS_IS_NONBLOCK );
   }
   return 0;
@@ -1199,11 +1216,9 @@ TTY::poll_wait( int time_ms )
     n = ::poll( &fdset, 1, time_ms );
     if ( n == 0 ) /* no change */
       return 0;
-    if ( n < 0 ) { /* got a signal */
-      if ( errno == EINTR ) {
-        this->lc_status = LINE_STATUS_INTERRUPT;
+    if ( n < 0 ) {
+      if ( errno == EINTR ) /* if got a signal */
         return 0;
-      }
       /* some other error */
       this->lc_status = LINE_STATUS_RD_FAIL;
       return -1;

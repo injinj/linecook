@@ -861,7 +861,7 @@ State::show_save( size_t cur_idx,  size_t start_idx )
   size_t     rows, row_off, max_rows;
   char32_t * buf;
   bool       is_first,
-             is_last;
+             is_last = false;
 
   if ( state.lsb == NULL )
     return false;
