@@ -150,6 +150,8 @@ int lc_tty_poll_wait( TTYCook *tty,  int time_ms );
 int lc_tty_init_geom( TTYCook *tty );
 /* Try to get terminal geometry */
 void lc_tty_get_terminal_geom( int fd,  int *cols,  int *lines );
+/* Clear line and refresh when get_line() called again */
+void lc_tty_clear_line( TTYCook *tty );
 /* Do file completeion */
 int lc_tty_file_completion( LineCook *lc,  const char *buf,  size_t off,
                             size_t len,  int comp_type );
@@ -191,6 +193,7 @@ struct TTY : public TTYCook_s {
   int reset_raw( void );
   int reset_non_block( void );
   int normal_mode( void );
+  void clear_line( void );
   /* line edit */
   int push_line( const char *line,  size_t len ); /* push line back */
   int get_line( void );         /* same as lc_tty_get_line() */

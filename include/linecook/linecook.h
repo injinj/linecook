@@ -86,7 +86,8 @@ int lc_add_completion( LineCook *state,  int ctype,  const char *line,
                        size_t len );
 /* If any timers are active, calc timeout */
 int lc_max_timeout( LineCook *state,  int time_ms );
-
+/* Clear line and refresh when get_line called again */
+void lc_clear_line( LineCook *state );
 /* Callbacks for complete, hints, read/write terminal */
 typedef int (* LineCompleteCB )( LineCook *state,  const char *buf,
                                  size_t off,  size_t len,  int complete_type );
@@ -397,7 +398,8 @@ struct LineCook_s {
   /* Screen geometry / pos */
   size_t       cursor_pos,      /* Current cursor position */
                cols,            /* Number of columns in terminal */
-               lines;           /* Number of lines in terminal */
+               lines,           /* Number of lines in terminal */
+               refresh_pos;     /* Pos of cursor reset until refresh */
 
   /* Complete off / len */
   size_t       complete_off,    /* Offset into line where completion starts */
@@ -606,6 +608,8 @@ struct State : public LineCook_s {
   void clear_right_prompt( LinePrompt &p );
   void show_right_prompt( LinePrompt &p );
   void erase_eol_with_right_prompt( void );
+  /* Clear line and refresh */
+  void clear_line( void );
   /* Geom */
   int set_geom( int num_cols,  int num_lines );
   /* Word break chars */

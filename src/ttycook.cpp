@@ -215,6 +215,12 @@ lc_tty_get_terminal_geom( int fd,  int *cols,  int *lines )
   }
 }
 
+void
+lc_tty_clear_line( TTYCook *tty )
+{
+  return static_cast<linecook::TTY *>( tty )->clear_line();
+}
+
 static int
 do_read( LineCook *state,  void *buf,  size_t buflen )
 {
@@ -1033,16 +1039,20 @@ int
 TTY::non_block( void )
 {
   if ( this->test( TTYS_IS_NONBLOCK ) == 0 ) {
-    if ( this->in_fd != -1 )
+    if ( this->in_fd != -1 ) {
       this->in_mode  = ::fcntl( this->in_fd, F_GETFL );
-    if ( this->out_fd != -1 )
-      this->out_mode = ::fcntl( this->out_fd, F_GETFL );
-    if ( this->in_fd != -1 &&
-         fcntl( this->in_fd, F_SETFL, this->in_mode | O_NONBLOCK ) != 0 )
-      return -1;
-    if ( this->out_fd != -1 &&
-         fcntl( this->out_fd, F_SETFL, this->out_mode | O_NONBLOCK ) != 0 )
-      return -1;
+      this->in_mode &= ~O_NONBLOCK;
+    }
+    if ( this->out_fd != -1 ) {
+      this->out_mode  = ::fcntl( this->out_fd, F_GETFL );
+      this->out_mode &= ~O_NONBLOCK; /* must be off in normal mode */
+    }
+    if ( this->in_fd != -1 ) {
+      ::fcntl( this->in_fd, F_SETFL, this->in_mode | O_NONBLOCK );
+    }
+    if ( this->out_fd != -1 ) {
+      ::fcntl( this->out_fd, F_SETFL, this->out_mode | O_NONBLOCK );
+    }
     this->set( TTYS_IS_NONBLOCK );
   }
   return 0;
@@ -1079,7 +1089,16 @@ TTY::reset_non_block( void )
 int
 TTY::normal_mode( void )
 {
-  return this->reset_raw() == 0 && this->reset_non_block() == 0 ? 0 : -1;
+  bool b;
+  b  = ( this->reset_raw() == 0 );
+  b &= ( this->reset_non_block() == 0 );
+  return b ? 0 : -1;
+}
+
+void
+TTY::clear_line( void )
+{
+  lc_clear_line( this->lc );
 }
 
 int

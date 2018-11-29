@@ -70,6 +70,11 @@ lc_max_timeout( LineCook *state,  int time_ms )
   return static_cast<linecook::State *>( state )->max_timeout( time_ms );
 }
 
+void
+lc_clear_line( LineCook *state )
+{
+  return static_cast<linecook::State *>( state )->clear_line();
+}
 } /* extern "C" */
 
 using namespace linecook;
@@ -179,9 +184,10 @@ State::reset_state( void )
   this->left_prompt_needed = true;
   this->prompt.cols -= this->prompt.pad_cols;
   this->prompt.pad_cols = 0;
-  this->edited_len = 0;   /* reset line state for next get_line call */
-  this->erase_len  = 0;
-  this->cursor_pos = 0;
+  this->edited_len  = 0;   /* reset line state for next get_line call */
+  this->erase_len   = 0;
+  this->cursor_pos  = 0;
+  this->refresh_pos = 0;
 
   if ( this->is_emacs_mode() )
     this->reset_emacs_mode();     /* reset search / replace flags */
@@ -226,10 +232,27 @@ State::reset_state( void )
 }
 
 void
+State::clear_line( void )
+{
+  if ( ! this->refresh_needed && ! this->left_prompt_needed ) {
+    this->refresh_needed = true;
+    this->refresh_pos = this->cursor_pos;
+    this->move_cursor( 0 );
+    this->cursor_erase_eol();
+    this->output_str( ANSI_ERASE_LINE, ANSI_ERASE_LINE_SIZE );
+    this->output_flush();
+  }
+}
+
+void
 State::refresh_line( void )
 {
   size_t save = this->cursor_pos,
          ext  = this->erase_len;
+  if ( this->refresh_pos != 0 ) {
+    save = this->refresh_pos;
+    this->refresh_pos = 0;
+  }
   this->cursor_erase_eol(); /* fix display flakyness */
   this->move_cursor( 0 );   /* redisplay prompt */
   if ( this->prompt.lines > 0 )
