@@ -263,6 +263,57 @@ catp( char *p,  const char *q,  const char *r,  const char *s = NULL )
   return i;
 }
 
+struct CompletePathStack {
+  struct Path {
+    Path * next;
+    size_t base_sz;
+    char   path[ 8 ];
+  };
+  Path * hd, * tl, * idx;
+  CompletePathStack() : hd( 0 ), tl( 0 ), idx( 0 ) {}
+  ~CompletePathStack() {
+    Path * next;
+    for ( Path *p = this->hd; p != NULL; p = next ) {
+      next = p->next;
+      ::free( p );
+    }
+  }
+  void push( const char *path,  size_t len,  size_t sz ) {
+    Path *p = (Path *) ::malloc( len + sizeof( Path ) );
+    if ( p == NULL )
+      return;
+    p->next = NULL;
+    p->base_sz = sz;
+    ::memcpy( p->path, path, len );
+    p->path[ len ] = '\0';
+    if ( this->tl != NULL )
+      this->tl->next = p;
+    else {
+      this->hd = p;
+      this->idx = p;
+    }
+    this->tl = p;
+  }
+  const char *pop( size_t &sz ) {
+    if ( this->idx == NULL )
+      return NULL;
+    const char * path = this->idx->path;
+    sz = this->idx->base_sz;
+    this->idx = this->idx->next;
+    return path;
+  }
+};
+
+static bool
+is_dotdir( const char *p,  size_t plen )
+{
+  if ( plen <= 2 ) {
+    if ( plen == 1 && p[ 0 ] == '.' ) return true;
+    if ( plen == 2 && p[ 0 ] == '.' && p[ 1 ] == '.' ) return true;
+  }
+  return false;
+}
+
 extern char ** environ;
 int
 lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
@@ -292,26 +343,28 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
     }
   }
   else {
+    CompletePathStack path_stack;
     const char *path_search = NULL, * e;
     const char *ptr = &buf[ off ];
     char path[ 1024 ], path2[ 1024 ], path3[ 1024 ];
-    size_t i, pstart = 1;
+    size_t path_sz, base_sz = 0;
+    bool no_directory = true, is_base_path = true;
     if ( len > 0 ) {
       if ( len >= 1024 )
         return 0;
-      for ( i = len; ; ) { /* find if a directory prefix exists */
-        if ( ptr[ i - 1 ] == '/' ) {
-          if ( i + 1 < sizeof( path ) ) {
-            if ( i < len && ptr[ i ] == '.' )
+      for ( path_sz = len; ; ) { /* find if a directory prefix exists */
+        if ( ptr[ path_sz - 1 ] == '/' ) {
+          if ( path_sz + 1 < sizeof( path ) ) {
+            if ( path_sz < len && ptr[ path_sz ] == '.' )
               is_dot = true;
-            ::memcpy( path, ptr, i );
-            path[ i ] = '\0';
+            ::memcpy( path, ptr, path_sz );
+            path[ path_sz ] = '\0';
             path_search = path;
-            pstart = 0;
+            no_directory = false;
           }
           break;
         }
-        if ( --i == 0 )
+        if ( --path_sz == 0 )
           break;
       }
       if ( path_search == NULL ) {
@@ -319,48 +372,62 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
           ::memcpy( path, ptr, len );
           path[ len ] = '\0';
           path_search = path;
-          pstart = 0;
+          no_directory = false;
         }
       }
     }
     if ( path_search == NULL ) {
       if ( comp_type == 'e' ) { /* use PATH if no prefix */
         path_search = getenv( "PATH" );
-        pstart = 1; /* don't include directory */
+        no_directory = true; /* don't include directory */
       }
       else if ( comp_type == 'd' ) { /* use CDPATH if no prefix */
         path_search = getenv( "CDPATH" );
-        pstart = 0; /* include directory */
+        no_directory = false; /* include directory */
       }
       if ( path_search == NULL ) { /* if no path, use pwd */
         path_search = ".";
-        pstart = 1;
+        no_directory = true;
       }
     }
-    while ( path_search != NULL ) {
-      const char *next;
-      int bad_path = 0;
-      e = (const char *) ::strchr( path_search, ':' );
-      if ( e == NULL ) {
-        e = &path_search[ ::strlen( path_search ) ];
-        next = NULL;
-      }
-      else
-        next = &e[ 1 ];
-
-      i = (size_t) ( e - path_search );
-      if ( i > 0 && i + 2 < sizeof( path2 ) ) {
-        ::memcpy( path2, path_search, i );
-        path2[ i ] = '\0';
+    for (;;) {
+      bool bad_path = false;
+      if ( path_search == NULL ) {
+        e = path_stack.pop( base_sz );
+        if ( e == NULL )
+          break;
+        path_sz = ::strlen( e );
+        is_base_path = false;
+        if ( path_sz + 2 < sizeof( path2 ) ) {
+          ::memcpy( path2, e, path_sz );
+          path2[ path_sz ] = '\0';
+        }
+        else {
+          bad_path = true;
+        }
       }
       else {
-        bad_path = 1;
-        i = 0;
-      }
-      path_search = next;
-      if ( bad_path )
-        continue;
+        const char *next;
+        e = (const char *) ::strchr( path_search, ':' );
+        if ( e == NULL ) {
+          e = &path_search[ ::strlen( path_search ) ];
+          next = NULL;
+        }
+        else
+          next = &e[ 1 ];
 
+        path_sz = (size_t) ( e - path_search );
+        if ( path_sz > 0 && path_sz + 2 < sizeof( path2 ) ) {
+          ::memcpy( path2, path_search, path_sz );
+          path2[ path_sz ] = '\0';
+        }
+        else {
+          bad_path = true;
+        }
+        path_search = next;
+      }
+      if ( bad_path ) /* path too large, print error? */
+        continue;
       char *dirpath = path2;
       size_t j = 0;
       /* check if home directory expansion (~u/) */
@@ -421,24 +488,39 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
           dirpath = path3;
         }
       }
-      if ( path2[ i - 1 ] != '/' ) {
-        path2[ i++ ] = '/';
-        path2[ i ] = '\0';
+      if ( path2[ path_sz - 1 ] != '/' ) {
+        path2[ path_sz++ ] = '/';
+        path2[ path_sz ] = '\0';
       }
       dirp = opendir( dirpath );
       if ( dirp != NULL ) {
         while ( (dp = readdir( dirp )) != NULL ) {
           struct stat s;
           unsigned char d_type = dp->d_type;
+          bool      is_link    = ( d_type == DT_LNK );
           mode_t    st_mode    = 0;
-          char    * p          = ( pstart ? &path2[ i ] : path2 );
+          char    * completion;
           size_t    dlen       = ::strlen( dp->d_name ),
-                    sz         = ( pstart ? dlen : i + dlen );
-          if ( i + dlen + 2 < sizeof( path2 ) &&
+                    comp_sz;
+          if ( no_directory ) {
+            if ( is_base_path ) {
+              completion = &path2[ path_sz ];
+              comp_sz    = dlen;
+            }
+            else {
+              completion = &path2[ base_sz ];
+              comp_sz    = ( path_sz - base_sz ) + dlen;
+            }
+          }
+          else {
+            completion = path2;
+            comp_sz    = path_sz + dlen;
+          }
+          if ( path_sz + dlen + 2 < sizeof( path2 ) &&
                j + dlen + 2 < sizeof( path3 ) ) {
-            ::strcpy( &path2[ i ], dp->d_name );
+            ::strcpy( &path2[ path_sz ], dp->d_name );
             /* resolve sym links and/or get st_mode */
-            if ( d_type == DT_LNK || comp_type == 'e' ) {
+            if ( is_link || comp_type == 'e' ) {
               if ( dirpath == path3 )
                 ::strcpy( &path3[ j ], dp->d_name );
               if ( stat( dirpath, &s ) == 0 ) {
@@ -451,11 +533,23 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
               }
             }
             /* any file complete */
-            if ( comp_type == 'f' || comp_type == 0 ) {
-              if ( dp->d_name[ 0 ] != '.' || is_dot ) {
-                if ( d_type == DT_DIR )
-                  p[ sz++ ] = '/';
-                lc_add_completion( state, comp_type, p, sz );
+            if ( comp_type == 'f' || comp_type == 's' || comp_type == 0 ) {
+              bool is_dd = is_dotdir( dp->d_name, dlen ); /* . or .. */
+              if ( ! is_dd || ( dlen > 1 && is_dot ) /* allow .. */) {
+                if ( d_type == DT_DIR ) {
+                  if ( comp_type == 's' && ! is_link && ! is_dd ) {
+                    size_t sz = 0;
+                    if ( no_directory ) {
+                      if ( is_base_path )
+                        sz = path_sz;
+                      else
+                        sz = base_sz;
+                    }
+                    path_stack.push( path2, path_sz + dlen, sz );
+                  }
+                  completion[ comp_sz++ ] = '/';
+                }
+                lc_add_completion( state, comp_type, completion, comp_sz );
                 cnt++;
               }
             }
@@ -463,15 +557,15 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
               if ( ( d_type == DT_REG && ( st_mode & 0111 ) != 0 ) ||
                    d_type == DT_DIR ) {
                 if ( d_type == DT_DIR )
-                  p[ sz++ ] = '/';
-                lc_add_completion( state, comp_type, p, sz );
+                  completion[ comp_sz++ ] = '/';
+                lc_add_completion( state, comp_type, completion, comp_sz );
                 cnt++;
               }
             }
             else if ( comp_type == 'd' ) { /* dir complete */
               if ( d_type == DT_DIR ) {
-                p[ sz++ ] = '/';
-                lc_add_completion( state, comp_type, p, sz );
+                completion[ comp_sz++ ] = '/';
+                lc_add_completion( state, comp_type, completion, comp_sz );
                 cnt++;
               }
             }

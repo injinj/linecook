@@ -269,6 +269,45 @@ LineSave::find_prefix( const LineSaveBuf &lsb,  size_t off, const char32_t *str,
   return match_off;
 }
 
+bool
+LineSave::filter_substr( LineSaveBuf &lsb,  const char32_t *str,  size_t len )
+{
+  LineSaveBuf      lsb2;
+  const char32_t * line;
+  size_t           off,
+                   next_off,
+                   sz = 0;
+
+  for ( off = lsb.first; off > 0; ) {
+    next_off = LineSave::find_substr( lsb, off, str, len, -1 );
+    if ( next_off == 0 )
+      break;
+    const LineSave & ls = LineSave::line_const( lsb, next_off );
+    sz += LineSave::size( ls.edited_len );
+    off = ls.next_off;
+  }
+
+  ::memset( &lsb2, 0, sizeof( lsb2 ) );
+  lsb2.buflen = sz;
+  lsb2.buf = (char32_t *) ::malloc( sz * sizeof( char32_t ) );
+  if ( lsb2.buf == NULL )
+    return false;
+
+  for ( off = lsb.first; off > 0; ) {
+    next_off = LineSave::find_substr( lsb, off, str, len, -1 );
+    if ( next_off == 0 )
+      break;
+    const LineSave & ls = LineSave::line_const( lsb, next_off );
+    line = &lsb.buf[ ls.line_off ];
+    LineSave::make( lsb2, line, ls.edited_len, ls.cursor_off, ++lsb2.cnt );
+    off = ls.next_off;
+  }
+  ::free( lsb.buf );
+  ::memcpy( &lsb, &lsb2, sizeof( lsb2 ) );
+  lsb.off = lsb.max;
+  return true;
+}
+
 size_t
 LineSave::scan( const LineSaveBuf &lsb,  size_t i )
 {

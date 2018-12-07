@@ -532,11 +532,12 @@ State::dispatch( void )
     case ACTION_MATCH_PAREN: /* '%' in vi cmd mode */
       if ( off < this->edited_len ) {
         size_t pos = this->match_paren( off );
-        if ( pos != off )
+        if ( pos != off ) {
           this->move_cursor( this->prompt.cols + pos );
+          break;
+        }
       }
-      else
-        this->bell();
+      this->bell();
       break;
     case ACTION_INCR_NUMBER: /* ctrl-a and ctrl-x in vi cmd mode */
     case ACTION_DECR_NUMBER: {
@@ -883,13 +884,15 @@ State::dispatch( void )
     case ACTION_SHOW_EXES:
     case ACTION_SHOW_FILES:
     case ACTION_SHOW_VARS:
+    case ACTION_SEARCH_COMPLETE:
 
       switch ( this->action ) {
-        default:                  ctype = 0;   break;
-        case ACTION_SHOW_DIRS:    ctype = 'd'; break;
-        case ACTION_SHOW_EXES:    ctype = 'e'; break;
-        case ACTION_SHOW_FILES:   ctype = 'f'; break;
-        case ACTION_SHOW_VARS:    ctype = 'v'; break;
+        default:                     ctype = 0;   break;
+        case ACTION_SHOW_DIRS:       ctype = 'd'; break;
+        case ACTION_SHOW_EXES:       ctype = 'e'; break;
+        case ACTION_SHOW_FILES:      ctype = 'f'; break;
+        case ACTION_SHOW_VARS:       ctype = 'v'; break;
+        case ACTION_SEARCH_COMPLETE: ctype = 's'; break;
       }
       /* complete a term under the cursor */
       if ( this->is_vi_command_mode() )
@@ -906,6 +909,8 @@ State::dispatch( void )
             this->show_completion_index();
             this->output_show();
           }
+          else
+            this->bell();
         }
       }
       break;

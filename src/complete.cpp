@@ -145,22 +145,51 @@ matched_quotes_fwd:;
 
   LineSave::reset( this->comp ); /* reset any completions */
   this->completion8( coff, replace_len, ctype );
-  LineSave::sort( this->comp );
-  /* pull out the lines that match the prefix */
-  start_off = LineSave::find_prefix( this->comp, this->comp.first,
-                                     &this->line[ coff ], replace_len,
-                                     match_len, match_cnt );
-  if ( start_off != 0 ) {
-      if ( match_cnt > 1 ) {
-      LineSave &first = LineSave::line( this->comp, start_off );
-      /* set the bounds of the prefix match */
-      size_t to_off = LineSave::find( this->comp, start_off,
-                                      first.index + match_cnt - 1 );
-      LineSave::shrink_range( this->comp, start_off, to_off );
-      this->comp.off = this->comp.first;
+  if ( ctype == 's' ) {
+    if ( replace_len > 0 ) {
+      size_t i = coff + replace_len;
+      for (;;) {
+        if ( this->line[ i - 1 ] == '/' )
+          break;
+        if ( --i == coff )
+          break;
+      }
+      LineSave::filter_substr( this->comp, &this->line[ i ],
+                               replace_len - ( i - coff ) );
+    }
+    if ( this->comp.cnt > 1 )
+      LineSave::sort( this->comp );
+    this->comp.off = this->comp.first;
+    if ( this->comp.cnt == 1 ) {
+      const LineSave &ls = LineSave::line_const( this->comp, this->comp.first );
+      start_off = this->comp.first;
+      match_len = ls.edited_len;
+      match_cnt = 1;
     }
     else {
-      this->comp.off = start_off;
+      start_off = 0;
+      match_len = 0;
+      match_cnt = 0;
+    }
+  }
+  else {
+    LineSave::sort( this->comp );
+    /* pull out the lines that match the prefix */
+    start_off = LineSave::find_prefix( this->comp, this->comp.first,
+                                       &this->line[ coff ], replace_len,
+                                       match_len, match_cnt );
+    if ( start_off != 0 ) {
+      if ( match_cnt > 1 ) {
+        LineSave &first = LineSave::line( this->comp, start_off );
+        /* set the bounds of the prefix match */
+        size_t to_off = LineSave::find( this->comp, start_off,
+                                        first.index + match_cnt - 1 );
+        LineSave::shrink_range( this->comp, start_off, to_off );
+        this->comp.off = this->comp.first;
+      }
+      else {
+        this->comp.off = start_off;
+      }
     }
   }
   /* start_off is the completion index that the first prefix matches */

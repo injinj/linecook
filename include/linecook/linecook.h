@@ -512,6 +512,8 @@ struct LineSave {
   static size_t find_prefix( const LineSaveBuf &lsb,  size_t off,
                              const char32_t *str,  size_t len,
                              size_t &prefix_len,  size_t &match_cnt );
+  static bool filter_substr( LineSaveBuf &lsb,  const char32_t *str,
+                             size_t len );
   /* Return the offset of idx when not in sorted order */
   static size_t scan( const LineSaveBuf &lsb,  size_t i );
   /* Debug check the fwd & bck links */

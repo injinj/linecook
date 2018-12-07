@@ -39,8 +39,9 @@ typedef enum KeyAction_e { /* current storage of this is uint8_t, 255 max */
   ACTION_SEARCH_NEXT        , /* 'n' (vi)  */
   ACTION_SEARCH_NEXT_REV    , /* 'N' (vi)  */
   ACTION_SEARCH_REVERSE     , /* '?' (vi)  */
-  ACTION_SEARCH_INLINE      , /* ctrl-s */
-  ACTION_HISTORY_COMPLETE   , /* alt-p */
+  ACTION_SEARCH_INLINE      , /* mata-s */
+  ACTION_HISTORY_COMPLETE   , /* meta-p */
+  ACTION_SEARCH_COMPLETE    , /* meta-/ */
   ACTION_CANCEL_SEARCH      , /* esc */
   ACTION_TRANSPOSE          , /* ctrl-t */
   ACTION_TRANSPOSE_WORDS    , /* meta-t */
@@ -214,7 +215,7 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   META_P            , /* complete using history */
                   META_O            , /* unused */
                   META_R            , /* repeat last action */
-                  META_S            , /* unused */
+                  META_S            , /* search inline */
                   META_T            , /* transpose words */
                   META_U            , /* uppercase word */
                   META_V            , /* unused */
@@ -223,6 +224,7 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   META_Y            , /* redo */
                   META_Z            , /* unused */
                   META_DOT          , /* yank last arg in history */
+                  META_SLASH        , /* search complete */
                   META_LT           , /* goto first hist entry */
                   META_GT           , /* goto last hist entry */
                   META__            , /* yank last arg */
@@ -233,7 +235,7 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   META_CTRL_E       , /* complete exes */
                   META_CTRL_F       , /* complete files */
                   META_CTRL_H       , /* show history */
-                  META_CTRL_I       , /* unused */
+                  META_TAB          , /* window system uses */
                   META_CTRL_J       , /* unused */
                   META_CTRL_K       , /* show keybindings */
                   META_CTRL_L       , /* clear show */

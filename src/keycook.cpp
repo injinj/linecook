@@ -390,6 +390,7 @@ lc_action_to_name( KeyAction action )
     case ACTION_SEARCH_REVERSE:      return "search_reverse";
     case ACTION_SEARCH_INLINE:       return "search_inline";
     case ACTION_HISTORY_COMPLETE:    return "history_complete";
+    case ACTION_SEARCH_COMPLETE:     return "search_complete";
     case ACTION_CANCEL_SEARCH:       return "cancel_search";
     case ACTION_TRANSPOSE:           return "transpose";
     case ACTION_TRANSPOSE_WORDS:     return "transpose_words";
@@ -504,6 +505,7 @@ lc_action_to_descr( KeyAction action )
     case ACTION_SEARCH_REVERSE:      return "Search history from start";
     case ACTION_SEARCH_INLINE:       return "Insert history search at cursor";
     case ACTION_HISTORY_COMPLETE:    return "Search hist using word at cursor";
+    case ACTION_SEARCH_COMPLETE:     return "Search dir tree using substring";
     case ACTION_CANCEL_SEARCH:       return "Cancel history search";
     case ACTION_TRANSPOSE:           return "Transpose two chars at cursor";
     case ACTION_TRANSPOSE_WORDS:     return "Transpose two words at cursor";
@@ -650,6 +652,7 @@ KeyCode    KEY_CTRL_A        = {   1 }, /* unused are commented */
            META_Y            = {  27, 'y' },
            META_Z            = {  27, 'z' }, /* unused */
            META_DOT          = {  27, '.' },
+           META_SLASH        = {  27, '/' },
            META_LT           = {  27, '<' },
            META_GT           = {  27, '>' },
            META__            = {  27, '_' },
@@ -660,7 +663,7 @@ KeyCode    KEY_CTRL_A        = {   1 }, /* unused are commented */
            META_CTRL_E       = {  27,  5  },
            META_CTRL_F       = {  27,  6  },
            META_CTRL_H       = {  27,  8  },
-           META_CTRL_I       = {  27,  9  }, /* unused */
+           META_TAB          = {  27,  9  }, /* window system uses */
            META_CTRL_J       = {  27, 10  },
            META_CTRL_K       = {  27, 11  },
            META_CTRL_L       = {  27, 12  },
@@ -774,6 +777,7 @@ KeyRecipe lc_default_key_recipe[] = {
 { META_DOT        , ACTION_YANK_LAST_ARG   , EVILS_MODE      , 0 },
 { META__          , ACTION_YANK_LAST_ARG   , EVILS_MODE      , 0 },
 { META_CTRL_Y     , ACTION_YANK_NTH_ARG    , EVILS_MODE      , 0 },
+{ META_SLASH      , ACTION_SEARCH_COMPLETE , EVIL_MODE       , 0 },
 { ARROW_LEFT      , ACTION_GO_LEFT         , MOVE_MODE       , 0 },
 { ARROW_RIGHT     , ACTION_GO_RIGHT        , MOVE_MODE       , 0 },
 { ARROW_LEFT2     , ACTION_GO_LEFT         , MOVE_MODE       , 0 },

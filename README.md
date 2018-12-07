@@ -333,6 +333,7 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | meta-. | yank_last_arg | EICS | Yank last argument |
 | meta-_ | yank_last_arg | EICS | Yank last argument |
 | meta-ctrl-y | yank_nth_arg | EICS | Yank Nth argument |
+| meta-/ | search_complete | EIC | Search dir tree using substring |
 | arrow-left | go_left | EICSV | Goto char before cursor |
 | arrow-right | go_right | EICSV | Goto char after cursor |
 | arrow-left-vt | go_left | EICSV | Goto char before cursor |
