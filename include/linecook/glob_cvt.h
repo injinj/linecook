@@ -79,6 +79,10 @@ struct GlobCvt {
           else if ( pattern[ k ] == '?' ) {
             this->char_out( '.' );
           }
+          else if ( pattern[ k ] == '.' ) {
+            this->char_out( '\\' );
+            this->char_out( '.' );
+          }
           else {
             if ( pattern[ k ] == '[' )
               inside_bracket = true;
