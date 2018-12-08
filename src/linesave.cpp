@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <linecook/linecook.h>
+#include <linecook/glob_cvt.h>
 #define PCRE2_CODE_UNIT_WIDTH 32
 #include <pcre2.h>
 
@@ -318,22 +319,29 @@ LineSave::filter_glob( LineSaveBuf &lsb,  const char32_t *pattern,
   pcre2_real_match_data_32 * md = NULL; /* pcre match context  */
   LineSaveBuf      lsb2;
   const char32_t * line;
-  char32_t         buf[ 1024 ],
-                 * bf = buf;
+  char32_t         buf[ 1024 ];
   size_t           erroff,
-                   blen = sizeof( buf );
+                   blen;
   int              rc,
                    error;
   size_t           off,
                    sz = 0;
   bool             res;
-
+#if 0
+  /* convert not available on centos 7 */
+  char32_t * bf = buf;
+  blen = sizeof( buf );
   rc = pcre2_pattern_convert( (PCRE2_SPTR32) pattern, patlen,
                               PCRE2_CONVERT_GLOB_NO_WILD_SEPARATOR,
                               (PCRE2_UCHAR32 **) &bf, &blen, 0 );
+#else
+  GlobCvt<char32_t> cvt( buf, sizeof( buf ) );
+  rc = cvt.convert_glob( pattern, patlen );
+  blen = cvt.off;
+#endif
   if ( rc != 0 )
     return false;
-  re = pcre2_compile( (PCRE2_UCHAR32 *) bf, blen, 0, &error, &erroff, 0 );
+  re = pcre2_compile( (PCRE2_UCHAR32 *) buf, blen, 0, &error, &erroff, 0 );
   if ( re == NULL )
     return false;
   md = pcre2_match_data_create_from_pattern( re, NULL );

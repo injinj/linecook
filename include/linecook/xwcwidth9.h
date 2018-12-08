@@ -1,5 +1,5 @@
-#ifndef __xwcwidth9_h__
-#define __xwcwidth9_h__
+#ifndef __linecook__xwcwidth9_h__
+#define __linecook__xwcwidth9_h__
 
 #include <uchar.h>
 

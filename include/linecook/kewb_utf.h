@@ -7,8 +7,8 @@
 //  Copyright (c) 2018 Bob Steagall and KEWB Computing, All Rights Reserved
 //==================================================================================================
 */
-#ifndef __kewb_utf_h__
-#define __kewb_utf_h__
+#ifndef __linecook__kewb_utf_h__
+#define __linecook__kewb_utf_h__
 
 #include <stdint.h>
 #include <uchar.h>

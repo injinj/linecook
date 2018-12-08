@@ -1,5 +1,5 @@
-#ifndef __linecook_h__
-#define __linecook_h__
+#ifndef __linecook__linecook_h__
+#define __linecook__linecook_h__
 
 #include <linecook/kewb_utf.h>
 #include <time.h>

@@ -1,5 +1,5 @@
-#ifndef __ttycook_h__
-#define __ttycook_h__
+#ifndef __linecook__ttycook_h__
+#define __linecook__ttycook_h__
 
 #ifdef __cplusplus
 extern "C" {

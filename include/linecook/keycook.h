@@ -1,5 +1,5 @@
-#ifndef __keycook_h__
-#define __keycook_h__
+#ifndef __linecook__keycook_h__
+#define __linecook__keycook_h__
 
 #ifdef __cplusplus
 extern "C" {
