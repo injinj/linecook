@@ -54,6 +54,7 @@ includes    := $(INCLUDES)
 DEFINES     ?=
 defines     := $(DEFINES)
 cpp_lnk     :=
+lnk_lib     := -lpcre2-32
 
 .PHONY: everything
 everything: all
@@ -74,6 +75,7 @@ liblinecook_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(liblinecook_files))
 liblinecook_dbjs  := $(addprefix $(objd)/, $(addsuffix .fpic.o, $(liblinecook_files)))
 liblinecook_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(liblinecook_files))) \
                      $(addprefix $(dependd)/, $(addsuffix .fpic.d, $(liblinecook_files)))
+liblinecook_dlnk  := $(lnk_lib)
 liblinecook_spec  := $(version)-$(build_num)
 liblinecook_ver   := $(major_num).$(minor_num)
 
@@ -88,7 +90,7 @@ lc_example_files := example
 lc_example_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(lc_example_files)))
 lc_example_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_example_files)))
 lc_example_libs  := $(libd)/liblinecook.so
-lc_example_lnk   := -L$(libd) -llinecook
+lc_example_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/lc_example: $(lc_example_objs) $(lc_example_libs)
 
@@ -96,7 +98,7 @@ simple_files := simple
 simple_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(simple_files)))
 simple_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(simple_files)))
 simple_libs  := $(libd)/liblinecook.a
-simple_lnk   := $(simple_libs)
+simple_lnk   := $(simple_libs) $(lnk_lib)
 
 $(bind)/simple: $(simple_objs) $(simple_libs)
 
@@ -104,7 +106,7 @@ print_keys_files := print_keys
 print_keys_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(print_keys_files)))
 print_keys_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(print_keys_files)))
 print_keys_libs  := $(libd)/liblinecook.a
-print_keys_lnk   := $(print_keys_libs)
+print_keys_lnk   := $(print_keys_libs) $(lnk_lib)
 
 $(bind)/print_keys: $(print_keys_objs) $(print_keys_libs)
 

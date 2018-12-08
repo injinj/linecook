@@ -52,8 +52,11 @@ State::quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len )
 bool
 State::tab_complete( int ctype,  bool reverse )
 {
-  if ( this->show_mode != SHOW_COMPLETION )
+  if ( this->show_mode != SHOW_COMPLETION ) {
+    if ( reverse && ctype == 0 )
+      ctype = 's';
     return this->tab_first_completion( ctype );
+  }
   return this->tab_next_completion( ctype, reverse );
 }
 
@@ -100,13 +103,15 @@ State::reset_complete( void )
 bool
 State::tab_first_completion( int ctype )
 {
-  size_t start_off,
+  const char32_t * pattern;
+  size_t patlen,
          off  = this->cursor_pos - this->prompt.cols, /* offset into line[] */
          coff,
          cend,
          caft,
          replace_len,
          quote_len,
+         start_off   = 0,
          match_len   = 0,
          match_cnt   = 0;
   bool   found_match = false;
@@ -154,11 +159,18 @@ matched_quotes_fwd:;
         if ( --i == coff )
           break;
       }
-      LineSave::filter_substr( this->comp, &this->line[ i ],
-                               replace_len - ( i - coff ) );
+      pattern = &this->line[ i ];
+      patlen  = replace_len - ( i - coff );
+      for ( i = 0; i < patlen; i++ ) {
+        if ( pattern[ i ] == '*' || pattern[ i ] == '?' || pattern[ i ] == '[' )
+          break;
+      }
+      if ( i < patlen )
+        LineSave::filter_glob( this->comp, pattern, patlen );
+      else
+        LineSave::filter_substr( this->comp, pattern, patlen );
     }
-    if ( this->comp.cnt > 1 )
-      LineSave::sort( this->comp );
+    LineSave::sort( this->comp );
     this->comp.off = this->comp.first;
     if ( this->comp.cnt == 1 ) {
       const LineSave &ls = LineSave::line_const( this->comp, this->comp.first );
@@ -166,29 +178,45 @@ matched_quotes_fwd:;
       match_len = ls.edited_len;
       match_cnt = 1;
     }
-    else {
-      start_off = 0;
-      match_len = 0;
-      match_cnt = 0;
-    }
   }
   else {
+    size_t i;
+    pattern = &this->line[ coff ];
+    patlen  = replace_len;
+    for ( i = 0; i < patlen; i++ ) {
+      if ( pattern[ i ] == '*' || pattern[ i ] == '?' || pattern[ i ] == '[' )
+        break;
+    }
+    if ( i < patlen )
+      LineSave::filter_glob( this->comp, pattern, patlen );
     LineSave::sort( this->comp );
-    /* pull out the lines that match the prefix */
-    start_off = LineSave::find_prefix( this->comp, this->comp.first,
-                                       &this->line[ coff ], replace_len,
-                                       match_len, match_cnt );
-    if ( start_off != 0 ) {
-      if ( match_cnt > 1 ) {
-        LineSave &first = LineSave::line( this->comp, start_off );
-        /* set the bounds of the prefix match */
-        size_t to_off = LineSave::find( this->comp, start_off,
-                                        first.index + match_cnt - 1 );
-        LineSave::shrink_range( this->comp, start_off, to_off );
-        this->comp.off = this->comp.first;
+    if ( i < patlen ) {
+      this->comp.off = this->comp.first;
+      if ( this->comp.cnt == 1 ) {
+        const LineSave &ls = LineSave::line_const( this->comp,
+                                                   this->comp.first );
+        start_off = this->comp.first;
+        match_len = ls.edited_len;
+        match_cnt = 1;
       }
-      else {
-        this->comp.off = start_off;
+    }
+    else {
+      /* pull out the lines that match the prefix */
+      start_off = LineSave::find_prefix( this->comp, this->comp.first,
+                                         &this->line[ coff ], replace_len,
+                                         match_len, match_cnt );
+      if ( start_off != 0 ) {
+        if ( match_cnt > 1 ) {
+          LineSave &first = LineSave::line( this->comp, start_off );
+          /* set the bounds of the prefix match */
+          size_t to_off = LineSave::find( this->comp, start_off,
+                                          first.index + match_cnt - 1 );
+          LineSave::shrink_range( this->comp, start_off, to_off );
+          this->comp.off = this->comp.first;
+        }
+        else {
+          this->comp.off = start_off;
+        }
       }
     }
   }

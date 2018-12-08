@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <linecook/linecook.h>
+#define PCRE2_CODE_UNIT_WIDTH 32
+#include <pcre2.h>
 
 using namespace linecook;
 
@@ -306,6 +308,72 @@ LineSave::filter_substr( LineSaveBuf &lsb,  const char32_t *str,  size_t len )
   ::memcpy( &lsb, &lsb2, sizeof( lsb2 ) );
   lsb.off = lsb.max;
   return true;
+}
+
+bool
+LineSave::filter_glob( LineSaveBuf &lsb,  const char32_t *pattern,
+                       size_t patlen )
+{
+  pcre2_real_code_32       * re = NULL; /* pcre regex compiled */
+  pcre2_real_match_data_32 * md = NULL; /* pcre match context  */
+  LineSaveBuf      lsb2;
+  const char32_t * line;
+  char32_t         buf[ 1024 ],
+                 * bf = buf;
+  size_t           erroff,
+                   blen = sizeof( buf );
+  int              rc,
+                   error;
+  size_t           off,
+                   sz = 0;
+  bool             res;
+
+  rc = pcre2_pattern_convert( (PCRE2_SPTR32) pattern, patlen,
+                              PCRE2_CONVERT_GLOB_NO_WILD_SEPARATOR,
+                              (PCRE2_UCHAR32 **) &bf, &blen, 0 );
+  if ( rc != 0 )
+    return false;
+  re = pcre2_compile( (PCRE2_UCHAR32 *) bf, blen, 0, &error, &erroff, 0 );
+  if ( re == NULL )
+    return false;
+  md = pcre2_match_data_create_from_pattern( re, NULL );
+  if ( md == NULL ) {
+    pcre2_code_free( re );
+    return false;
+  }
+
+  for ( off = lsb.first; off > 0; ) {
+    const LineSave & ls = LineSave::line_const( lsb, off );
+    line = &lsb.buf[ ls.line_off ];
+    rc = pcre2_match( re, (PCRE2_SPTR32) line, ls.edited_len, 0, 0, md, 0 );
+    if ( rc > 0 )
+      sz += LineSave::size( ls.edited_len );
+    off = ls.next_off;
+  }
+
+  ::memset( &lsb2, 0, sizeof( lsb2 ) );
+  lsb2.buflen = sz;
+  lsb2.buf = (char32_t *) ::malloc( sz * sizeof( char32_t ) );
+  if ( lsb2.buf == NULL ) {
+    res = false;
+  }
+  else {
+    for ( off = lsb.first; off > 0; ) {
+      const LineSave & ls = LineSave::line_const( lsb, off );
+      line = &lsb.buf[ ls.line_off ];
+      rc = pcre2_match( re, (PCRE2_SPTR32) line, ls.edited_len, 0, 0, md, 0 );
+      if ( rc > 0 )
+        LineSave::make( lsb2, line, ls.edited_len, ls.cursor_off, ++lsb2.cnt );
+      off = ls.next_off;
+    }
+    ::free( lsb.buf );
+    ::memcpy( &lsb, &lsb2, sizeof( lsb2 ) );
+    lsb.off = lsb.max;
+    res = true;
+  }
+  pcre2_match_data_free( md );
+  pcre2_code_free( re );
+  return res;
 }
 
 size_t

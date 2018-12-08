@@ -8,9 +8,11 @@ License:	BSD
 URL:		https://github.com/injinj/%{name}
 Source0:	%{name}-%{version}-99999.tar.gz
 BuildRoot:	${_tmppath}
+Prefix:	        /usr
 BuildRequires:  gcc-c++
 BuildRequires:  chrpath
-Prefix:	        /usr
+BuildRequires:  pcre2-devel
+Requires:       pcre2
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
 
