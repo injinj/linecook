@@ -288,10 +288,10 @@ struct CompletePathStack {
     p->path[ len ] = '\0';
     if ( this->tl != NULL )
       this->tl->next = p;
-    else {
+    else
       this->hd = p;
+    if ( this->idx == NULL )
       this->idx = p;
-    }
     this->tl = p;
   }
   const char *pop( size_t &sz ) {
@@ -299,6 +299,11 @@ struct CompletePathStack {
       return NULL;
     const char * path = this->idx->path;
     sz = this->idx->base_sz;
+    if ( this->hd != this->idx ) { /* idx in use, but el before is free */
+      Path * next = this->hd->next;
+      ::free( this->hd );
+      this->hd = next;
+    }
     this->idx = this->idx->next;
     return path;
   }
