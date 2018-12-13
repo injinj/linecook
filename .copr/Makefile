@@ -20,12 +20,12 @@ $(outdir)/$(name)-$(version)-$(release).src.rpm: rpmbuild/SOURCES/$(name_ver).ta
 	mkdir -p $(outdir)
 	rpmbuild -D'_srcrpmdir $(outdir)' -D'_sourcedir rpmbuild/SOURCES' -bs rpmbuild/SPECS/$(name).spec
 
-rpmbuild/SOURCES/$(name)-$(ver_build).tar.gz:
+rpmbuild/SOURCES/$(name_ver).tar.gz:
 	mkdir -p rpmbuild/RPMS rpmbuild/SRPMS rpmbuild/BUILD rpmbuild/SOURCES rpmbuild/SPECS
 	sed -e "s/99999/${build_num}/" \
 	    -e "s/999.999/${version}/" \
 	    -e "s/__DATE__/${date}/" < rpm/$(name).spec > rpmbuild/SPECS/$(name).spec
 	mkdir -p $(rpm_src_dir)
 	for i in $(srctree) ; do ln -sf ../../../$$i $(rpm_src_dir) ; done
-	( cd rpmbuild/SOURCES && tar chzf $(name)-${ver_build}.tar.gz --exclude=".*.sw*" $(name)-${version} && rm -r -f $(name)-${version} )
+	( cd rpmbuild/SOURCES && tar chzf $(name_ver).tar.gz --exclude=".*.sw*" $(name)-$(version) && rm -rf $(name)-$(version) )
 
