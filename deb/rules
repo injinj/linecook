@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+
+# DH_VERBOSE = 1
+
+include /usr/share/dpkg/default.mk
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	make dist_bins

@@ -1,5 +1,7 @@
 # RPM build
 /rpmbuild
+# DEB build
+/dpkgbuild
 # Build temporaries
 /RH5_*
 /RH6_*

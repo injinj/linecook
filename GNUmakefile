@@ -20,23 +20,14 @@ ifeq (-g,$(findstring -g,$(port_extra)))
   DEBUG = true
 endif
 
-# these work as well
-# CC         = clang
-# CXX        = clang++
 CC          ?= gcc
 CXX         ?= g++
 cc          := $(CC)
 cpp         := $(CXX)
-
-#cppflags    := -fno-rtti -fno-exceptions -fsanitize=address
-cppflags    := -fno-rtti -fno-exceptions
 arch_cflags := -fno-omit-frame-pointer
-#cpplink     := $(CC) -lasan
-cpplink     := $(CC)
 gcc_wflags  := -Wall -Wextra -Werror
 fpicflags   := -fPIC
 soflag      := -shared
-rpath       := -Wl,-rpath,$(libd)
 
 ifdef DEBUG
 default_cflags := -ggdb
@@ -44,29 +35,39 @@ else
 default_cflags := -ggdb -O3
 endif
 # rpmbuild uses RPM_OPT_FLAGS
-CFLAGS ?= $(default_cflags)
+#CFLAGS ?= $(default_cflags)
 #RPM_OPT_FLAGS ?= $(default_cflags)
 #CFLAGS ?= $(RPM_OPT_FLAGS)
-cflags := $(gcc_wflags) $(CFLAGS) $(arch_cflags)
+cflags     := $(gcc_wflags) $(default_cflags) $(arch_cflags)
+INCLUDES   ?= -Iinclude
+DEFINES    ?=
+includes   := $(INCLUDES)
+defines    := $(DEFINES)
 
-INCLUDES    ?= -Iinclude
-includes    := $(INCLUDES)
-DEFINES     ?=
-defines     := $(DEFINES)
-cpp_lnk     :=
-lnk_lib     := -lpcre2-32
+cppflags   := -fno-rtti -fno-exceptions
+#cppflags  := -fno-rtti -fno-exceptions -fsanitize=address
+#cpplink   := $(CC) -lasan
+cpplink    := $(CC)
+
+rpath      := -Wl,-rpath,$(libd)
+cpp_lnk    :=
+lnk_lib    := -lpcre2-32
 
 .PHONY: everything
 everything: all
 
-# version vars
+# copr/fedora build (with version env vars)
+# copr uses this to generate a source rpm with the srpm target
 -include .copr/Makefile
+
+# debian build (debuild)
+# target for building installable deb: dist_dpkg
+-include deb/Makefile
 
 all_exes    :=
 all_libs    :=
 all_dlls    :=
 all_depends :=
-#defines     := -DLC_VER=$(ver_build)
 
 liblinecook_files := linecook dispatch history complete prompt \
                      linesave keycook lineio ttycook kewb_utf \
@@ -135,11 +136,13 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 	@echo "# depend file" > $(dependd)/depend.make
 	@cat $(all_depends) >> $(dependd)/depend.make
 
+# target used by rpmbuild, dpkgbuild
 .PHONY: dist_bins
 dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example
 	chrpath -d $(libd)/liblinecook.so
 	chrpath -d $(bind)/lc_example
 
+# target for building installable rpm
 .PHONY: dist_rpm
 dist_rpm: srpm
 	( cd rpmbuild && rpmbuild --define "-topdir `pwd`" -ba SPECS/linecook.spec )
@@ -150,6 +153,26 @@ depend: $(dependd)/depend.make
 
 # dependencies made by 'make depend'
 -include $(dependd)/depend.make
+
+ifeq ($(DESTDIR),)
+# 'sudo make install' puts things in /usr/local/lib, /usr/local/include
+install_prefix = /usr/local
+else
+# debuild uses DESTDIR to put things into debian/libdecnumber/usr
+install_prefix = $(DESTDIR)/usr
+endif
+
+install: everything
+	install -d $(install_prefix)/lib $(install_prefix)/bin $(install_prefix)/include/linecook
+	for f in $(libd)/liblinecook.* ; do \
+	if [ -h $$f ] ; then \
+	cp -a $$f $(install_prefix)/lib ; \
+	else \
+	install $$f $(install_prefix)/lib ; \
+	fi ; \
+	done
+	install $(bind)/lc_example $(install_prefix)/bin
+	install -m 644 include/linecook/*.h $(install_prefix)/include/linecook
 
 $(objd)/%.o: src/%.cpp
 	$(cpp) $(cflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@

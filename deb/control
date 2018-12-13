@@ -1,0 +1,13 @@
+Source: linecook
+Section: devel
+Priority: optional
+Maintainer: Chris Anderson <chris@raitechnology.com>
+Build-Depends: debhelper (>= 9), libpcre2-dev
+Standards-Version: 3.9.5
+Homepage: https://www.github.com/injinj/linecook
+
+Package: linecook
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Library for command line editing
+ Simple and embeddable, C library for command line editing.
