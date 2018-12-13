@@ -35,10 +35,13 @@ else
 default_cflags := -ggdb -O3
 endif
 # rpmbuild uses RPM_OPT_FLAGS
-#CFLAGS ?= $(default_cflags)
-#RPM_OPT_FLAGS ?= $(default_cflags)
-#CFLAGS ?= $(RPM_OPT_FLAGS)
-cflags     := $(gcc_wflags) $(default_cflags) $(arch_cflags)
+ifeq ($(RPM_OPT_FLAGS),)
+CFLAGS ?= $(default_cflags)
+else
+CFLAGS ?= $(RPM_OPT_FLAGS)
+endif
+cflags := $(gcc_wflags) $(CFLAGS) $(arch_cflags)
+
 INCLUDES   ?= -Iinclude
 DEFINES    ?=
 includes   := $(INCLUDES)
@@ -132,6 +135,13 @@ clean:
 	rm -r -f $(bind) $(libd) $(objd) $(dependd)
 	if [ "$(build_dir)" != "." ] ; then rmdir $(build_dir) ; fi
 
+.PHONY: clean_dist
+clean_dist:
+	rm -rf dpkgbuild rpmbuild
+
+.PHONY: clean_all
+clean_all: clean clean_dist
+
 $(dependd)/depend.make: $(dependd) $(all_depends)
 	@echo "# depend file" > $(dependd)/depend.make
 	@cat $(all_depends) >> $(dependd)/depend.make
@@ -162,7 +172,7 @@ else
 install_prefix = $(DESTDIR)/usr
 endif
 
-install: everything
+install: dist_bins
 	install -d $(install_prefix)/lib $(install_prefix)/bin $(install_prefix)/include/linecook
 	for f in $(libd)/liblinecook.* ; do \
 	if [ -h $$f ] ; then \
