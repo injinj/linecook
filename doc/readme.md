@@ -96,13 +96,8 @@ must also be released with a GPL license.  This is the reason that
 
 ## What platforms does Linecook support?
 
-1.  Linux.  With <b>C11</b> for Unicode <b>char32_t</b> support (from 2012 --
+Linux.  With <b>C11</b> for Unicode <b>char32_t</b> support (from 2012 --
 [glibc 2.16](https://sourceware.org/ml/libc-alpha/2012-06/msg00807.html))
-
-2.  ???.  It's probable that <b>OSX</b> and <b>Windows Ubuntu</b> (Windows
-Subsystem for Linux) could be supported without too much effort.  The
-<b>char32_t</b> and Unicode support within <b>glibc</b> is about 6 years old.
-<b>RHEL7</b> does have it, but the base of <b>RHEL6</b> does not.
 
 ## What features does Linecook have?
 
@@ -196,7 +191,17 @@ Fonts](https://github.com/ryanoasis/nerd-fonts) also support Emoji codes.
 
 ## How do you build/install Linecook?
 
-Type <b>make</b>.  There are no dependencies other than make and gcc or clang.
+Install these and type <b>make</b>.
+
+```console
+$ sudo dnf install make gcc-c++ chrpath pcre2-devel rpm-build
+```
+
+Or
+
+```console
+$ sudo apt-get install make g++ gcc chrpath libpcre2-dev devscripts
+```
 
 The build directory is created and populated by the build in
 OS_rel_cpu/{bin,lib64,obj,dep}.  If you wish to install it, there is an
@@ -208,11 +213,20 @@ $ make dist_rpm
 
 # Install
 
-$ sudo rpm -i rpmbuild/RPMS/x86_64/linecook-1.0.0-1.fc27.x86_64.rpm
+$ sudo rpm -i rpmbuild/RPMS/x86_64/linecook-1.1.0-14.fc27.x86_64.rpm
+```
 
-# The prefix option works, as in --prefix=/opt/rai
-# This is the result:
+For Debian style, do this instead.
 
+```console
+$ make dist_dpkg
+
+$ sudp dpkg -i dpkgbuild/linecook_1.1.0-14_amd64.deb
+```
+
+For rpms, the prefix option works, as in --prefix=/opt/rai
+
+```console
 $ sudo rpm --prefix=/opt/rai -i rpmbuild/RPMS/x86_64/linecook-1.0.0-1.fc27.x86_64.rpm
 $ rpm -ql linecook
 /opt/rai/bin/lc_example
@@ -223,22 +237,26 @@ $ rpm -ql linecook
 /opt/rai/include/linecook/ttycook.h
 /opt/rai/include/linecook/xwcwidth9.h
 /opt/rai/lib/.build-id
-/opt/rai/lib/.build-id/0d
-/opt/rai/lib/.build-id/0d/7458b062758732f4d90a3c569a8d3a419f1a21
-/opt/rai/lib/.build-id/d5
-/opt/rai/lib/.build-id/d5/5abbbb5b6946a5ab1fe4982841d52f7c2999e4
+/opt/rai/lib/.build-id/4f
+/opt/rai/lib/.build-id/4f/1519b3809a3afdfbdeceb9badceb3e3620afcb
+/opt/rai/lib/.build-id/62
+/opt/rai/lib/.build-id/62/20397653a6db5da601b7920be7b395ba8860d7
 /opt/rai/lib64/liblinecook.a
 /opt/rai/lib64/liblinecook.so
-/opt/rai/lib64/liblinecook.so.1.0
-/opt/rai/lib64/liblinecook.so.1.0.0-1
+/opt/rai/lib64/liblinecook.so.1.1
+/opt/rai/lib64/liblinecook.so.1.1.0-14
+```
 
-# Optionally install debuginfo and debugsource for gdb
+Optionally install debuginfo and debugsource for gdb.
 
+```console
 $ sudo rpm -i rpmbuild/RPMS/x86_64/linecook-debugsource-1.0.0-1.fc27.x86_64.rpm
 $ sudo rpm -i rpmbuild/RPMS/x86_64/linecook-debuginfo-1.0.0-1.fc27.x86_64.rpm
+```
 
-# Remove the package from the system
+Removing the packages from the system.
 
+```console
 $ sudo rpm -e linecook linecook-debugsource linecook-debuginfo
 ```
 
