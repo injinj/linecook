@@ -2,9 +2,10 @@ lsb_dist     := $(shell if [ -x /usr/bin/lsb_release ] ; then lsb_release -is ; 
 lsb_dist_ver := $(shell if [ -x /usr/bin/lsb_release ] ; then lsb_release -rs | sed 's/[.].*//' ; fi)
 uname_m      := $(shell uname -m)
 
-short_dist_lc := $(patsubst CentOS,rh,$(patsubst RedHat,rh,\
-                   $(patsubst Fedora,fc,$(patsubst Ubuntu,ub,\
-                     $(patsubst Debian,deb,$(patsubst SUSE,ss,$(lsb_dist)))))))
+short_dist_lc := $(patsubst CentOS,rh,$(patsubst RedHatEnterprise,rh,\
+                   $(patsubst RedHat,rh,\
+                     $(patsubst Fedora,fc,$(patsubst Ubuntu,ub,\
+                       $(patsubst Debian,deb,$(patsubst SUSE,ss,$(lsb_dist))))))))
 short_dist    := $(shell echo $(short_dist_lc) | tr a-z A-Z)
 rpm_os        := $(short_dist_lc)$(lsb_dist_ver).$(uname_m)
 
