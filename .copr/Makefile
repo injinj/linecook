@@ -2,6 +2,7 @@ outdir ?= rpmbuild/SRPMS
 name   := linecook
 spec   := rpm/$(name).spec
 date   := $(shell date +"%a %b %d %Y")
+rpmdir := $(shell pwd)
 
 major_num   := 1
 minor_num   := 1
@@ -18,7 +19,7 @@ srpm: $(outdir)/$(name)-$(version)-$(release).src.rpm
 
 $(outdir)/$(name)-$(version)-$(release).src.rpm: rpmbuild/SOURCES/$(name_ver).tar.gz
 	mkdir -p $(outdir)
-	rpmbuild -D'_srcrpmdir $(outdir)' -D'_sourcedir rpmbuild/SOURCES' -bs rpmbuild/SPECS/$(name).spec
+	rpmbuild --root $(rpmdir) -D'_srcrpmdir $(outdir)' -D'_sourcedir rpmbuild/SOURCES' -bs rpmbuild/SPECS/$(name).spec
 
 rpmbuild/SOURCES/$(name_ver).tar.gz:
 	mkdir -p rpmbuild/RPMS rpmbuild/SRPMS rpmbuild/BUILD rpmbuild/SOURCES rpmbuild/SPECS
