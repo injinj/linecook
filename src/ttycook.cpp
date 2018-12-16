@@ -497,9 +497,9 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
         path2[ path_sz++ ] = '/';
         path2[ path_sz ] = '\0';
       }
-      dirp = opendir( dirpath );
+      dirp = ::opendir( dirpath );
       if ( dirp != NULL ) {
-        while ( (dp = readdir( dirp )) != NULL ) {
+        while ( (dp = ::readdir( dirp )) != NULL ) {
           struct stat s;
           unsigned char d_type = dp->d_type;
           bool      is_link    = ( d_type == DT_LNK );
@@ -525,10 +525,10 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                j + dlen + 2 < sizeof( path3 ) ) {
             ::strcpy( &path2[ path_sz ], dp->d_name );
             /* resolve sym links and/or get st_mode */
-            if ( is_link || comp_type == 'e' ) {
+            if ( is_link || comp_type == 'e' || d_type == 0 ) {
               if ( dirpath == path3 )
                 ::strcpy( &path3[ j ], dp->d_name );
-              if ( stat( dirpath, &s ) == 0 ) {
+              if ( ::stat( dirpath, &s ) == 0 ) {
                 switch ( s.st_mode & S_IFMT ) {
                   case S_IFDIR: d_type = DT_DIR; break;
                   case S_IFREG: d_type = DT_REG; break;
