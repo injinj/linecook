@@ -151,7 +151,8 @@ main( void )
         }
         /* otherwise, let sh do the work */
         else {
-          system( tty->line );
+          if ( system( tty->line ) != 0 )
+            perror( "system" );
         }
       }
     }
