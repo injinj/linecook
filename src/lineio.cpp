@@ -397,6 +397,68 @@ State::cursor_erase_eol( void ) /* erase from cursor to erase_len col/row */
   this->erase_len = this->edited_len;
 }
 
+void
+State::output_show_string( const char32_t *str,  size_t off,  size_t len )
+{
+  const char32_t * s;
+  size_t           slen,
+                   i = 0,
+                   j = 0;
+  if ( this->show_mode == SHOW_HISTORY && this->search_len > 0 ) {
+    s    = this->search_buf;
+    slen = this->search_len;
+    if ( off == 0 ) {
+      for ( i = 2; i < len; i++ )
+        if ( str[ off + i - 2 ] == '.' ) /* skip over <num>. [hist line] */
+          break;
+    }
+  match_substr:;
+    while ( i + slen <= len ) {
+      if ( casecmp<char32_t>( s, &str[ off + i ], slen ) == 0 ) {
+        if ( i > j )
+          this->cursor_output( &str[ off + j ], i - j );
+        this->output_str( ANSI_VISUAL_SELECT, ANSI_VISUAL_SELECT_SIZE );
+        this->cursor_output( &str[ off + i ], slen );
+        this->output_str( ANSI_NORMAL, ANSI_NORMAL_SIZE );
+        i += slen;
+        j  = i;
+      }
+      else {
+        i++;
+      }
+    }
+  }
+  else if ( this->show_mode == SHOW_COMPLETION && this->comp_len > 0 ) {
+    /* match is a prefix of the current line buf */
+    if ( this->complete_is_prefix ) {
+      size_t match_len, k = 0;
+      if ( off == 0 ) {
+        this->cursor_output( str[ 0 ] );
+        k = 1;
+      }
+      if ( len > k && off <= 1 ) {
+        match_len = min<size_t>( len - k, this->comp_len );
+        this->output_str( ANSI_VISUAL_SELECT, ANSI_VISUAL_SELECT_SIZE );
+        for ( ; i < match_len; i++ )
+          if ( this->comp_buf[ i ] != str[ i + 1 ] )
+            break;
+        this->cursor_output( &str[ 1 ], i );
+        this->output_str( ANSI_NORMAL, ANSI_NORMAL_SIZE );
+      }
+      j = i + k;
+    }
+    /* match is a substring of current line buf */
+    else if ( ! this->complete_has_glob ) {
+      s    = this->comp_buf;
+      slen = this->comp_len;
+      goto match_substr;
+    }
+    /* otherwise, is a pattern match */
+  }
+  if ( j < len )
+    this->cursor_output( &str[ off + j ], len - j );
+}
+
 size_t
 State::output_show_line( const char32_t *show_line,  size_t len )
 {
@@ -413,7 +475,7 @@ State::output_show_line( const char32_t *show_line,  size_t len )
         j -= SHOW_PAD - 1;
         while ( j > 0 && show_line[ off + j - 1 ] == ' ' )
           j--;
-        this->cursor_output( &show_line[ off ], j );
+        this->output_show_string( show_line, off, j );
         this->output( r.prompt, r.prompt_len );
         this->cursor_pos++;
         off += j + 1;
@@ -424,7 +486,7 @@ State::output_show_line( const char32_t *show_line,  size_t len )
       }
     }
   }
-  this->cursor_output( &show_line[ off ], len );
+  this->output_show_string( show_line, off, len );
   return off + len;
 }
 

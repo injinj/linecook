@@ -232,11 +232,13 @@ LineSave::find_substr( const LineSaveBuf &lsb,  size_t off,
 
 size_t
 LineSave::find_prefix( const LineSaveBuf &lsb,  size_t off, const char32_t *str,
-                       size_t len,  size_t &prefix_len,  size_t &match_cnt )
+                       size_t len,  size_t &prefix_len,  size_t &match_cnt,
+                       size_t &prefix_cnt )
 {
   size_t           match_off  = 0;
   const char32_t * match_line = NULL;
   match_cnt = 0;
+  prefix_cnt = 0;
   for ( prefix_len = 0; off > 0; ) {
     const LineSave & ls = LineSave::line_const( lsb, off );
     const char32_t * line = &lsb.buf[ ls.line_off ];
@@ -246,7 +248,11 @@ LineSave::find_prefix( const LineSaveBuf &lsb,  size_t off, const char32_t *str,
            casecmp<char32_t>( str[ i ], line[ i ] ) != 0 ) {
         if ( i > prefix_len ) {
           prefix_len = i; /* partial match of str, but not all */
+          prefix_cnt = 1;
           match_off  = off;
+        }
+        else if ( i > 0 && i == prefix_len ) {
+          prefix_cnt++;
         }
         goto not_matched;
       }
@@ -336,7 +342,18 @@ LineSave::filter_glob( LineSaveBuf &lsb,  const char32_t *pattern,
                               (PCRE2_UCHAR32 **) &bf, &blen, 0 );
 #else
   GlobCvt<char32_t> cvt( buf, sizeof( buf ) );
-  rc = cvt.convert_glob( pattern, patlen );
+  bool implicit_anchor = false;
+  for ( off = 0; off < patlen; off++ ) {
+    if ( pattern[ off ] == '/' ) { /* if dir is matched, anchor it */
+      implicit_anchor = true;
+      break;
+    }
+    /* if pattern without dir, don't anchor it */
+    if ( pattern[ off ] == '*' || pattern[ off ] == '[' ||
+         pattern[ off ] == '?' )
+      break;
+  }
+  rc = cvt.convert_glob( pattern, patlen, implicit_anchor );
   blen = cvt.off;
 #endif
   if ( rc != 0 )

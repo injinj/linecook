@@ -332,6 +332,7 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | meta-ctrl-] (k) | find_prev_char | EICSV | Scan back in line for char match |
 | ctrl-_ | undo | EIS | Undo last edit |
 | (other key) | insert_char | EIS | Insert character |
+| meta-a | goto_top | EICS | Goto top of current page |
 | meta-b | goto_prev_word | EICSV | Goto word before cursor (emacs) |
 | meta-c | capitalize_word | EICS | Capitalize word at cursor |
 | meta-d | erase_next_word | EICS | Erase word after cursor (emacs) |
@@ -348,6 +349,7 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | meta-t | transpose_words | EICS | Transpose two words at cursor |
 | meta-u | uppercase_word | EICS | Uppercase word at cursor |
 | meta-y | yank_pop | EICS | Yank next item in yank stack |
+| meta-z | goto_bottom | EICS | Goto bottom of current page |
 | meta-. | yank_last_arg | EICS | Yank last argument |
 | meta-_ | yank_last_arg | EICS | Yank last argument |
 | meta-ctrl-y | yank_nth_arg | EICS | Yank Nth argument |
@@ -372,6 +374,8 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | meta-> | goto_last_entry | EICS | Goto last entry of show / history |
 | page-up | show_prev_page | EICS | Page up, show buf or history |
 | page-down | show_next_page | EICS | Page down, show buf or history |
+| meta-( | decr_show | EICSV | Decrement show size |
+| meta-) | incr_show | EICSV | Increment show size |
 | a | vi_append | C | Go to vi insert mode after cursor |
 | A | vi_append_eol | C | Go to vi insert mode at line end |
 | b | vi_goto_prev_word | CV | Goto word before cursor (vi) |

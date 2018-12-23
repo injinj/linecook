@@ -112,6 +112,8 @@ typedef enum KeyAction_e { /* current storage of this is uint8_t, 255 max */
   ACTION_GOTO_TOP           , /* 'H' */
   ACTION_GOTO_MIDDLE        , /* 'M' */
   ACTION_GOTO_BOTTOM        , /* 'L' */
+  ACTION_DECR_SHOW          , /* meta-( */
+  ACTION_INCR_SHOW          , /* meta-) */
   ACTION_BELL               , /* function not assigned */
   ACTION_PUTBACK              /* function not matched, interpet char */
 } KeyAction;
@@ -199,7 +201,7 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   META_8            ,
                   META_9            ,
                   META_MINUS        ,
-                  META_A            , /* unused */
+                  META_A            , /* goto top show entry */
                   META_B            , /* goto previous word */
                   META_C            , /* capitalize word */
                   META_D            , /* erase next word */
@@ -222,11 +224,13 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   META_W            , /* unused */
                   META_X            , /* unused */
                   META_Y            , /* redo */
-                  META_Z            , /* unused */
+                  META_Z            , /* goto bottom show entry */
                   META_DOT          , /* yank last arg in history */
                   META_SLASH        , /* search complete */
-                  META_LT           , /* goto first hist entry */
-                  META_GT           , /* goto last hist entry */
+                  META_LT           , /* goto first show entry */
+                  META_GT           , /* goto last show entry */
+                  META_LPAREN       , /* increase show size */
+                  META_RPAREN       , /* decrease show size */
                   META__            , /* yank last arg */
                   META_CTRL_A       , /* unused */
                   META_CTRL_B       , /* unused */

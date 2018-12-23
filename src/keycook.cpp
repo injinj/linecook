@@ -461,6 +461,8 @@ lc_action_to_name( KeyAction action )
     case ACTION_GOTO_TOP:            return "goto_top";
     case ACTION_GOTO_MIDDLE:         return "goto_middle";
     case ACTION_GOTO_BOTTOM:         return "goto_bottom";
+    case ACTION_DECR_SHOW:           return "decr_show";
+    case ACTION_INCR_SHOW:           return "incr_show";
     case ACTION_BELL:                return "bell";
     case ACTION_PUTBACK:             return "putback";
   }
@@ -576,6 +578,8 @@ lc_action_to_descr( KeyAction action )
     case ACTION_GOTO_TOP:            return "Goto top of current page";
     case ACTION_GOTO_MIDDLE:         return "Goto middle of current page";
     case ACTION_GOTO_BOTTOM:         return "Goto bottom of current page";
+    case ACTION_DECR_SHOW:           return "Decrement show size";
+    case ACTION_INCR_SHOW:           return "Increment show size";
     case ACTION_BELL:                return "Ring bell (show bell)";
     case ACTION_PUTBACK:             return "Putback char";
   }
@@ -655,6 +659,8 @@ KeyCode    KEY_CTRL_A        = {   1 }, /* unused are commented */
            META_SLASH        = {  27, '/' },
            META_LT           = {  27, '<' },
            META_GT           = {  27, '>' },
+           META_LPAREN       = {  27, '(' },
+           META_RPAREN       = {  27, ')' },
            META__            = {  27, '_' },
            META_CTRL_A       = {  27,  1  }, /* unused */
            META_CTRL_B       = {  27,  2  }, /* unused */
@@ -758,6 +764,7 @@ KeyRecipe lc_default_key_recipe[] = {
  * command mode and meta + char == <esc> + char. If a network desides to delay
  * keystrokes, this will cause insert -> command mode + char instead of meta +
  * char. */
+{ META_A          , ACTION_GOTO_TOP        , EVILS_MODE      , 0 },
 { META_B          , ACTION_GOTO_PREV_WORD  , MOVE_MODE       , 0 },
 { META_C          , ACTION_CAPITALIZE_WORD , EVILS_MODE      , OPT_UNDO_REP },
 { META_D          , ACTION_ERASE_NEXT_WORD , EVILS_MODE      , OPT_YA_UN_REP },
@@ -774,6 +781,7 @@ KeyRecipe lc_default_key_recipe[] = {
 { META_T          , ACTION_TRANSPOSE_WORDS , EVILS_MODE      , OPT_UNDO_REP },
 { META_U          , ACTION_UPPERCASE_WORD  , EVILS_MODE      , OPT_UNDO_REP },
 { META_Y          , ACTION_YANK_POP        , EVILS_MODE      , 0 },
+{ META_Z          , ACTION_GOTO_BOTTOM     , EVILS_MODE      , 0 },
 { META_DOT        , ACTION_YANK_LAST_ARG   , EVILS_MODE      , 0 },
 { META__          , ACTION_YANK_LAST_ARG   , EVILS_MODE      , 0 },
 { META_CTRL_Y     , ACTION_YANK_NTH_ARG    , EVILS_MODE      , 0 },
@@ -798,6 +806,8 @@ KeyRecipe lc_default_key_recipe[] = {
 { META_GT         , ACTION_GOTO_LAST_ENTRY , EVILS_MODE      , 0 },
 { PGUP_FUNCTION   , ACTION_SHOW_PREV_PAGE  , EVILS_MODE      , 0 },
 { PGDN_FUNCTION   , ACTION_SHOW_NEXT_PAGE  , EVILS_MODE      , 0 },
+{ META_LPAREN     , ACTION_DECR_SHOW       , MOVE_MODE       , 0 },
+{ META_RPAREN     , ACTION_INCR_SHOW       , MOVE_MODE       , 0 },
 { "a"             , ACTION_VI_APPEND       , VI_COMMAND_MODE , OPT_UNDO },
 { "A"             , ACTION_VI_APPEND_EOL   , VI_COMMAND_MODE , OPT_UNDO },
 { "b"             , ACTION_VI_GOTO_PREV_WORD,VI_MOVE_MODE    , 0 },

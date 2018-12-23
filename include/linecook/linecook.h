@@ -370,6 +370,10 @@ struct LineCook_s {
   size_t       search_len,      /* Length of search string */
                search_buflen;   /* Search buffer allocation len */
 
+  char32_t   * comp_buf;        /* Completion string */
+  size_t       comp_len,        /* Length of complete string */
+               comp_buflen;     /* Complete buffer allocation len */
+
   /* Show window data, display history, completions, or undo */
   char32_t   * show_buf;        /* Show buffer */
   size_t       show_len,        /* Amount of text in show buf */
@@ -399,14 +403,16 @@ struct LineCook_s {
   size_t       cursor_pos,      /* Current cursor position */
                cols,            /* Number of columns in terminal */
                lines,           /* Number of lines in terminal */
-               refresh_pos;     /* Pos of cursor reset until refresh */
+               refresh_pos,     /* Pos of cursor reset until refresh */
+               show_lines;
 
   /* Complete off / len */
   size_t       complete_off,    /* Offset into line where completion starts */
-               complete_len,    /* Length of completion phrase */
-               complete_tab;    /* Length of tabbed completion */
+               complete_len;    /* Length of completion phrase */
   int          complete_type;   /* Type of completion ('d', 'e', 'v', 'f') */
-  uint8_t      complete_has_quote; /* Completing a quoted phrase */
+  uint8_t      complete_has_quote, /* Completing a quoted phrase */
+               complete_has_glob,  /* Completing a glob wildcard */
+               complete_is_prefix; /* Completing a prefix */
 
   /* Visual mode highlighting */
   size_t       visual_off;      /* Offset into line where visual starts */
@@ -455,6 +461,7 @@ struct LineCook_s {
 namespace linecook {
 
 static const size_t LINE_BUF_LEN_INCR = 128; /* expands as needed */
+static const size_t LINE_BUF_BIG_INCR = 64 * 1024;
 
 /* Saved state for hist / undo / redo commands
  *                 
@@ -511,7 +518,8 @@ struct LineSave {
   /* Find the shortest prefix matching str + len */
   static size_t find_prefix( const LineSaveBuf &lsb,  size_t off,
                              const char32_t *str,  size_t len,
-                             size_t &prefix_len,  size_t &match_cnt );
+                             size_t &prefix_len,  size_t &match_cnt,
+                             size_t &prefix_cnt );
   static bool filter_substr( LineSaveBuf &lsb,  const char32_t *str,
                              size_t len );
   static bool filter_glob( LineSaveBuf &lsb,  const char32_t *str,
@@ -797,10 +805,12 @@ struct State : public LineCook_s {
   void cursor_output( char32_t c ); /* output one char, increment cursor */
   void cursor_output( const char32_t *str,  size_t len ); /* output, incr cursor */
   void cursor_erase_eol( void ); /* erase lines after cursor */
+  void output_show_string( const char32_t *str,  size_t off,  size_t len );
   size_t output_show_line( const char32_t *show_line,  size_t len );
   void output_show( void ); /* Write show buffer */
   void show_clear( void );  /* Clear show screen area */
   void show_clear_lines( size_t from_row,  size_t to_row ); /* Clear show rows*/
+  void incr_show_size( int amt );
 
   /* Output functions */
   void output( char32_t c ); /* Output functions buffer output until return */
@@ -852,7 +862,7 @@ struct State : public LineCook_s {
   size_t quote_line_length( const char32_t *buf,  size_t len );
   void quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len );
   bool tab_complete( int ctype,  bool reverse );
-  void completion8( size_t off,  size_t len,  int ctype );
+  void fill_completions( size_t off,  size_t len,  int ctype );
   void reset_complete( void );
   bool tab_first_completion( int ctype );
   bool tab_next_completion( int ctype,  bool reverse );
@@ -864,14 +874,18 @@ struct State : public LineCook_s {
 #endif
   void completion_accept( void );
   void completion_update( int delta );
-  bool completion_next( void );
-  bool completion_prev( void );
-  bool show_completion_index( void );
-  bool show_completion_prev_page( void );
-  bool show_completion_next_page( void );
+  void completion_next( void );
+  void completion_prev( void );
+  void show_completion_index( void );
+  void show_completion_prev_page( void );
+  void show_completion_next_page( void );
+  void completion_start( void );
+  void completion_end( void );
+  void completion_top( void );
+  void completion_bottom( void );
 
   /* Show commands */
-  size_t max_show_lines( void ) const { return this->lines / 2; }
+  size_t max_show_lines( void ) const { return this->show_lines; }
   size_t pgcount( LineSaveBuf &lsb ); /* How many pages in the stack */
   size_t pgnum( LineSaveBuf &lsb );   /* What page stack cnt is on */
   bool show_update( size_t old_idx,  size_t new_idx );  /* Update index ptr */
@@ -933,6 +947,10 @@ struct State : public LineCook_s {
   bool realloc_search( size_t needed ) {
     return this->search_buflen >= needed ||
            this->realloc_buf32( &this->search_buf, this->search_buflen, needed);
+  }
+  bool realloc_complete( size_t needed ) {
+    return this->comp_buflen >= needed ||
+           this->realloc_buf32( &this->comp_buf, this->comp_buflen, needed );
   }
 };
 } /* namespace  linecook */

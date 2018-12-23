@@ -31,7 +31,7 @@ State::dispatch( void )
       case ACTION_TAB_COMPLETE:
       case ACTION_TAB_REVERSE:
       case ACTION_VI_REPEAT_DIGIT:
-        break;
+      case ACTION_EMACS_ARG_DIGIT:
       case ACTION_INSERT_CHAR:
         break; /* continue action */
 
@@ -53,12 +53,24 @@ State::dispatch( void )
         this->output_show();
         return LINE_STATUS_OK;
 
-      case ACTION_GOTO_ENTRY:
-      case ACTION_GOTO_FIRST_ENTRY: /* XXX */
+      case ACTION_GOTO_FIRST_ENTRY:
+        this->completion_start();
+        return LINE_STATUS_OK;
+
       case ACTION_GOTO_LAST_ENTRY:
+        this->completion_end();
+        return LINE_STATUS_OK;
+
       case ACTION_GOTO_TOP:
-      case ACTION_GOTO_MIDDLE:
+        this->completion_top();
+        return LINE_STATUS_OK;
+
       case ACTION_GOTO_BOTTOM:
+        this->completion_bottom();
+        return LINE_STATUS_OK;
+        
+      case ACTION_GOTO_ENTRY:
+      case ACTION_GOTO_MIDDLE:
         return LINE_STATUS_OK;
 
       default:
@@ -746,7 +758,7 @@ State::dispatch( void )
       break;
 
     case ACTION_VI_REPEAT_DIGIT: /* XXX : display repeat counter? */
-      break;
+      break; /* this is handled in lineio.cpp, since '0' causes '^' action */
     case ACTION_EMACS_ARG_DIGIT:
       if ( c >= '0' && c <= '9' )
         this->emacs_arg_cnt = this->emacs_arg_cnt * 10 + ( c - '0' );

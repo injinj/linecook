@@ -61,7 +61,7 @@ State::tab_complete( int ctype,  bool reverse )
 }
 
 void
-State::completion8( size_t off,  size_t len,  int ctype )
+State::fill_completions( size_t off,  size_t len,  int ctype )
 {
   char buf[ 4 * 1024 ], * p = buf;
   size_t i = 0, j = 0, off8 = 0, len8 = 0;
@@ -84,7 +84,16 @@ State::completion8( size_t off,  size_t len,  int ctype )
     j += (size_t) n;
   }
   this->completion( p, off8, len8, ctype );
-
+  if ( this->comp.cnt > 0 ) {
+    if ( this->realloc_complete( len ) ) {
+      for ( i = 0; i < len; i++ )
+        this->comp_buf[ i ] = this->line[ off + i ];
+      this->comp_len = len;
+    }
+    else {
+      this->comp_len = 0;
+    }
+  }
 failed:
   if ( p != buf )
     ::free( p );
@@ -93,11 +102,12 @@ failed:
 void
 State::reset_complete( void )
 {
-  this->complete_off = 0;
-  this->complete_len = 0;
-  this->complete_tab = 0;
+  this->complete_off  = 0;
+  this->complete_len  = 0;
   this->complete_type = 0;
   this->complete_has_quote = false;
+  this->complete_has_glob  = false;
+  this->complete_is_prefix = false;
 }
 
 bool
@@ -113,7 +123,8 @@ State::tab_first_completion( int ctype )
          quote_len,
          start_off   = 0,
          match_len   = 0,
-         match_cnt   = 0;
+         match_cnt   = 0,
+         pref_cnt    = 0;
   bool   found_match = false;
 
   this->reset_complete();
@@ -149,7 +160,7 @@ matched_quotes_fwd:;
   replace_len = cend - coff;
 
   LineSave::reset( this->comp ); /* reset any completions */
-  this->completion8( coff, replace_len, ctype );
+  this->fill_completions( coff, replace_len, ctype );
   if ( ctype == 's' ) {
     if ( replace_len > 0 ) {
       size_t i = coff + replace_len;
@@ -165,10 +176,13 @@ matched_quotes_fwd:;
         if ( pattern[ i ] == '*' || pattern[ i ] == '?' || pattern[ i ] == '[' )
           break;
       }
-      if ( i < patlen )
+      if ( i < patlen ) {
         LineSave::filter_glob( this->comp, pattern, patlen );
-      else
+        this->complete_has_glob = true;
+      }
+      else if ( patlen > 0 ) {
         LineSave::filter_substr( this->comp, pattern, patlen );
+      }
     }
     LineSave::sort( this->comp );
     this->comp.off = this->comp.first;
@@ -187,8 +201,10 @@ matched_quotes_fwd:;
       if ( pattern[ i ] == '*' || pattern[ i ] == '?' || pattern[ i ] == '[' )
         break;
     }
-    if ( i < patlen )
+    if ( i < patlen ) {
       LineSave::filter_glob( this->comp, pattern, patlen );
+      this->complete_has_glob = true;
+    }
     LineSave::sort( this->comp );
     if ( i < patlen ) {
       this->comp.off = this->comp.first;
@@ -201,22 +217,39 @@ matched_quotes_fwd:;
       }
     }
     else {
+      bool no_match = false;
       /* pull out the lines that match the prefix */
       start_off = LineSave::find_prefix( this->comp, this->comp.first,
                                          &this->line[ coff ], replace_len,
-                                         match_len, match_cnt );
-      if ( start_off != 0 ) {
-        if ( match_cnt > 1 ) {
+                                         match_len, match_cnt, pref_cnt );
+      if ( match_cnt == 0 && pref_cnt == 0 &&
+           this->last_action != ACTION_TAB_COMPLETE ) {
+        no_match = true;
+      }
+      else {
+        if ( match_cnt != 0 )
+          pref_cnt = match_cnt;
+        if ( pref_cnt > 1 ) {
           LineSave &first = LineSave::line( this->comp, start_off );
           /* set the bounds of the prefix match */
           size_t to_off = LineSave::find( this->comp, start_off,
-                                          first.index + match_cnt - 1 );
+                                          first.index + pref_cnt - 1 );
           LineSave::shrink_range( this->comp, start_off, to_off );
+          this->complete_is_prefix = true;
           this->comp.off = this->comp.first;
         }
         else {
           this->comp.off = start_off;
         }
+      }
+      /* if double tab, show the list, otherwise show bell */
+      if ( no_match ) {
+        if ( this->last_action != ACTION_TAB_COMPLETE ) {
+          LineSave::reset( this->comp );
+          this->reset_complete();
+          return false;
+        }
+        this->comp.off = this->comp.first;
       }
     }
   }
@@ -278,30 +311,23 @@ State::tab_next_completion( int /*ctype*/,  bool reverse )
 {
   size_t old_idx = this->comp.idx;
   size_t off;
-  /* cycle through the matches */
-  if ( this->complete_tab == 0 ) {
-    if ( (this->complete_tab = this->comp.idx) == 0 ) {
-      this->complete_tab = this->comp.idx = 1;
-    }
+  if ( this->comp.idx == 0 ) {
+    this->comp.idx = 1;
+    this->comp.off = this->comp.first;
   }
   else {
     if ( reverse ) {
-      if ( this->comp.idx-- == this->complete_tab )
-        this->comp.idx = this->complete_tab + this->comp.cnt - 1;
+      if ( --this->comp.idx == 0 )
+        this->comp.idx = this->comp.cnt;
     }
     else {
-      if ( ++this->comp.idx >= this->complete_tab + this->comp.cnt )
-        this->comp.idx = this->complete_tab;
+      if ( ++this->comp.idx > this->comp.cnt )
+        this->comp.idx = 1;
     }
   }
-  do {
-    off = LineSave::find( this->comp, this->comp.off, this->comp.idx );
-    if ( off == 0 ) {
-      if ( this->comp.idx == this->complete_tab )
-        return false;
-      this->comp.idx = this->complete_tab;
-    }
-  } while ( off == 0 );
+  off = LineSave::find( this->comp, this->comp.off, this->comp.idx );
+  if ( off == 0 )
+    return false;
   /* update the line displayed with the current replacement */
   LineSave       & ls         = LineSave::line( this->comp, off );
   const char32_t * substitute = &this->comp.buf[ ls.line_off ];
@@ -374,9 +400,10 @@ State::completion_update( int delta )
     size_t len = this->complete_len + delta;
     size_t match_len = 0,
            match_cnt = 0,
+           pref_cnt  = 0,
            off;
     off = LineSave::find_prefix( this->comp, this->comp.off, buf, len,
-                                 match_len, match_cnt );
+                                 match_len, match_cnt, pref_cnt );
     if ( off == 0 || match_len < len ) {
       off = LineSave::find( this->comp, this->comp.off, this->comp.idx );
       if ( off != 0 ) {
@@ -425,18 +452,15 @@ State::completion_update( int delta )
     }
   }
   this->show_clear();
-  this->complete_off = 0;
-  this->complete_len = 0;
-  this->complete_tab = 0;
-  this->complete_type = 0;
+  this->reset_complete();
 }
 
-bool
+void
 State::completion_prev( void )
 {
   size_t old_idx = this->comp.idx;
   bool   found;
-  if ( old_idx > this->show_end )
+  if ( old_idx == 0 || old_idx < this->show_start || old_idx > this->show_end )
     this->comp.idx = this->show_end;
   else if ( old_idx > 1 )
     this->comp.idx = old_idx - 1;
@@ -445,16 +469,18 @@ State::completion_prev( void )
     this->show_completion_prev_page();
     this->output_show();
   }
-  return true;
 }
 
-bool
+void
 State::completion_next( void )
 {
   size_t old_idx = this->comp.idx;
   bool   found;
-  if ( old_idx < this->show_start )
+  if ( old_idx < this->show_start || old_idx > this->show_end ) {
     this->comp.idx = this->show_start;
+    this->comp.off = LineSave::find( this->comp, this->comp.first,
+                                     this->show_start );
+  }
   else if ( old_idx < this->comp.cnt )
     this->comp.idx = old_idx + 1;
   found = this->show_update( old_idx, this->comp.idx );
@@ -462,7 +488,46 @@ State::completion_next( void )
     this->show_completion_next_page();
     this->output_show();
   }
-  return true;
+}
+
+void
+State::completion_start( void )
+{
+  this->show_pg = this->pgcount( this->comp ) - 1;
+  this->show_lsb( SHOW_COMPLETION, this->comp );
+  this->output_show();
+}
+
+void
+State::completion_end( void )
+{
+  this->show_pg = 0;
+  this->show_lsb( SHOW_COMPLETION, this->comp );
+  this->output_show();
+}
+
+void
+State::completion_top( void )
+{
+  size_t old_idx = this->comp.idx;
+  if ( old_idx != this->show_start ) {
+    this->comp.idx = this->show_start;
+    this->comp.off = LineSave::find( this->comp, this->comp.first,
+                                     this->show_start );
+    this->show_update( old_idx, this->comp.idx );
+  }
+}
+
+void
+State::completion_bottom( void )
+{
+  size_t old_idx = this->comp.idx;
+  if ( old_idx != this->show_end ) {
+    this->comp.idx = this->show_end;
+    this->comp.off = LineSave::find( this->comp, this->comp.first,
+                                     this->show_end );
+    this->show_update( old_idx, this->comp.idx );
+  }
 }
 
 int
@@ -483,59 +548,33 @@ State::push_completion( const char32_t *buf,  size_t len )
     return;
   LineSave::make( this->comp, buf, len, 0, ++this->comp.cnt );
 }
-#if 0
-LineSave *
-State::match_completion( const char *buf,  size_t len,  size_t &match_len,
-                         size_t &match_cnt,  CompletionType t )
-{
-  size_t off, old_idx;
 
-  if ( this->show_mode != SHOW_COMPLETION ) {
-    LineSave::reset( this->comp ); /* reset any completions */
-    this->completion( buf, len, t );
-    LineSave::sort( this->comp );
-  }
-  off = LineSave::find_prefix( this->comp, this->comp.first, buf, len,
-                               match_len, match_cnt, true );
-  if ( off == 0 )
-    return NULL;
-
-  LineSave &ls = LineSave::line( this->comp, off );
-  old_idx = this->comp.idx;
-  this->comp.idx = ls.index;
-  this->comp.off = off;
-  if ( old_idx != ls.index && this->show_mode == SHOW_COMPLETION ) {
-    if ( ! this->show_update( old_idx, ls.index ) ) {
-      this->show_completion_index();
-      this->output_show();
-    }
-  }
-  return &ls;
-}
-#endif
-bool
+void
 State::show_completion_index( void )
 {
   this->show_mode = SHOW_COMPLETION;
-  this->show_pg = this->pgnum( this->comp );
-  if ( this->show_save( this->comp.idx, this->comp.idx ) )
-    return true;
-  this->show_mode = SHOW_NONE;
-  return false;
+  if ( this->comp.idx == 0 ) {
+    this->show_pg = this->pgcount( this->comp );
+    if ( this->show_pg > 0 )
+      this->show_pg--;
+  }
+  else
+    this->show_pg = this->pgnum( this->comp );
+  this->show_save( this->comp.idx, this->comp.idx );
 }
 
-bool
+void
 State::show_completion_prev_page( void )
 {
   if ( this->show_pg < this->pgcount( this->comp ) - 1 )
     this->show_pg++;
-  return this->show_lsb( SHOW_COMPLETION, this->comp );
+  this->show_lsb( SHOW_COMPLETION, this->comp );
 }
 
-bool
+void
 State::show_completion_next_page( void )
 {
   if ( this->show_pg > 0 )
     this->show_pg--;
-  return this->show_lsb( SHOW_COMPLETION, this->comp );
+  this->show_lsb( SHOW_COMPLETION, this->comp );
 }

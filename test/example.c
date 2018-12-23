@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 #include <linecook/linecook.h>
 #include <linecook/ttycook.h>
 
@@ -152,7 +153,7 @@ main( void )
         /* otherwise, let sh do the work */
         else {
           if ( system( tty->line ) != 0 )
-            perror( "system" );
+            fprintf( stderr, "system() errno = %d (%s)\n", errno, strerror( errno ) );
         }
       }
     }

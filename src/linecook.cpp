@@ -86,9 +86,10 @@ State::State( int num_cols,  int num_lines )
   static const char def_quote[] = " \t\n\\\"'@<>=;:|&#$`{}[]()";
   ::memset( this, 0, sizeof( *this ) );
   this->left_prompt_needed = true;
-  this->mode  = VI_INSERT_MODE;
-  this->cols  = num_cols;
-  this->lines = num_lines;
+  this->mode       = VI_INSERT_MODE;
+  this->cols       = num_cols;
+  this->lines      = num_lines;
+  this->show_lines = num_lines / 2;
   this->set_word_break( def_brk, sizeof( def_brk ) - 1 );
   this->set_completion_break( def_plete, sizeof( def_plete ) - 1 );
   this->set_quotables( def_quote, sizeof( def_quote ) - 1, '\"' );
@@ -107,6 +108,7 @@ State::~State()
   if ( this->keys.buf )         ::free( this->keys.buf );
   if ( this->yank.buf )         ::free( this->yank.buf );
   if ( this->search_buf )       ::free( this->search_buf );
+  if ( this->comp_buf )         ::free( this->comp_buf );
   if ( this->show_buf )         ::free( this->show_buf );
   if ( this->prompt.str )       ::free( this->prompt.str );
   if ( this->prompt.fmt )       ::free( this->prompt.fmt );
@@ -162,10 +164,14 @@ State::set_geom( int num_cols,  int num_lines )
 {
   this->error = 0;
   if ( (size_t) num_cols != this->cols || (size_t) num_lines != this->lines ) {
-    this->cols  = num_cols;
-    this->lines = num_lines;
+    double ratio = (double) this->show_lines / (double) this->lines;
+    this->cols              = num_cols;
+    this->lines             = num_lines;
+    this->show_lines        = (size_t) ( (double) num_lines * ratio );
+    if ( this->show_lines < 4 && num_lines > 5 )
+      this->show_lines = 4;
     this->prompt.flags_mask = 0;
-    this->prompt.cols -= this->prompt.pad_cols;
+    this->prompt.cols      -= this->prompt.pad_cols;
     this->prompt.pad_cols   = 0;
     this->update_prompt( true );
     if ( this->cursor_pos == 0 && this->edited_len == 0 )
@@ -513,20 +519,24 @@ State::do_get_line( void )
         this->last_repeat_recipe = this->cur_recipe;
         this->last_repeat_char   = this->cur_char;
       }
-      if ( this->action != ACTION_PENDING )
-        this->last_action = this->action;
-      this->action = this->eat_input( this->cur_char );
+      int a = this->eat_input( this->cur_char );
+      if ( a == ACTION_PENDING )
+        continue;
+      if ( a == ACTION_DECR_SHOW || a == ACTION_INCR_SHOW ) {
+        this->incr_show_size( a == ACTION_DECR_SHOW ? -1 : 1 );
+        continue;
+      }
+      this->last_action = this->action;
+      this->action = a;
       if ( this->action == ACTION_REPEAT_LAST ) {
         this->action     = this->last_repeat_action;
         this->cur_recipe = this->last_repeat_recipe;
         this->cur_char   = this->last_repeat_char;
       }
     }
-    if ( this->action != ACTION_PENDING ) {
-      status = this->dispatch();
-      if ( status != LINE_STATUS_OK )
-        break;
-    }
+    status = this->dispatch();
+    if ( status != LINE_STATUS_OK )
+      break;
   }
   return status;
 }
@@ -618,7 +628,10 @@ bool
 State::do_realloc( void *buf,  size_t &len,  size_t newlen )
 {
   void * newbuf;
-  newlen = align<size_t>( newlen, LINE_BUF_LEN_INCR );
+  if ( newlen >= LINE_BUF_BIG_INCR )
+    newlen = align<size_t>( newlen, LINE_BUF_BIG_INCR );
+  else
+    newlen = align<size_t>( newlen, LINE_BUF_LEN_INCR );
   newbuf = ::realloc( *(void **) buf, newlen );
   if ( newbuf == NULL ) {
     this->error = LINE_STATUS_ALLOC_FAIL;
@@ -660,6 +673,31 @@ State::show_clear_lines( size_t from_row,  size_t to_row )
     pos += this->cols;
   }
   this->move_cursor( save );
+}
+
+void
+State::incr_show_size( int amt )
+{
+  ShowMode m = this->show_mode;
+  if ( m != SHOW_NONE )
+    this->show_clear();
+  if ( amt < 0 ) {
+    if ( this->show_lines > 4 )
+      this->show_lines--;
+  }
+  else {
+    if ( this->show_lines + this->prompt.lines + 1 < this->lines )
+      this->show_lines++;
+  }
+  switch ( m ) {
+    case SHOW_NONE:       return;
+    case SHOW_UNDO:       this->show_undo(); break;
+    case SHOW_YANK:       this->show_yank(); break;
+    case SHOW_HISTORY:    this->show_history_index(); break;
+    case SHOW_COMPLETION: return;
+    case SHOW_KEYS:       this->show_keys(); break;
+  }
+  this->output_show();
 }
 
 void
@@ -825,7 +863,12 @@ State::pgnum( LineSaveBuf &lsb )
   if ( lsb.cnt > 0 ) {
     size_t lines_per_pg = this->max_show_lines();
     LineSave &line = LineSave::line( lsb, lsb.first );
-    return ( lsb.cnt - ( lsb.idx - line.index ) ) / lines_per_pg;
+    if ( lsb.idx >= line.index ) {
+      size_t off = 1 + lsb.idx - line.index;
+      if ( lsb.cnt >= off )
+        return ( lsb.cnt - off ) / lines_per_pg;
+    }
+    return this->pgcount( lsb );
   }
   return 0;
 }

@@ -35,7 +35,7 @@ struct GlobCvt {
     }
   }
   /* return 0 on success or -1 on failure */
-  int convert_glob( const CHAR *pattern,  size_t patlen ) {
+  int convert_glob( const CHAR *pattern,  size_t patlen,  bool anchor_start ) {
     size_t k;
     bool   inside_bracket,
            anchor_end = true;
@@ -43,7 +43,8 @@ struct GlobCvt {
     this->str_out( "(?s)", 4 ); /* match newlines */
     if ( patlen > 0 ) {
       if ( pattern[ 0 ] != '*' ) {
-        this->str_out( "\\A", 2 ); /* anchor at start */
+        if ( anchor_start )
+          this->str_out( "\\A", 2 ); /* anchor at start */
         k = 0;
       }
       else {
