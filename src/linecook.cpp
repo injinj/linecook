@@ -59,6 +59,12 @@ lc_get_line( LineCook *state )
 }
 
 int
+lc_completion_get_line( LineCook *state )
+{
+  return static_cast<linecook::State *>( state )->completion_get_line();
+}
+
+int
 lc_continue_get_line( LineCook *state )
 {
   return static_cast<linecook::State *>( state )->continue_get_line();
@@ -86,7 +92,7 @@ State::State( int num_cols,  int num_lines )
   static const char def_quote[] = " \t\n\\\"'@<>=;:|&#$`{}[]()";
   ::memset( this, 0, sizeof( *this ) );
   this->left_prompt_needed = true;
-  this->mode       = VI_INSERT_MODE;
+  this->in.mode    = VI_INSERT_MODE;
   this->cols       = num_cols;
   this->lines      = num_lines;
   this->show_lines = num_lines / 2;
@@ -99,7 +105,7 @@ State::State( int num_cols,  int num_lines )
 State::~State()
 {
   if ( this->line )             ::free( this->line );
-  if ( this->input_buf )        ::free( this->input_buf );
+  if ( this->in.input_buf )     ::free( this->in.input_buf );
   if ( this->output_buf )       ::free( this->output_buf );
   if ( this->undo.buf )         ::free( this->undo.buf );
   if ( this->hist.buf )         ::free( this->hist.buf );
@@ -132,6 +138,7 @@ State::~State()
   if ( this->mark )             ::free( this->mark );
   if ( this->cvt )              ::free( this->cvt );
   if ( this->multichar )        ::free( this->multichar );
+  this->free_recipe();
 }
 
 void
@@ -204,35 +211,30 @@ State::reset_state( void )
   LineSave::reset( this->undo );  /* clear undo buffer */
 
   /*this->yank_off   = 0;   ... don't clear yank buffer */
-  this->pcnt        = 0;             /* clear putback buffer */
-  this->putb        = 0;
-  this->cur_char    = 0;
   this->action      = ACTION_PENDING;/* clear current action, recipe */
-  this->cur_recipe  = NULL;
   this->last_action = ACTION_PENDING;
 
   this->last_repeat_action = ACTION_PENDING; /* clear repeating with '.' */
   this->last_repeat_recipe = NULL;
   this->last_repeat_char   = 0;
-  this->vi_repeat_cnt      = 0;  /* digits input */
   this->emacs_arg_cnt      = 0;  /* meta digits input */
   this->emacs_arg_neg      = 0;  /* meta minus */
+  this->vi_repeat_cnt      = 0;
   this->last_yank_start    = 0;  /* saved offsets of yank paste */
   this->last_yank_size     = 0;
 
-  this->input_mode = 0;        /* reset input, mode is set in eat_input */
-  this->cur_input  = NULL;
+  this->reset_input( this->in );
 
   this->hist.off = this->hist.max; /* set history to the last entry */
   this->hist.idx = 0;
 
-  this->save_mode   = this->mode; /* save mode for hist searches */
+  this->save_mode   = this->in.mode; /* save mode for hist searches */
   this->save_action = this->action;
 
   LineSave::reset( this->comp ); /* reset any completions */
   LineSave::reset( this->edit ); /* reset any history edits */
 
-  this->reset_complete();
+  this->reset_completions();
   this->reset_yank();
   this->visual_off   = 0;  /* reset visual position */
 }
@@ -319,6 +321,26 @@ State::get_line( void ) /* main processing loop, eat chars until input empty */
   if ( this->prompt.is_continue ) {
     this->prompt.is_continue = false;
     this->init_lprompt();
+  }
+  return this->do_get_line();
+}
+
+int
+State::completion_get_line( void ) /* completion entry point */
+{
+  if ( this->prompt.is_continue ) {
+    this->prompt.is_continue = false;
+    this->init_lprompt();
+  }
+  if ( ! this->tab_first_completion( 'r' ) ) {
+    if ( this->comp.cnt > 0 ) {
+      if ( this->show_mode != SHOW_NONE )
+        this->show_clear();
+      this->show_completion_index();
+      this->output_show();
+    }
+    else
+      this->bell();
   }
   return this->do_get_line();
 }
@@ -432,7 +454,7 @@ State::do_get_line( void )
       }
     }
     /* read input if empty and not repeating a command */
-    if ( ! repeat_countdown && ! this->input_available() ) {
+    if ( ! repeat_countdown && ! this->input_available( this->in ) ) {
       int n;
       if ( (n = this->fill_input()) <= 0 ) {
         /* check whether last char on line is double wide, if so, increase
@@ -513,25 +535,32 @@ State::do_get_line( void )
     }
     if ( ! repeat_countdown ) {
       /* process next char or function */
-      if ( this->cur_recipe != NULL &&
-           ( this->cur_recipe->options & OPT_REPEAT ) != 0 ) {
+      if ( this->in.cur_recipe != NULL &&
+           ( lc_action_options( this->action ) & OPT_REPEAT ) != 0 ) {
         this->last_repeat_action = this->action;
-        this->last_repeat_recipe = this->cur_recipe;
-        this->last_repeat_char   = this->cur_char;
+        this->last_repeat_recipe = this->in.cur_recipe;
+        this->last_repeat_char   = this->in.cur_char;
       }
-      int a = this->eat_input( this->cur_char );
+      KeyAction a = this->eat_input( this->in );
       if ( a == ACTION_PENDING )
         continue;
       if ( a == ACTION_DECR_SHOW || a == ACTION_INCR_SHOW ) {
         this->incr_show_size( a == ACTION_DECR_SHOW ? -1 : 1 );
         continue;
       }
+      if ( a == ACTION_MACRO ) {
+        this->push_bindkey_recipe();
+        continue;
+      }
+      if ( a == ACTION_ACTION ) {
+        a = (KeyAction) this->in.cur_char;
+      }
       this->last_action = this->action;
       this->action = a;
       if ( this->action == ACTION_REPEAT_LAST ) {
-        this->action     = this->last_repeat_action;
-        this->cur_recipe = this->last_repeat_recipe;
-        this->cur_char   = this->last_repeat_char;
+        this->action        = this->last_repeat_action;
+        this->in.cur_recipe = this->last_repeat_recipe;
+        this->in.cur_char   = this->last_repeat_char;
       }
     }
     status = this->dispatch();
@@ -695,7 +724,7 @@ State::incr_show_size( int amt )
     case SHOW_YANK:       this->show_yank(); break;
     case SHOW_HISTORY:    this->show_history_index(); break;
     case SHOW_COMPLETION: return;
-    case SHOW_KEYS:       this->show_keys(); break;
+    case SHOW_KEYS:       this->show_keys(); this->show_keys_start(); break;
   }
   this->output_show();
 }

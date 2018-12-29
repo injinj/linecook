@@ -1069,13 +1069,13 @@ State::output_right_prompt( bool clear )
     p = &this->r_ouch;
   else if ( this->show_mode == SHOW_COMPLETION )
     p = &this->r_comp;
-  else if ( this->test( VISUAL_MODE ) != 0 )
+  else if ( this->test( this->in.mode, VISUAL_MODE ) != 0 )
     p = &this->r_visu;
-  else if ( this->test( SEARCH_MODE ) != 0 )
+  else if ( this->test( this->in.mode, SEARCH_MODE ) != 0 )
     p = &this->r_srch;
-  else if ( this->test( EMACS_MODE ) != 0 )
+  else if ( this->test( this->in.mode, EMACS_MODE ) != 0 )
     p = &this->r_emacs;
-  else if ( this->test( VI_INSERT_MODE ) != 0 )
+  else if ( this->test( this->in.mode, VI_INSERT_MODE ) != 0 )
     p = &this->r_ins;
   else
     p = &this->r_cmd;

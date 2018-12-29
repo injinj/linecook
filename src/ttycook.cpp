@@ -173,6 +173,18 @@ lc_tty_get_line( TTYCook *tty )
 }
 
 int
+lc_tty_get_completion_cmd( TTYCook *tty,  char *cmd,  size_t len )
+{
+  return static_cast<linecook::TTY *>( tty )->get_completion_cmd( cmd, len );
+}
+
+int
+lc_tty_get_completion_term( TTYCook *tty,  char *term,  size_t len )
+{
+  return static_cast<linecook::TTY *>( tty )->get_completion_term( term, len );
+}
+
+int
 lc_tty_poll_wait( TTYCook *tty,  int time_ms )
 {
   return static_cast<linecook::TTY *>( tty )->poll_wait( time_ms );
@@ -329,7 +341,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
   int             cnt = 0;
   bool            is_dot = ( len > 0 && buf[ off ] == '.' );
 
-  if ( comp_type == 'v' || ( len > 0 && buf[ off ] == '$' ) ) {
+  if ( comp_type == COMPLETE_ENV || ( len > 0 && buf[ off ] == '$' ) ) {
     if ( environ != NULL ) { /* env var complete */
       size_t i;
       char * p;
@@ -382,11 +394,11 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
       }
     }
     if ( path_search == NULL ) {
-      if ( comp_type == 'e' ) { /* use PATH if no prefix */
+      if ( comp_type == COMPLETE_EXES ) { /* use PATH if no prefix */
         path_search = getenv( "PATH" );
         no_directory = true; /* don't include directory */
       }
-      else if ( comp_type == 'd' ) { /* use CDPATH if no prefix */
+      else if ( comp_type == COMPLETE_DIRS ) { /* use CDPATH if no prefix */
         path_search = getenv( "CDPATH" );
         no_directory = false; /* include directory */
       }
@@ -525,7 +537,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                j + dlen + 2 < sizeof( path3 ) ) {
             ::strcpy( &path2[ path_sz ], dp->d_name );
             /* resolve sym links and/or get st_mode */
-            if ( is_link || comp_type == 'e' || d_type == 0 ) {
+            if ( is_link || comp_type == COMPLETE_EXES || d_type == 0 ) {
               if ( dirpath == path3 )
                 ::strcpy( &path3[ j ], dp->d_name );
               if ( ::stat( dirpath, &s ) == 0 ) {
@@ -538,11 +550,12 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
               }
             }
             /* any file complete */
-            if ( comp_type == 'f' || comp_type == 's' || comp_type == 0 ) {
+            if ( comp_type == COMPLETE_FILES || comp_type == COMPLETE_SCAN ||
+                 comp_type == COMPLETE_ANY ) {
               bool is_dd = is_dotdir( dp->d_name, dlen ); /* . or .. */
               if ( ! is_dd || ( dlen > 1 && is_dot ) /* allow .. */) {
                 if ( d_type == DT_DIR ) {
-                  if ( comp_type == 's' && ! is_link && ! is_dd ) {
+                  if ( comp_type == COMPLETE_SCAN && ! is_link && ! is_dd ) {
                     size_t sz = 0;
                     if ( no_directory ) {
                       if ( is_base_path )
@@ -558,7 +571,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                 cnt++;
               }
             }
-            else if ( comp_type == 'e' ) { /* exe complete */
+            else if ( comp_type == COMPLETE_EXES ) { /* exe complete */
               if ( ( d_type == DT_REG && ( st_mode & 0111 ) != 0 ) ||
                    d_type == DT_DIR ) {
                 if ( d_type == DT_DIR )
@@ -567,7 +580,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                 cnt++;
               }
             }
-            else if ( comp_type == 'd' ) { /* dir complete */
+            else if ( comp_type == COMPLETE_DIRS ) { /* dir complete */
               if ( d_type == DT_DIR ) {
                 completion[ comp_sz++ ] = '/';
                 lc_add_completion( state, comp_type, completion, comp_sz );
@@ -1213,6 +1226,28 @@ TTY::push_line( const char *line,  size_t len )
 }
 
 int
+TTY::get_completion_cmd( char *cmd,  size_t len )
+{
+  int n;
+  if ( (int) len + 1 < lc_line_length( this->lc ) )
+    return -1;
+  n = lc_line_copy( this->lc, cmd );
+  cmd[ n ] = '\0';
+  return n;
+}
+
+int
+TTY::get_completion_term( char *term,  size_t len )
+{
+  int n;
+  if ( (int) len + 1 < lc_complete_term_length( this->lc ) )
+    return -1;
+  n = lc_complete_term_copy( this->lc, term );
+  term[ n ] = '\0';
+  return n;
+}
+
+int
 TTY::get_line( void )
 {
   static const int fl = TTYS_IS_NONBLOCK | TTYS_IS_RAW;
@@ -1272,6 +1307,10 @@ TTY::get_line( void )
   /* fetch the line, if prompt has a time in it, that will update  */
   if ( this->test( TTYS_CONTINUE_LINE ) )
     this->lc_status = lc_continue_get_line( this->lc );
+  else if ( this->test( TTYS_COMPLETE ) ) {
+    this->clear( TTYS_COMPLETE );
+    this->lc_status = lc_completion_get_line( this->lc );
+  }
   else
     this->lc_status = lc_get_line( this->lc );
   /* push line back into buffer */
@@ -1304,6 +1343,8 @@ TTY::get_line( void )
     case LINE_STATUS_INTERRUPT:            /* ctrl-c typed */
     case LINE_STATUS_SUSPEND:              /* ctrl-z typed */
     case LINE_STATUS_OK:        return 0;  /* no change */
+    case LINE_STATUS_COMPLETE:  this->set( TTYS_COMPLETE );
+                                return 0;  /* requested comlete */
     case LINE_STATUS_EXEC:      return 1;  /* line ready */
     default:                    return -1; /* other fail status */
   }

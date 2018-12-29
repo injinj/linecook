@@ -114,6 +114,8 @@ typedef enum KeyAction_e { /* current storage of this is uint8_t, 255 max */
   ACTION_GOTO_BOTTOM        , /* 'L' */
   ACTION_DECR_SHOW          , /* meta-( */
   ACTION_INCR_SHOW          , /* meta-) */
+  ACTION_MACRO              , /* generic macro */
+  ACTION_ACTION             , /* ctrl-x ctrl-a <a> */
   ACTION_BELL               , /* function not assigned */
   ACTION_PUTBACK              /* function not matched, interpet char */
 } KeyAction;
@@ -133,26 +135,24 @@ typedef enum LineMode_e {
 } LineMode;
 
 typedef enum LineOption_e {
-  OPT_YANK        = 1,
-  OPT_UNDO        = 2,
-  OPT_REPEAT      = 4,
-  OPT_UNDO_REP    = 2 | 4,      /* undo + repeat */
-  OPT_YA_UN_REP   = 1 | 2 | 4,  /* yank + undo + repeat */
-  OPT_VI_CHAR_OP  = 8,        /* vi options that have a char arg: r, f, t */
-  OPT_UNDO_REP_OP = 2 | 4 | 8,
-  OPT_VI_REPC_OP  = 16 /* 0 - 9 */
+  OPT_UNDO        = 1,
+  OPT_REPEAT      = 2,
+  OPT_VI_CHAR_ARG = 4  /* vi options that have a char arg: r, f, t */
 } LineOption;
 
 typedef struct KeyRecipe_s {
   const char * char_sequence; /* if null, is default action for valid_mode */
   KeyAction    action;        /* what to do with key sequence */
-  uint8_t      valid_mode,    /* EMACS / VI_INSERT / VI_COMMAND */
-               options;       /* if action is undoable, repeatable, yankable */
+  uint8_t      valid_mode;    /* EMACS / VI_INSERT / VI_COMMAND */
 } KeyRecipe;
 
 int lc_key_to_name( const char *key,  char *name );
 const char *lc_action_to_name( KeyAction action );
 const char *lc_action_to_descr( KeyAction action );
+int lc_action_options( KeyAction action );
+unsigned int lc_hash_action_name( const char *s );
+KeyAction lc_string_to_action( const char *s );
+KeyAction lc_hash_to_action( unsigned int h );
 
 extern KeyRecipe lc_default_key_recipe[];
 extern size_t    lc_default_key_recipe_size;
@@ -178,7 +178,7 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   KEY_CTRL_S        , /* history search forward */
                   KEY_CTRL_T        , /* transpose chars */
                   KEY_CTRL_U        , /* erase to beginning of line */
-                  KEY_CTRL_V        , /* unused */
+                  KEY_CTRL_V        , /* visual mark */
                   KEY_CTRL_W        , /* erase previous word */
                   KEY_CTRL_X        , /* emacs CX below -- don't use */
                   KEY_CTRL_Y        , /* paste yank buffer */
@@ -188,6 +188,7 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   KEY_CTRL__        , /* undo previous edit */
                   KEY_CX_CTRL_R     , /* ctrl-x ctrl-r */
                   KEY_CX_CTRL_U     , /* ctrl-x ctrl-u */
+                  KEY_CX_ACTION     , /* ctrl-x ctrl-a */
                   KEY_CX_BACKSPACE  , /* ctrl-x backspace */
                   KEY_BACKSPACE     , /* erase previous char */
                   META_0            , /* emacs argument digits */

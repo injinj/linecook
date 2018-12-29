@@ -278,6 +278,39 @@ LineSave::find_prefix( const LineSaveBuf &lsb,  size_t off, const char32_t *str,
   return match_off;
 }
 
+size_t
+LineSave::find_longest_prefix( const LineSaveBuf &lsb,  size_t off,
+                               size_t &prefix_len,  size_t &match_cnt )
+{
+  size_t           match_off  = 0;
+  const char32_t * match_line = NULL;
+  match_cnt  = 0;
+  prefix_len = 0;
+  while ( off > 0 ) {
+    const LineSave & ls = LineSave::line_const( lsb, off );
+    const char32_t * line = &lsb.buf[ ls.line_off ];
+    match_cnt++;
+    /* if prefix matches str */
+    if ( match_line == NULL ) {
+      match_line = line;
+      prefix_len = ls.edited_len;
+      match_off  = off;
+    }
+    else {
+      size_t len = min<size_t>( ls.edited_len, prefix_len );
+      for ( size_t i = 0; i < len; i++ ) {
+        if ( casecmp<char32_t>( match_line[ i ], line[ i ] ) != 0 ) {
+          prefix_len = i;
+          match_off = off;
+          break;
+        }
+      }
+    }
+    off = ls.next_off; /* next line */
+  }
+  return match_off;
+}
+
 bool
 LineSave::filter_substr( LineSaveBuf &lsb,  const char32_t *str,  size_t len )
 {
@@ -319,7 +352,7 @@ LineSave::filter_substr( LineSaveBuf &lsb,  const char32_t *str,  size_t len )
 
 bool
 LineSave::filter_glob( LineSaveBuf &lsb,  const char32_t *pattern,
-                       size_t patlen )
+                       size_t patlen,  bool implicit_anchor )
 {
   pcre2_real_code_32       * re = NULL; /* pcre regex compiled */
   pcre2_real_match_data_32 * md = NULL; /* pcre match context  */
@@ -342,18 +375,19 @@ LineSave::filter_glob( LineSaveBuf &lsb,  const char32_t *pattern,
                               (PCRE2_UCHAR32 **) &bf, &blen, 0 );
 #else
   GlobCvt<char32_t> cvt( buf, sizeof( buf ) );
-  bool implicit_anchor = false;
-  for ( off = 0; off < patlen; off++ ) {
-    if ( pattern[ off ] == '/' ) { /* if dir is matched, anchor it */
-      implicit_anchor = true;
-      break;
+  if ( ! implicit_anchor ) {
+    for ( off = 0; off < patlen; off++ ) {
+      if ( pattern[ off ] == '/' ) { /* if dir is matched, anchor it */
+        implicit_anchor = true;
+        break;
+      }
+      /* if pattern without dir, don't anchor it */
+      if ( pattern[ off ] == '*' || pattern[ off ] == '[' ||
+           pattern[ off ] == '?' )
+        break;
     }
-    /* if pattern without dir, don't anchor it */
-    if ( pattern[ off ] == '*' || pattern[ off ] == '[' ||
-         pattern[ off ] == '?' )
-      break;
   }
-  rc = cvt.convert_glob( pattern, patlen, implicit_anchor );
+  rc = cvt.convert_glob( pattern, patlen, implicit_anchor, true, true );
   blen = cvt.off;
 #endif
   if ( rc != 0 )

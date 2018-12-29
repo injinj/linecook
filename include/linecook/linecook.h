@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 typedef struct LineCook_s LineCook;
+typedef struct LineCookInput_s LineCookInput;
 
 /* Status codes, set in line->error, returned from get_line() */
 typedef enum LineStatus_e {
@@ -23,7 +24,8 @@ typedef enum LineStatus_e {
   LINE_STATUS_WR_EAGAIN  = -1, /* Write didn't eat available output */
   LINE_STATUS_RD_EAGAIN  = 0,  /* No new input available, read blocked */
   LINE_STATUS_EXEC       = 1,  /* A new line is ready */
-  LINE_STATUS_OK         = 2   /* Still processing */
+  LINE_STATUS_OK         = 2,  /* Still processing */
+  LINE_STATUS_COMPLETE   = 3   /* A completion is requested */
 } LineStatus;
 
 #define LINE_ERR_STR( e ) \
@@ -38,7 +40,18 @@ typedef enum LineStatus_e {
     e == LINE_STATUS_WR_EAGAIN  ? "Write blocked" : \
     e == LINE_STATUS_RD_EAGAIN  ? "Read blocked" : \
     e == LINE_STATUS_EXEC       ? "Exec" : \
-    e == LINE_STATUS_OK         ? "OK" : "Unknown status" )
+    e == LINE_STATUS_OK         ? "OK" : \
+    e == LINE_STATUS_COMPLETE   ? "Complete" : "Unknown status" )
+
+typedef enum LineCompletionType_e {
+  COMPLETE_ANY     = 0,   /* type not specified */
+  COMPLETE_FILES   = 'f', /* file or dir */
+  COMPLETE_DIRS    = 'd', /* dir only */
+  COMPLETE_EXES    = 'e', /* dir or exe, uses $PATH */
+  COMPLETE_SCAN    = 's', /* directory tree scan */
+  COMPLETE_REPLACE = 'r', /* replace with anything, external expansion */
+  COMPLETE_ENV     = 'v'  /* variable */
+} LineCompletionType;
 
 /* Allocate the state */
 LineCook *lc_create_state( int cols,  int lines );
@@ -68,13 +81,19 @@ void lc_set_completion_break( LineCook *state,  const char *brk,
 /* Set the file name quote chars and quote */
 void lc_set_quotables( LineCook *state,  const char *qc,  size_t qc_len,
                        char quote );
+int lc_bindkey( LineCook *state,  char *args[],  size_t argc );
 /* Read and edit a line, returns Line_STATUS above, if LINE_STATUS_OK, then
  * the line is null terminated in state->line with size state->line_len bytes */
 int lc_get_line( LineCook *state );
+int lc_completion_get_line( LineCook *state );
 /* Utf8 length of line in this->line, not including null char */
 int lc_line_length( LineCook *state );
 /* Utf8 copy line in this->line, return length copied, not null terminated */
 int lc_line_copy( LineCook *state,  char *out );
+/* Utf8 length of completion in this->line, not including null char */
+int lc_complete_term_length( LineCook *state );
+/* Utf8 copy completion in this->line, return length copied, not null term */
+int lc_complete_term_copy( LineCook *state,  char *out );
 /* Read a line continuation */
 int lc_continue_get_line( LineCook *state );
 /* Add line to history */
@@ -120,6 +139,9 @@ typedef int (* LineWriteCB )( LineCook *state,  const void *buf,  size_t len );
 /* bold, reverse, blue */
 #define ANSI_VISUAL_SELECT        "\033[1;34;7m"
 #define ANSI_VISUAL_SELECT_SIZE   sizeof( ANSI_VISUAL_SELECT ) - 1
+/* bold, green */
+#define ANSI_HILITE_SELECT        "\033[1;92m"
+#define ANSI_HILITE_SELECT_SIZE   sizeof( ANSI_HILITE_SELECT ) - 1
 
 /* ES (Erase Screen)
  *    Sequence: ESC [ n J
@@ -295,6 +317,40 @@ typedef enum ScreenClass_e {
   SCR_COLOR    = 7
 } ScreenClass;
 
+#ifndef __linecook__keycook_h__
+#include <linecook/keycook.h>
+#endif
+
+struct LineCookInput_s {
+  /* Mode is Vi Insert, Emacs, or Vi Command + with other flags */
+  int           mode,            /* Bit mask of modes (LineMode) */
+                input_mode;      /* Input mode state, tracks changes to mode */
+  char32_t      cur_char;        /* Current input char */
+  /* These are derived from the recipe array above */
+  LineKeyMode * cur_input;       /* Current input mode */
+  KeyRecipe   * cur_recipe;      /* Current action recipe matched */
+  /* Input buffer of key code string, filled on entry to get_line() */
+  char        * input_buf;       /* Unprocessed input */
+  size_t        input_off,       /* Offset of input, next char to process */
+                input_len,       /* Length of input from read() */
+                input_buflen;    /* Input buffer allocation len */
+  /* Input putback */
+  uint8_t       pcnt,            /* Number of chars in pending */
+                putb;            /* Pending offset of putback */
+  char32_t      pending[ 14 ];   /* Pending function key / multi char input */
+};
+
+typedef struct RecipeNode_s RecipeNode;
+struct RecipeNode_s {
+  RecipeNode * next, * back;
+  KeyRecipe    r;
+  char      ** args;
+  size_t       argc;
+};
+typedef struct RecipeList_s {
+  RecipeNode *hd, *tl;
+} RecipeList;
+
 /* Current state:  Line contains the current edit, edited_len is the extent
  * until enter pressed, then line_len contains the length */
 struct LineCook_s {
@@ -304,6 +360,7 @@ struct LineCook_s {
   LineWriteCB    write_cb;     /* Write to terminal */
   LineCompleteCB complete_cb;  /* Modify completion db based on input */
   LineHintsCB    hints_cb;     /* Hint for current input */
+  LineCookInput  in;
 
   /* The current state of the line edit */
   char32_t   * line;            /* Edited line buffer. */
@@ -311,26 +368,21 @@ struct LineCook_s {
                edited_len,      /* Extent of current line edit */
                erase_len,       /* Max extent of line text on the terminal */
                buflen;          /* Current line allocation len of line */
-
-  /* Mode is Vi Insert, Emacs, or Vi Command + with other flags */
-  int          mode,            /* Bit mask of modes (LineMode) */
-               input_mode,      /* Input mode state, tracks changes to mode */
-               save_mode,       /* Mode saved for hist searches */
+  int          save_mode,       /* Mode saved for hist searches */
                error;           /* If error, non-zero */
 
   /* Actions for repeat operations, for example '.' in vi mode */
-  int          action,          /* Current action (KeyAction) */
+  KeyAction    action,          /* Current action (KeyAction) */
                last_action,     /* Previous action (for TAB-TAB complete) */
                save_action,     /* Action saved from history search */
                last_repeat_action, /* Last action that can be repeated */
                last_rep_next_act, /* Last find next action that can be rep */
-               last_rep_prev_act, /* Last find prev action that can be rep */
-               vi_repeat_cnt,   /* Digits entered in vi cmd mode */
-               emacs_arg_cnt,   /* Meta-0 through Meta-9 emacs/vi ins mode */
-               emacs_arg_neg;   /* Meta-minus when < 0 */
+               last_rep_prev_act; /* Last find prev action that can be rep */
+  int          emacs_arg_cnt,   /* Meta-0 through Meta-9 emacs/vi ins mode */
+               emacs_arg_neg,   /* Meta-minus when < 0 */
+               vi_repeat_cnt;   /* Digits entered in vi cmd mode */
 
-  char32_t     cur_char,        /* Current input char */
-               last_repeat_char,/* Last character of above action (4 replace) */
+  char32_t     last_repeat_char,/* Last character of above action (4 replace) */
                last_rep_next_char, /* Char arg of repeat find next */
                last_rep_prev_char; /* Char arg of repeat find prev */
 
@@ -342,12 +394,6 @@ struct LineCook_s {
                refresh_needed,   /* If need a refresh line */
                bell_cnt;         /* If ouch bell is displayed */
   uint64_t     bell_time;        /* Time bell is triggered */
-
-  /* Input buffer of key code string, filled on entry to get_line() */
-  char       * input_buf;       /* Unprocessed input */
-  size_t       input_off,       /* Offset of input, next char to process */
-               input_len,       /* Length of input from read() */
-               input_buflen;    /* Input buffer allocation len */
 
   /* Output buffer, flushed after each input buffer is emptied */
   char       * output_buf;      /* Unprocessed output */
@@ -423,11 +469,6 @@ struct LineCook_s {
                mark_upd,        /* Number of mark updates, cleared on reset */
                mark_size;       /* Size of mark[] buf */
 
-  /* Input putback */
-  uint8_t      pcnt,            /* Number of chars in pending */
-               putb;            /* Pending offset of putback */
-  char32_t     pending[ 14 ];   /* Pending function key / multi char input */
-
   /* Bit mask of characters */
 #define CHAR_BITS_SZ ( 128 / 32 )
   uint32_t     word_brk[ CHAR_BITS_SZ ], /* Chars that separate words */
@@ -438,21 +479,19 @@ struct LineCook_s {
   size_t       cvt_len; /* size of cvt[] */
 
   /* This is the table in keycook.h */
-  KeyRecipe  * recipe;       /* Index of key sequences to actions */
-  size_t       recipe_size;  /* Size of recipe[] */
+  KeyRecipe ** multichar;       /* Multi character transitions */
+  size_t       multichar_size;  /* Size of multichar[] */
+  KeyRecipe  * recipe;          /* Index of key sequences to actions */
+  size_t       recipe_size;     /* Size of recipe[] */
 
   /* These are derived from the recipe array above */
-  KeyRecipe ** multichar;          /* Multi character transitions */
-  size_t       multichar_size;     /* Size of multichar[] */
   LineKeyMode  emacs,              /* Emacs mode transitions */
                vi_insert,          /* Vi insert mode */
                vi_command,         /* Vi command mode */
                visual,             /* Visual select mode */
-               search,             /* Search term mode */
-             * cur_input;          /* Current input mode */
-  KeyRecipe  * cur_recipe,         /* Current action recipe matched */
-             * last_repeat_recipe, /* Last repeatable recipe */
-             * vi_repeat_default;  /* Vi repeat counter */
+               search;             /* Search term mode */
+  KeyRecipe  * last_repeat_recipe; /* Last repeatable recipe */
+  RecipeList   recipe_list;
 };
 
 #ifdef __cplusplus
@@ -520,10 +559,15 @@ struct LineSave {
                              const char32_t *str,  size_t len,
                              size_t &prefix_len,  size_t &match_cnt,
                              size_t &prefix_cnt );
+  /* Find longest prefix in set */
+  static size_t find_longest_prefix( const LineSaveBuf &lsb,  size_t off,
+                                     size_t &prefix_len,  size_t &match_cnt );
+  /* Remove entries which do not contain substr */
   static bool filter_substr( LineSaveBuf &lsb,  const char32_t *str,
                              size_t len );
+  /* Remove entries which do not match glob */
   static bool filter_glob( LineSaveBuf &lsb,  const char32_t *str,
-                           size_t len );
+                           size_t len,  bool implicit_anchor );
   /* Return the offset of idx when not in sorted order */
   static size_t scan( const LineSaveBuf &lsb,  size_t i );
   /* Debug check the fwd & bck links */
@@ -569,8 +613,15 @@ struct State : public LineCook_s {
 
   /* Initialize key sequence translations */
   int set_recipe( KeyRecipe *key_rec,  size_t key_rec_count );
+  void free_recipe( void );
   void init_single_key_transitions( LineKeyMode &km,  uint8_t mode );
   void init_multi_key_transitions( LineKeyMode &km,  uint8_t mode );
+  /* Bind key sequence */
+  int bindkey( char *args[],  size_t argc );
+  void push_bindkey_recipe( void );
+  int add_bindkey_recipe( const char *key,  size_t n,  char **args,
+                          size_t argc );
+  int remove_bindkey_recipe( const char *key,  size_t n );
 
   /* Callbacks */
   int read( void *buf,  size_t len ) { /* do the C callbacks */
@@ -654,17 +705,19 @@ struct State : public LineCook_s {
   /* Main loop */
   int get_line( void ); /* Process input chars and return LINE_STATUS_EXEC when
                            available, < 0 on error, 0 when more input needed  */
-  int continue_get_line( void ); /* Same as above, with continuation */
+  int completion_get_line( void ); /* Get line after completion */
+  int continue_get_line( void ); /* Get line after continuation */
   int do_get_line( void );
   int dispatch( void ); /* Process a single command sequence */
   int max_timeout( int time_ms ); /* Get max timer */
   /* Input key to action matching */
   void reset_state( void );     /* Clears line modal vars */
-  char32_t next_input_char( void );
-  int eat_multichar( char32_t &c ); /* Convert multichar to action */
-  int eat_input( char32_t &c );     /* Convert char input to action */
-  bool input_available( void );
-  int fill_input( void ); /* Read bytes, allocate space, move to front */
+  void reset_input( LineCookInput &input );
+  char32_t next_input_char( LineCookInput &input ); /* Multichar to action */
+  KeyAction eat_multichar( LineCookInput &input );  /* Char input to action */
+  KeyAction eat_input( LineCookInput &input );
+  bool input_available( LineCookInput &input );
+  int fill_input( void ); /* Read bytes */
   void bell( void );    /* You can ring my bell */
   int char_width_next( size_t off ) const {
     return ( off + 1 < this->edited_len && this->line[ off + 1 ] == 0 ) ? 2 : 1;
@@ -674,18 +727,20 @@ struct State : public LineCook_s {
   }
 
   /* Mode testing and setting */
-  int test( int fl ) { return this->mode & fl; }
+  static int test( int mode,  int fl ) { return mode & fl; }
 
-  bool is_emacs_mode( void );      /* this->mode bit test functions */
+  bool is_emacs_mode( void );      /* this->in.mode bit test functions */
+  static bool is_emacs_mode( int mode );
   bool is_vi_mode( void );
   bool is_vi_insert_mode( void );
   bool is_vi_command_mode( void );
+  static bool is_vi_command_mode( int mode );
   bool is_search_mode( void );
   bool is_replace_mode( void );
   bool is_visual_mode( void );
 
   void reset_vi_insert_mode( void );
-  void set_vi_insert_mode( void ); /* sets this->mode bits */
+  void set_vi_insert_mode( void ); /* sets this->in.mode bits */
   void set_vi_replace_mode( void );
   void set_vi_command_mode( void );
   void reset_emacs_mode( void );
@@ -821,6 +876,8 @@ struct State : public LineCook_s {
   void output_flush( void );  /* Write buffer to terminal */
   int line_length( void );    /* Utf8 length of this->line */
   int line_copy( char *out ); /* Utf8 copy line, not null terminated */
+  int complete_term_length( void );    /* Utf8 length of line[ complete_off ] */
+  int complete_term_copy( char *out ); /* Utf8 copy line, not null terminated */
 
   /* Add to yank buffer */
   void reset_yank( void );
@@ -862,9 +919,11 @@ struct State : public LineCook_s {
   size_t quote_line_length( const char32_t *buf,  size_t len );
   void quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len );
   bool tab_complete( int ctype,  bool reverse );
-  void fill_completions( size_t off,  size_t len,  int ctype );
-  void reset_complete( void );
+  void copy_complete_string( const char32_t *str,  size_t len );
+  void fill_completions( int ctype );
+  void reset_completions( void );
   bool tab_first_completion( int ctype );
+  void init_completion_term( void );
   bool tab_next_completion( int ctype,  bool reverse );
   int add_completion( int ctype,  const char *buf,  size_t len );
   void push_completion( const char32_t *buf,  size_t len );
@@ -929,8 +988,9 @@ struct State : public LineCook_s {
            this->realloc_buf32( &this->line, this->buflen, needed );
   }
   bool realloc_input( size_t needed ) {
-    return this->input_buflen >= needed ||
-           this->realloc_buf8( &this->input_buf, this->input_buflen, needed );
+    return this->in.input_buflen >= needed ||
+           this->realloc_buf8( &this->in.input_buf, this->in.input_buflen,
+                               needed );
   }
   bool realloc_output( size_t needed ) {
     return this->output_buflen >= needed ||
@@ -953,53 +1013,53 @@ struct State : public LineCook_s {
            this->realloc_buf32( &this->comp_buf, this->comp_buflen, needed );
   }
 };
-} /* namespace  linecook */
-
-/* need the modes, these are extern "C" */
-#include <linecook/keycook.h>
-
-namespace linecook {
 
 inline bool State::is_emacs_mode( void )
-  { return this->test( EMACS_MODE ) != 0; }
+  { return State::test( this->in.mode, EMACS_MODE ) != 0; }
+inline bool State::is_emacs_mode( int mode )
+  { return State::test( mode, EMACS_MODE ) != 0; }
 inline bool State::is_vi_mode( void )
-  { return this->test( ( VI_INSERT_MODE | VI_COMMAND_MODE ) ) != 0; }
+  { return State::test( this->in.mode,
+                         ( VI_INSERT_MODE | VI_COMMAND_MODE ) ) != 0; }
 inline bool State::is_vi_insert_mode( void )
-  { return this->test( VI_INSERT_MODE ) != 0; }
+  { return State::test( this->in.mode, VI_INSERT_MODE ) != 0; }
 inline bool State::is_vi_command_mode( void )
-  { return this->test( VI_COMMAND_MODE ) != 0; }
+  { return State::test( this->in.mode, VI_COMMAND_MODE ) != 0; }
+inline bool State::is_vi_command_mode( int mode )
+  { return State::test( mode, VI_COMMAND_MODE ) != 0; }
 inline bool State::is_search_mode( void )
-  { return this->test( SEARCH_MODE ) != 0; }
+  { return State::test( this->in.mode, SEARCH_MODE ) != 0; }
 inline bool State::is_replace_mode( void )
-  { return this->test( REPLACE_MODE ) != 0; }
+  { return State::test( this->in.mode, REPLACE_MODE ) != 0; }
 inline bool State::is_visual_mode( void )
-  { return this->test( VISUAL_MODE ) != 0; }
+  { return State::test( this->in.mode, VISUAL_MODE ) != 0; }
 
 /* these can only be in one state: emacs, vi-ins, vi-cmd */
 inline void State::reset_vi_insert_mode( void ) {
-  this->mode |= VI_INSERT_MODE;
-  this->mode &= ~( VI_COMMAND_MODE | EMACS_MODE |
-                   REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
+  this->in.mode |= VI_INSERT_MODE;
+  this->in.mode &= ~( VI_COMMAND_MODE | EMACS_MODE |
+                       REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 inline void State::set_vi_insert_mode( void ) {
   this->reset_vi_insert_mode();
 }
 inline void State::set_vi_replace_mode( void ) {
-  this->mode |= VI_INSERT_MODE | REPLACE_MODE;
-  this->mode &= ~( VI_COMMAND_MODE | EMACS_MODE | SEARCH_MODE | VISUAL_MODE );
+  this->in.mode |= VI_INSERT_MODE | REPLACE_MODE;
+  this->in.mode &= ~( VI_COMMAND_MODE | EMACS_MODE | SEARCH_MODE |
+                         VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 inline void State::set_vi_command_mode( void ) {
-  this->mode |= VI_COMMAND_MODE;
-  this->mode &= ~( VI_INSERT_MODE | EMACS_MODE |
-                   REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
+  this->in.mode |= VI_COMMAND_MODE;
+  this->in.mode &= ~( VI_INSERT_MODE | EMACS_MODE |
+                         REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 inline void State::reset_emacs_mode( void ) {
-  this->mode |= EMACS_MODE;
-  this->mode &= ~( VI_INSERT_MODE | VI_COMMAND_MODE |
-                   REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
+  this->in.mode |= EMACS_MODE;
+  this->in.mode &= ~( VI_INSERT_MODE | VI_COMMAND_MODE |
+                         REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 inline void State::set_emacs_mode( void ) {
@@ -1008,26 +1068,26 @@ inline void State::set_emacs_mode( void ) {
 /* search mode goes into insert mode, out of search goes to command */
 inline void State::set_search_mode( void ) {
   if ( ! this->is_search_mode() ) {
-    this->save_mode = this->mode;
+    this->save_mode = this->in.mode;
 
-    this->mode |= SEARCH_MODE | VI_INSERT_MODE;
-    this->mode &= ~( VI_COMMAND_MODE | EMACS_MODE );
+    this->in.mode |= SEARCH_MODE | VI_INSERT_MODE;
+    this->in.mode &= ~( VI_COMMAND_MODE | EMACS_MODE );
     this->right_prompt_needed = true;
   }
 }
 inline void State::clear_search_mode( void ) {
   if ( this->is_search_mode() ) {
-    this->mode = this->save_mode;
+    this->in.mode = this->save_mode;
     this->right_prompt_needed = true;
   }
 }
 inline void State::toggle_replace_mode( void ) {
-  if ( this->test( VI_COMMAND_MODE ) == 0 )
-    this->mode ^= REPLACE_MODE;
+  if ( State::test( this->in.mode, VI_COMMAND_MODE ) == 0 )
+    this->in.mode ^= REPLACE_MODE;
   this->right_prompt_needed = true;
 }
 inline void State::toggle_visual_mode( void ) {
-  this->mode ^= VISUAL_MODE;
+  this->in.mode ^= VISUAL_MODE;
   this->right_prompt_needed = true;
 }
 

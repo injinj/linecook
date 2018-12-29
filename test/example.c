@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
+#include <ctype.h>
 #include <linecook/linecook.h>
 #include <linecook/ttycook.h>
 
@@ -13,13 +14,56 @@ complete( LineCook *lc,  const char *buf,  size_t off,  size_t len,
 {
   if ( comp_type == 0 ) {
     if ( off == 0 )
-      comp_type = 'e'; /* change to exe mode */
+      comp_type = COMPLETE_EXES; /* change to exe mode */
     else if ( off + len >= 2 && buf[ 0 ] == 'c' && buf[ 1 ] == 'd' ) {
       if ( off + len == 2 || buf[ 2 ] == ' ' )
-        comp_type = 'd'; /* change to dir mode */
+        comp_type = COMPLETE_DIRS; /* change to dir mode */
     }
   }
   return lc_tty_file_completion( lc, buf, off, len, comp_type );
+}
+
+static size_t
+split_args( const char *line,  size_t line_len,  char *args[],
+            size_t max_args )
+{
+  size_t i, argc = 0;
+  const char *start = NULL, *end = NULL;
+  for ( i = 0; ; ) {
+    while ( i < line_len && isspace( line[ i ] ) )
+      i++;
+    if ( start != NULL && end != NULL && end > start ) {
+      size_t len = end - start;
+      args[ argc ] = (char *) malloc( len + 1 );
+      memcpy( args[ argc ], start, len );
+      args[ argc++ ][ len ] = '\0';
+      if ( argc == max_args )
+        return argc;
+    }
+    if ( i >= line_len )
+      return argc;
+    start = &line[ i ];
+    if ( *start == '"' ) {
+      start++;
+      end = start;
+      while ( ++i < line_len && *end != '\"' )
+        end++;
+      i++;
+    }
+    else {
+      while ( i < line_len && ! isspace( line[ i ] ) )
+        i++;
+      end = &line[ i ];
+    }
+  }
+}
+
+static void
+free_args( char *args[],  size_t argc )
+{
+  size_t i = 0;
+  while ( i < argc )
+    free( args[ i++ ] );
 }
 
 static int
@@ -113,6 +157,32 @@ main( void )
       lc_tty_normal_mode( tty ); /* set terminal to normal */
       raise( SIGSTOP ); /* suspend */
     }
+    else if ( tty->lc_status == LINE_STATUS_COMPLETE ) {
+      #define FZFCMD "find . -print | fzf --layout=reverse --height=50%"
+      const char *cmd = FZFCMD;
+      FILE *fp;
+      char buf[ 1024 ], query[ 128 ];
+      int n;
+      n = lc_tty_get_completion_term( tty, query, sizeof( query ) );
+      if ( n > 0 ) { /* append query to fzf command above */
+        snprintf( buf, sizeof( buf ), FZFCMD "% --query=\"%s\"", query );
+        cmd = buf;
+      }
+      fp = popen( cmd, "r" );
+      if ( fp != NULL ) {
+        while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
+          size_t len = strlen( buf );
+          while ( len > 0 && buf[ len - 1 ] <= ' ' )
+            buf[ --len ] = '\0';
+          if ( len > 0 )
+            lc_add_completion( lc, 0, buf, len );
+        }
+        pclose( fp );
+      }
+      else {
+        perror( "popen(fzf)" );
+      }
+    }
     else if ( tty->lc_status == LINE_STATUS_EXEC ) { /* if a line available */
       int is_continue = 0;
       if ( strcmp( tty->line, "exit" ) == 0 ||
@@ -138,6 +208,19 @@ main( void )
       }
       lc_tty_normal_mode( tty ); /* set terminal to normal */
       if ( ! is_continue ) {
+        if ( tty->line_len > 8 && strncmp( tty->line, "bindkey ", 8 ) == 0 ) {
+          char *args[ 16 ];
+          size_t argc;
+          argc = split_args( &tty->line[ 8 ], tty->line_len-8, args, 16 );
+          if ( argc > 0 ) {
+            lc_bindkey( lc, args, argc );
+            free_args( args, argc );
+          }
+          else {
+            fprintf( stderr, "usage: bindkey <key> val\n" );
+          }
+          continue;
+        }
         /* builtin cd (no ~ or $var expansion) */
         if ( strncmp( tty->line, "cd", 2 ) == 0 &&
              ( tty->line[ 2 ] == ' ' || tty->line[ 2 ] == 0 ) ) {

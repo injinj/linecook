@@ -19,6 +19,18 @@ lc_line_copy( LineCook *state,  char *out )
   return static_cast<linecook::State *>( state )->line_copy( out );
 }
 
+int
+lc_complete_term_length( LineCook *state )
+{
+  return static_cast<linecook::State *>( state )->complete_term_length();
+}
+
+int
+lc_complete_term_copy( LineCook *state,  char *out )
+{
+  return static_cast<linecook::State *>( state )->complete_term_copy( out );
+}
+
 } /* extern "C" */
 
 using namespace linecook;
@@ -51,69 +63,115 @@ State::line_copy( char *out )
   return size;
 }
 
+int
+State::complete_term_length( void )
+{
+  int size = 0;
+  for ( size_t i = 0; i < this->complete_len; i++ ) {
+    if ( this->line[ i ] != 0 ) {
+      int n = ku_utf32_to_utf8_len( &this->line[ this->complete_off + i ], 1 );
+      if ( n > 0 )
+        size += n;
+    }
+  }
+  return size;
+}
+
+int
+State::complete_term_copy( char *out )
+{
+  int size = 0;
+  for ( size_t i = 0; i < this->complete_len; i++ ) {
+    if ( this->line[ i ] != 0 ) {
+      int n = ku_utf32_to_utf8( this->line[ this->complete_off + i ],
+                                &out[ size ] );
+      if ( n > 0 )
+        size += n;
+    }
+  }
+  return size;
+}
+
+void
+State::reset_input( LineCookInput &input )
+{
+  input.input_mode = 0;     /* clear modes */
+  input.cur_input  = NULL;
+  input.cur_recipe = NULL;
+  input.pcnt       = 0;     /* clear putback buffer */
+  input.putb       = 0;
+  input.cur_char   = 0;
+}
+
 char32_t
-State::next_input_char( void )
+State::next_input_char( LineCookInput &input )
 {
   for (;;) {
     char32_t c;
-    int n = ku_utf8_to_utf32( &this->input_buf[ this->input_off ],
-                              this->input_len - this->input_off, &c );
+    int n = ku_utf8_to_utf32( &input.input_buf[ input.input_off ],
+                              input.input_len - input.input_off, &c );
     if ( n > 0 ) {
-      this->input_off += n;
+      input.input_off += n;
+      input.cur_char = c;
       return c;
     }
     if ( n < 0 ) {
-      this->input_off++; /* can't wait with 4 chars, illegal utf8 */
+      input.input_off++; /* can't wait with 4 chars, illegal utf8 */
       this->error = LINE_STATUS_BAD_INPUT;
     }
     return 0;
   }
 }
 
-int
-State::eat_multichar( char32_t &c ) /* multichar actions */
+KeyAction
+State::eat_multichar( LineCookInput &input ) /* multichar actions */
 {
-  if ( this->pcnt == 0 ) {
-    this->pending[ 0 ] = c;
-    this->pcnt = 1;
+  char32_t c = input.cur_char;
+  if ( input.pcnt == 0 ) {
+    input.pending[ 0 ] = c;
+    input.pcnt = 1;
     return ACTION_PENDING;
   }
   size_t potential_match = 0;
-  KeyRecipe ** mc = this->cur_input->mc;
-  size_t       sz = this->cur_input->mc_size;
-  this->pending[ this->pcnt++ ] = c;
-  this->pending[ this->pcnt ] = 0;
+  KeyRecipe ** mc = input.cur_input->mc;
+  size_t       sz = input.cur_input->mc_size;
+  input.pending[ input.pcnt++ ] = c;
+  input.pending[ input.pcnt ] = 0;
   /* linear scan of multichar sequences, nothing fancy;  the database is likely
    * to be less than 50 multichar actions since there are not that many keys on
    * a keyboard */
   for ( size_t i = 0; i < sz; i++ ) {
     KeyRecipe  & r   = *mc[ i ];
     const char * seq = r.char_sequence;
-    if ( char32_eq( seq[ 0 ], this->pending[ 0 ] ) &&
-         char32_eq( seq[ 1 ], this->pending[ 1 ] ) ) { /* at least 2 chars eq */
+    int options;
+    if ( char32_eq( seq[ 0 ], input.pending[ 0 ] ) &&
+         char32_eq( seq[ 1 ], input.pending[ 1 ] ) ) { /* at least 2 chars eq */
       bool match = true;
       uint8_t k  = 2;
-      for ( ; k < this->pcnt; k++ ) { /* check if all match */
-        if ( ! char32_eq( seq[ k ], this->pending[ k ] ) ) {
+      for ( ; k < input.pcnt; k++ ) { /* check if all match */
+        if ( ! char32_eq( seq[ k ], input.pending[ k ] ) ) {
           match = false;
           break;
         }
       }
       if ( match ) {
         if ( seq[ k ] == 0 ) { /* if all match */
-          if ( ( r.options & OPT_VI_CHAR_OP ) == 0 ) { /* if not a char arg */
+          options = lc_action_options( r.action );
+          if ( ( options & OPT_VI_CHAR_ARG ) == 0 ) { /* if not a char arg */
           is_match:;
-            this->pcnt = 0;
-            this->cur_recipe = &r;
+            input.pcnt = 0;
+            input.cur_recipe = &r;
             return r.action;
           }
         }
         potential_match++;
       }
       else {
-        if ( seq[ k ] == 0 && k + 1 == this->pcnt && /* the char arg */
-             ( r.options & OPT_VI_CHAR_OP ) != 0 )
-          goto is_match;
+        if ( seq[ k ] == 0 && k + 1 == input.pcnt ) { /* the char arg */
+          options = lc_action_options( r.action );
+          if ( ( options & OPT_VI_CHAR_ARG ) != 0 )
+            goto is_match;
+        }
       }
     }
   }
@@ -123,104 +181,106 @@ State::eat_multichar( char32_t &c ) /* multichar actions */
   return ACTION_PENDING;
 }
 
-int
-State::eat_input( char32_t &c ) /* eat chars from input */
+KeyAction
+State::eat_input( LineCookInput &input ) /* eat chars from input */
 {
+  char32_t  c;
   bool      putback = false;
   uint8_t * charto;
-  int       m = this->test( EMACS_MODE | VI_INSERT_MODE | VI_COMMAND_MODE |
+  int       m = this->test( input.mode,
+                            EMACS_MODE | VI_INSERT_MODE | VI_COMMAND_MODE |
                             VISUAL_MODE | SEARCH_MODE );
   /* if mode changed, select correct tables */
-  if ( this->input_mode != m || this->cur_input == NULL ) {
+  if ( input.input_mode != m || input.cur_input == NULL ) {
     /* pick a translation table */
-    if ( ( this->mode & VISUAL_MODE ) != 0 )
-      this->cur_input = &this->visual;
-    else if ( ( this->mode & SEARCH_MODE ) != 0 )
-      this->cur_input = &this->search;
-    else if ( ( this->mode & EMACS_MODE ) != 0 )
-      this->cur_input = &this->emacs;
-    else if ( ( this->mode & VI_INSERT_MODE ) != 0 )
-      this->cur_input = &this->vi_insert;
+    if ( ( input.mode & VISUAL_MODE ) != 0 )
+      input.cur_input = &this->visual;
+    else if ( ( input.mode & SEARCH_MODE ) != 0 )
+      input.cur_input = &this->search;
+    else if ( ( input.mode & EMACS_MODE ) != 0 )
+      input.cur_input = &this->emacs;
+    else if ( ( input.mode & VI_INSERT_MODE ) != 0 )
+      input.cur_input = &this->vi_insert;
     else
-      this->cur_input = &this->vi_command;
-    this->input_mode = m;
+      input.cur_input = &this->vi_command;
+    input.input_mode = m;
   }
-  charto = this->cur_input->recipe;
-  this->cur_recipe = NULL;
+  charto = input.cur_input->recipe;
+  input.cur_recipe = NULL;
 
   /* eat chars from putback pending first */
-  if ( this->putb > 0 ) {
-    c = this->pending[ this->putb++ ];
+  if ( input.putb > 0 ) {
+    c = input.pending[ input.putb++ ];
+    input.cur_char = c;
     putback = true;
     /* if end of putback mode */
-    if ( this->putb == this->pcnt )
-      this->putb = this->pcnt = 0;
+    if ( input.putb == input.pcnt )
+      input.putb = input.pcnt = 0;
   }
   /* else next input char to process */
   else {
-    if ( (c = this->next_input_char()) == 0 )
+    c = this->next_input_char( input );
+    if ( c == 0 )
       return ACTION_PENDING;
-    if ( this->pcnt != 0 ) { /* if pending buffer waiting for more chars */
+    if ( input.pcnt != 0 ) { /* if pending buffer waiting for more chars */
     eat_multi:; /* a recipe below calls for multichar translation */
       for (;;) {
-        int act = this->eat_multichar( c );
+        KeyAction act = this->eat_multichar( input );
         if ( act == ACTION_PUTBACK ) { /* if no multichar matches */
-          c = this->pending[ 0 ];
-          this->putb = 1;
+          c = input.pending[ 0 ];
+          input.cur_char = c;
+          input.putb = 1;
           putback = true; /* prevent infinite pending loop */
           break;
         }
         if ( act != ACTION_PENDING ) /* something matched */
           return act;
-        if ( this->input_off == this->input_len ) /* eat more if available */
+        if ( input.input_off == input.input_len ) /* eat more if available */
           return ACTION_PENDING;
-        if ( (c = this->next_input_char()) == 0 )
+        c = this->next_input_char( input );
+        if ( c == 0 )
           return ACTION_PENDING;
       }
     }
   }
   /* match a char to an action, multi-byte chars use default recipe */
-  uint8_t uc = ( c < sizeof( this->cur_input->recipe ) ?
-                 (uint8_t) c : this->cur_input->def );
+  uint8_t uc = ( c < sizeof( input.cur_input->recipe ) ?
+                 (uint8_t) c : input.cur_input->def );
   KeyRecipe &r = this->recipe[ charto[ uc ] ];
 
   if ( r.char_sequence == NULL ) { /* if default action, no further processing*/
-    this->cur_recipe = &r;
+    input.cur_recipe = &r;
+    input.cur_char = c;
     return r.action;
   }
   /* if single char transition (ctrl codes, escape) */
   if ( r.char_sequence[ 1 ] == 0 ) {
     /* for escape in insert mode, check if arrow keys are used */
     if ( r.action == ACTION_VI_ESC ) {
-      if ( ! putback && ( this->input_available() || this->is_emacs_mode() ) )
+      if ( ! putback && ( this->input_available( input ) ||
+                          this->is_emacs_mode( input.mode ) ) )
         goto eat_multi;
     }
     else {
+      int options = lc_action_options( r.action );
       /* get the second char by using putback */
-      if ( ( r.options & OPT_VI_CHAR_OP ) != 0 ) {
+      if ( ( options & OPT_VI_CHAR_ARG ) != 0 ) {
         if ( ! putback )
           goto eat_multi;
-        c = this->pending[ 1 ];     /* take the second char from pending */
-        this->putb = this->pcnt = 0;
-      }
-      else if ( this->is_vi_command_mode() ) {
-        if ( ( r.options & OPT_VI_REPC_OP ) != 0 ) {
-          if ( this->vi_repeat_cnt != 0 || ( c >= '1' && c <= '9' ) ) {
-            this->vi_repeat_cnt = this->vi_repeat_cnt * 10 + ( c - '0' );
-            this->cur_recipe = this->vi_repeat_default;
-            return this->cur_recipe->action;
-          }
-        }
+        /* take the second char from pending */
+        c = input.pending[ 1 ];
+        input.cur_char = c;
+        input.putb = input.pcnt = 0;
       }
     }
-    this->cur_recipe = &r;
+    input.cur_recipe = &r;
     return r.action;
   }
   /* otherwise multichar transition */
   if ( ! putback )
     goto eat_multi;
-  this->cur_recipe = &this->recipe[ this->cur_input->def ]; /* bell or insert */
-  return this->cur_recipe->action;
+  input.cur_recipe = &this->recipe[ input.cur_input->def ]; /* bell or insert */
+  return input.cur_recipe->action;
 }
 
 void
@@ -294,17 +354,17 @@ State::move_cursor( size_t new_pos ) /* move from current position to new pos */
 }
 
 bool
-State::input_available( void )
+State::input_available( LineCookInput &input )
 {
-  if ( this->input_off < this->input_len ) {
-    if ( this->input_off + 3 < this->input_len )
+  if ( input.input_off < input.input_len ) {
+    if ( input.input_off + 3 < input.input_len )
       return true;
     char32_t c;
-    return ku_utf8_to_utf32( &this->input_buf[ this->input_off ],
-                             this->input_len - this->input_off, &c ) != 0;
+    return ku_utf8_to_utf32( &input.input_buf[ input.input_off ],
+                             input.input_len - input.input_off, &c ) != 0;
   }
 #if 0
-  if ( this->putb < this->pcnt ) /* pending avail */
+  if ( input.putb < input.pcnt ) /* pending avail */
     return true;
   /* fix with a callback, this may be a blocking call */
   /*return this->fill_input() > 0;*/
@@ -313,25 +373,25 @@ State::input_available( void )
 }
 
 int
-State::fill_input( void ) /* read input, move input bytes to make space */
+State::fill_input( void )
 {
-  if ( this->input_off != this->input_len ) {
-    ::memmove( this->input_buf, &this->input_buf[ this->input_off ],
-               this->input_len - this->input_off );
+  if ( this->in.input_off != this->in.input_len ) {
+    ::memmove( this->in.input_buf, &this->in.input_buf[ this->in.input_off ],
+               this->in.input_len - this->in.input_off );
   }
-  this->input_len -= this->input_off;
-  this->input_off  = 0;
+  this->in.input_len -= this->in.input_off;
+  this->in.input_off  = 0;
 
-  if ( ! this->realloc_input( this->input_len + LINE_BUF_LEN_INCR * 16 ) )
+  if ( ! this->realloc_input( this->in.input_len + LINE_BUF_LEN_INCR ))
     return LINE_STATUS_ALLOC_FAIL;
-  int n = this->read( &this->input_buf[ this->input_len ],
-                      this->input_buflen - this->input_len );
+  int n = this->read( &this->in.input_buf[ this->in.input_len ],
+                      this->in.input_buflen - this->in.input_len );
   if ( n <= 0 ) {
     if ( n < -1 )
       return this->error = LINE_STATUS_RD_FAIL;
     return LINE_STATUS_RD_EAGAIN;
   }
-  this->input_len += n;
+  this->in.input_len += n;
   return n;
 }
 
@@ -417,7 +477,7 @@ State::output_show_string( const char32_t *str,  size_t off,  size_t len )
       if ( casecmp<char32_t>( s, &str[ off + i ], slen ) == 0 ) {
         if ( i > j )
           this->cursor_output( &str[ off + j ], i - j );
-        this->output_str( ANSI_VISUAL_SELECT, ANSI_VISUAL_SELECT_SIZE );
+        this->output_str( ANSI_HILITE_SELECT, ANSI_HILITE_SELECT_SIZE );
         this->cursor_output( &str[ off + i ], slen );
         this->output_str( ANSI_NORMAL, ANSI_NORMAL_SIZE );
         i += slen;
@@ -438,7 +498,7 @@ State::output_show_string( const char32_t *str,  size_t off,  size_t len )
       }
       if ( len > k && off <= 1 ) {
         match_len = min<size_t>( len - k, this->comp_len );
-        this->output_str( ANSI_VISUAL_SELECT, ANSI_VISUAL_SELECT_SIZE );
+        this->output_str( ANSI_HILITE_SELECT, ANSI_HILITE_SELECT_SIZE );
         for ( ; i < match_len; i++ )
           if ( this->comp_buf[ i ] != str[ i + 1 ] )
             break;

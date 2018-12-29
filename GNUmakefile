@@ -75,7 +75,7 @@ all_depends :=
 
 liblinecook_files := linecook dispatch history complete prompt \
                      linesave keycook lineio ttycook kewb_utf \
-		     xwcwidth9
+                     xwcwidth9 keytable hashaction
 liblinecook_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(liblinecook_files)))
 liblinecook_dbjs  := $(addprefix $(objd)/, $(addsuffix .fpic.o, $(liblinecook_files)))
 liblinecook_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(liblinecook_files))) \
@@ -107,11 +107,10 @@ simple_lnk   := $(simple_libs) $(lnk_lib)
 
 $(bind)/simple: $(simple_objs) $(simple_libs)
 
-print_keys_files := print_keys
+print_keys_files := print_keys keytable
 print_keys_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(print_keys_files)))
 print_keys_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(print_keys_files)))
-print_keys_libs  := $(libd)/liblinecook.a
-print_keys_lnk   := $(print_keys_libs) $(lnk_lib)
+print_keys_lnk   := $(print_keys_libs)
 
 $(bind)/print_keys: $(print_keys_objs) $(print_keys_libs)
 
@@ -123,6 +122,9 @@ all_dirs := $(bind) $(libd) $(objd) $(dependd)
 README.md: $(bind)/print_keys doc/readme.md
 	cat doc/readme.md > README.md
 	$(bind)/print_keys >> README.md
+
+src/hashaction.c: $(bind)/print_keys include/linecook/keycook.h
+	$(bind)/print_keys hash > src/hashaction.c
 
 all: $(all_libs) $(all_dlls) $(all_exes) README.md
 

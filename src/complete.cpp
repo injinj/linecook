@@ -54,17 +54,37 @@ State::tab_complete( int ctype,  bool reverse )
 {
   if ( this->show_mode != SHOW_COMPLETION ) {
     if ( reverse && ctype == 0 )
-      ctype = 's';
+      ctype = COMPLETE_SCAN;
+    this->reset_completions();
+    this->init_completion_term();
+    this->fill_completions( ctype );
     return this->tab_first_completion( ctype );
   }
   return this->tab_next_completion( ctype, reverse );
 }
 
 void
-State::fill_completions( size_t off,  size_t len,  int ctype )
+State::copy_complete_string( const char32_t *str,  size_t len )
 {
-  char buf[ 4 * 1024 ], * p = buf;
-  size_t i = 0, j = 0, off8 = 0, len8 = 0;
+  if ( this->realloc_complete( len ) ) {
+    for ( size_t i = 0; i < len; i++ )
+      this->comp_buf[ i ] = str[ i ];
+    this->comp_len = len;
+  }
+}
+
+void
+State::fill_completions( int ctype )
+{
+  char   buf[ 4 * 1024 ],
+       * p    = buf;
+  size_t i    = 0,
+         j    = 0,
+         off8 = 0,
+         len8 = 0,
+         off  = this->complete_off,
+         len  = this->complete_len;
+
   if ( this->edited_len > 1024 ) {
     if ( (p = (char *) ::malloc( this->edited_len * 4 )) == NULL )
       return;
@@ -84,23 +104,16 @@ State::fill_completions( size_t off,  size_t len,  int ctype )
     j += (size_t) n;
   }
   this->completion( p, off8, len8, ctype );
-  if ( this->comp.cnt > 0 ) {
-    if ( this->realloc_complete( len ) ) {
-      for ( i = 0; i < len; i++ )
-        this->comp_buf[ i ] = this->line[ off + i ];
-      this->comp_len = len;
-    }
-    else {
-      this->comp_len = 0;
-    }
-  }
+  this->comp_len = 0;
+  if ( this->comp.cnt > 0 )
+    this->copy_complete_string( &this->line[ off ], len );
 failed:
   if ( p != buf )
     ::free( p );
 }
 
 void
-State::reset_complete( void )
+State::reset_completions( void )
 {
   this->complete_off  = 0;
   this->complete_len  = 0;
@@ -108,26 +121,26 @@ State::reset_complete( void )
   this->complete_has_quote = false;
   this->complete_has_glob  = false;
   this->complete_is_prefix = false;
+  LineSave::reset( this->comp );
 }
 
-bool
-State::tab_first_completion( int ctype )
+static bool
+is_glob( const char32_t *pattern,  size_t patlen )
 {
-  const char32_t * pattern;
-  size_t patlen,
-         off  = this->cursor_pos - this->prompt.cols, /* offset into line[] */
-         coff,
-         cend,
-         caft,
-         replace_len,
-         quote_len,
-         start_off   = 0,
-         match_len   = 0,
-         match_cnt   = 0,
-         pref_cnt    = 0;
-  bool   found_match = false;
+  for ( size_t i = 0; i < patlen; i++ ) {
+    if ( pattern[ i ] == '*' || pattern[ i ] == '?' || pattern[ i ] == '[' )
+      return true;
+  }
+  return false;
+}
 
-  this->reset_complete();
+void
+State::init_completion_term( void )
+{
+  size_t off  = this->cursor_pos - this->prompt.cols, /* offset into line[] */
+         coff,
+         cend;
+
   if ( off < this->edited_len &&
        this->line[ off ] == (uint8_t) this->quote_char ) {
     for ( coff = off; ; coff-- ) {
@@ -156,64 +169,90 @@ matched_quotes_back:;
 matched_quotes_fwd:;
     this->complete_has_quote = true;
   }
-  caft = this->edited_len - cend;
-  replace_len = cend - coff;
 
-  LineSave::reset( this->comp ); /* reset any completions */
-  this->fill_completions( coff, replace_len, ctype );
-  if ( ctype == 's' ) {
+  this->complete_off = coff;
+  this->complete_len = cend - coff;
+}
+
+bool
+State::tab_first_completion( int ctype )
+{
+  const char32_t * pattern;
+  size_t patlen,
+         quote_len,
+         off         = this->cursor_pos - this->prompt.cols,
+         coff        = this->complete_off,
+         cend        = this->complete_off + this->complete_len,
+         caft        = this->edited_len - cend,
+         replace_len = this->complete_len,
+         start_off   = 0,
+         match_len   = 0,
+         match_cnt   = 0,
+         pref_cnt    = 0;
+  bool   found_match = false;
+
+  if ( ctype == COMPLETE_SCAN || ctype == COMPLETE_REPLACE ) {
     if ( replace_len > 0 ) {
       size_t i = coff + replace_len;
+      /* scan may have directory prefix, skip over that */
       for (;;) {
         if ( this->line[ i - 1 ] == '/' )
           break;
         if ( --i == coff )
           break;
       }
-      pattern = &this->line[ i ];
-      patlen  = replace_len - ( i - coff );
-      for ( i = 0; i < patlen; i++ ) {
-        if ( pattern[ i ] == '*' || pattern[ i ] == '?' || pattern[ i ] == '[' )
-          break;
-      }
-      if ( i < patlen ) {
-        LineSave::filter_glob( this->comp, pattern, patlen );
-        this->complete_has_glob = true;
-      }
-      else if ( patlen > 0 ) {
-        LineSave::filter_substr( this->comp, pattern, patlen );
+      /* filter scan results */
+      if ( ctype != COMPLETE_REPLACE ) {
+        pattern = &this->line[ i ];
+        patlen  = replace_len - ( i - coff );
+        if ( is_glob( pattern, patlen ) ) {
+          LineSave::filter_glob( this->comp, pattern, patlen, false );
+          this->complete_has_glob = true;
+        }
+        else if ( patlen > 0 ) {
+          LineSave::filter_substr( this->comp, pattern, patlen );
+        }
       }
     }
-    LineSave::sort( this->comp );
-    this->comp.off = this->comp.first;
-    if ( this->comp.cnt == 1 ) {
-      const LineSave &ls = LineSave::line_const( this->comp, this->comp.first );
-      start_off = this->comp.first;
-      match_len = ls.edited_len;
-      match_cnt = 1;
+    if ( this->comp.cnt > 0 ) {
+      if ( this->comp.cnt == 1 ) {
+        const LineSave &ls =
+          LineSave::line_const( this->comp, this->comp.first );
+        match_len = ls.edited_len;
+        match_cnt = 1;
+        this->comp.off = this->comp.first;
+        start_off = this->comp.first;
+      }
+      else {
+        LineSave::sort( this->comp );
+        this->comp.off = this->comp.first;
+        start_off = this->comp.first;
+        LineSave::find_longest_prefix( this->comp, start_off,
+                                       match_len, match_cnt );
+      }
     }
   }
+  /* either glob or prefix filter */
   else {
-    size_t i;
     pattern = &this->line[ coff ];
     patlen  = replace_len;
-    for ( i = 0; i < patlen; i++ ) {
-      if ( pattern[ i ] == '*' || pattern[ i ] == '?' || pattern[ i ] == '[' )
-        break;
-    }
-    if ( i < patlen ) {
-      LineSave::filter_glob( this->comp, pattern, patlen );
+    if ( is_glob( pattern, patlen ) ) {
+      LineSave::filter_glob( this->comp, pattern, patlen, true );
       this->complete_has_glob = true;
     }
     LineSave::sort( this->comp );
-    if ( i < patlen ) {
+    if ( this->complete_has_glob ) {
       this->comp.off = this->comp.first;
-      if ( this->comp.cnt == 1 ) {
+      if ( this->comp.cnt > 0 ) {
         const LineSave &ls = LineSave::line_const( this->comp,
                                                    this->comp.first );
         start_off = this->comp.first;
         match_len = ls.edited_len;
-        match_cnt = 1;
+        if ( this->comp.cnt == 1 )
+          match_cnt = 1;
+        else
+          LineSave::find_longest_prefix( this->comp, start_off,
+                                         match_len, match_cnt );
       }
     }
     else {
@@ -246,7 +285,7 @@ matched_quotes_fwd:;
       if ( no_match ) {
         if ( this->last_action != ACTION_TAB_COMPLETE ) {
           LineSave::reset( this->comp );
-          this->reset_complete();
+          this->reset_completions();
           return false;
         }
         this->comp.off = this->comp.first;
@@ -257,7 +296,7 @@ matched_quotes_fwd:;
   if ( start_off != 0 ) {
     LineSave &ls = LineSave::line( this->comp, this->comp.off );
     /* if a match is longer than the prefix string being replaced */
-    if ( match_len >= replace_len ) {
+    if ( match_len > 0 ) {
       const char32_t *substitute = &this->comp.buf[ ls.line_off ];
       this->move_cursor_back( off - coff );
       if ( match_len == ls.edited_len && match_cnt == 1 ) {
@@ -266,7 +305,7 @@ matched_quotes_fwd:;
       /* if line needs quoting, quote_len will be longer than match_len */
       quote_len = this->quote_line_length( substitute, ls.edited_len );
       if ( replace_len < quote_len ) {
-        if ( ! this->realloc_line( this->edited_len + quote_len - replace_len ) )
+        if ( ! this->realloc_line( this->edited_len + quote_len - replace_len ))
           return false;
       }
       /* update the edit line with the match */
@@ -291,17 +330,22 @@ matched_quotes_fwd:;
       if ( replace_len > match_len )
         this->erase_eol_with_right_prompt();
       this->move_cursor_back( caft );
+      this->copy_complete_string( substitute, match_len );
+      this->complete_is_prefix = true;
     }
   }
   /* if not found, a list of items can be displayed, remember the position
    * of the completion prefix */
   if ( ! found_match ) {
     this->complete_off = coff;
-    if ( (this->complete_len = match_len) < replace_len )
+    this->complete_len = match_len;
+    if ( match_len == 0 )
       this->complete_len = replace_len;
+    /*if ( (this->complete_len = match_len) < replace_len )
+      this->complete_len = replace_len;*/
   }
   else { /* otherwise no completion match */
-    this->reset_complete();
+    this->reset_completions();
   }
   return found_match;
 }
@@ -388,7 +432,7 @@ State::completion_accept( void )
       this->erase_eol_with_right_prompt();
   }
   this->show_clear();
-  this->reset_complete();
+  this->reset_completions();
 }
 
 void
@@ -452,7 +496,7 @@ State::completion_update( int delta )
     }
   }
   this->show_clear();
-  this->reset_complete();
+  this->reset_completions();
 }
 
 void

@@ -13,7 +13,7 @@ State::dispatch( void )
   LineSave    * ls;
   LineSaveBuf * lsb;
   size_t        off = this->cursor_pos - this->prompt.cols; /* off of line[] */
-  char32_t      c   = this->cur_char;
+  char32_t      c   = this->in.cur_char;
   int           w, x, ctype;
   bool          is_interrupt = false,
                 is_search,
@@ -82,6 +82,8 @@ State::dispatch( void )
         return LINE_STATUS_OK;
     }
   }
+  if ( this->last_action == ACTION_VI_REPEAT_DIGIT && c == '0' )
+    this->action = ACTION_VI_REPEAT_DIGIT;
   /* switch whether action needs undo push, when starting a search an undo
    * is pushed, but while a search is being entered, no undos are pushed */
   switch ( this->action ) {
@@ -93,8 +95,8 @@ State::dispatch( void )
 
     default: { /* may need undo */
       is_search = false;
-      if ( this->cur_recipe != NULL ) {
-        need_undo = ( this->cur_recipe->options & OPT_UNDO ) != 0;
+      if ( this->in.cur_recipe != NULL ) {
+        need_undo = ( lc_action_options( this->action ) & OPT_UNDO ) != 0;
         if ( ! need_undo &&
              ( this->is_emacs_mode() || this->is_vi_insert_mode() ) ) {
           if ( this->action != ACTION_INSERT_CHAR &&
@@ -229,6 +231,7 @@ State::dispatch( void )
       break;
 
     case ACTION_SUSPEND: /* ctrl-z */
+    case ACTION_OPER_AND_NEXT: /* ctrl-o */
       if ( this->show_mode != SHOW_NONE ) /* clear show buffer */
         this->show_clear();
       if ( this->is_visual_mode() ) {
@@ -236,15 +239,20 @@ State::dispatch( void )
         this->refresh_visual_line();
       }
       this->output_right_prompt( true ); /* clear right prompt */
-      /* send cursor to the next line, which may be multiple rows */
-      this->output_newline( ( this->edited_len - off ) / this->cols + 1 );
+      if ( this->action == ACTION_SUSPEND ) {
+        /* send cursor to the next line, which may be multiple rows */
+        this->output_newline( ( this->edited_len - off ) / this->cols + 1 );
+        this->refresh_needed = true; /* refresh line after called again */
+        return LINE_STATUS_SUSPEND;
+      }
+      this->reset_completions();
+      this->init_completion_term();
       this->refresh_needed = true; /* refresh line after called again */
-      return LINE_STATUS_SUSPEND;
+      return LINE_STATUS_COMPLETE;
 
     case ACTION_INTERRUPT: /* ctrl-c */
       is_interrupt = true; /* same as finish, reset state */
       /* FALLTHRU */
-    case ACTION_OPER_AND_NEXT: /* ctrl-o XXX ?? */
     case ACTION_FINISH_LINE: /* enter key pressed */
       if ( ! is_interrupt && this->is_search_mode() ) {
     case ACTION_SEARCH_HISTORY: /* enter causes search to execute */
@@ -325,7 +333,7 @@ State::dispatch( void )
 
     case ACTION_GOTO_EOL: { /* cursor to eol */
       size_t add = 0;
-      if ( ( this->mode & VI_COMMAND_MODE ) == 0 ) /* to last char */
+      if ( ( this->in.mode & VI_COMMAND_MODE ) == 0 ) /* to last char */
         add = this->edited_len - off;
       else if ( off + 1 < this->edited_len ) /* to insert pos */
         add = this->edited_len - ( off + 1 );
@@ -758,6 +766,8 @@ State::dispatch( void )
       break;
 
     case ACTION_VI_REPEAT_DIGIT: /* XXX : display repeat counter? */
+      if ( c >= '0' && c <= '9' )
+        this->vi_repeat_cnt = this->vi_repeat_cnt * 10 + ( c - '0' );
       break; /* this is handled in lineio.cpp, since '0' causes '^' action */
     case ACTION_EMACS_ARG_DIGIT:
       if ( c >= '0' && c <= '9' )
@@ -1052,6 +1062,11 @@ State::dispatch( void )
     case ACTION_PENDING:     /* when needs input, but nothing available */
     case ACTION_PUTBACK:     /* doesn't occur here, only in input */
     case ACTION_REPEAT_LAST: /* handled before switch */
+      break;
+    case ACTION_DECR_SHOW:   /* handled outside dispatch */
+    case ACTION_INCR_SHOW:
+    case ACTION_MACRO:
+    case ACTION_ACTION:
       break;
   }
   return LINE_STATUS_OK;

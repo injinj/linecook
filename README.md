@@ -313,7 +313,7 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | ctrl-l | redraw_line | EICSV | Refresh prompt and line |
 | enter | finish_line | EICSV | Execute line and reset state |
 | ctrl-n | next_item | EIC | Goto next item in history |
-| ctrl-o | oper_and_next | EICSV | Execute line and reset state |
+| ctrl-o | oper_and_next | EICSV | Execute completion for line |
 | ctrl-p | prev_item | EIC | Goto previous item in history |
 | ctrl-q | quoted_insert | EICS | Insert key typed (eg. ctrl char) |
 | ctrl-r | search_history | EIS | Search history from end |
@@ -490,3 +490,4 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | meta-ctrl-p | show_yank | EICSV | Show the yank lines |
 | meta-ctrl-u | show_undo | EICSV | Show the undo lines |
 | meta-ctrl-v | show_vars | EIC | Use TAB completion w/env vars |
+| ctrl-x ctrl-a (k) | action | EIC | General purpose action |

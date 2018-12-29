@@ -32,7 +32,8 @@ typedef enum TTYState_s {
   TTYS_GEOM_UPDATE    = 16, /* when screen geom changed */
   TTYS_HIST_UPDATE    = 32, /* when external history added */
   TTYS_CONTINUE_LINE  = 64, /* when continuing to current line */
-  TTYS_ROTATE_HISTORY = 128 /* when hitory needs rotation */
+  TTYS_ROTATE_HISTORY = 128,/* when hitory needs rotation */
+  TTYS_COMPLETE       = 256 /* when completion requested */
 } TTYState;
 
 /*
@@ -144,6 +145,10 @@ void lc_tty_set_continue( TTYCook *tty,  int on );
 int lc_tty_push_line( TTYCook *tty,  const char *line,  size_t len );
 /* Try to read a line, returns 1 when have a line, 0 when not, -1 on error */
 int lc_tty_get_line( TTYCook *tty );
+/* Fetch the term that is being completed from the line edit */
+int lc_tty_get_completion_cmd( TTYCook *tty,  char *cmd,  size_t len );
+/* Fetch the term that is being completed from the line edit */
+int lc_tty_get_completion_term( TTYCook *tty,  char *term,  size_t len );
 /* Wait for I/O, returns 1 when ready, 0 when not, -1 when error */
 int lc_tty_poll_wait( TTYCook *tty,  int time_ms );
 /* Get geom and use it */
@@ -194,6 +199,9 @@ struct TTY : public TTYCook_s {
   int reset_non_block( void );
   int normal_mode( void );
   void clear_line( void );
+  /* completion */
+  int get_completion_cmd( char *cmd,  size_t len );
+  int get_completion_term( char *term,  size_t len );
   /* line edit */
   int push_line( const char *line,  size_t len ); /* push line back */
   int get_line( void );         /* same as lc_tty_get_line() */

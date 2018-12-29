@@ -35,11 +35,14 @@ struct GlobCvt {
     }
   }
   /* return 0 on success or -1 on failure */
-  int convert_glob( const CHAR *pattern,  size_t patlen,  bool anchor_start ) {
+  int convert_glob( const CHAR *pattern,  size_t patlen,  bool anchor_start,
+                    bool opt_dirend,  bool opt_caseins ) {
     size_t k;
     bool   inside_bracket,
            anchor_end = true;
 
+    if ( opt_caseins )
+      this->str_out( "(?i)", 4 ); /* match any case */
     this->str_out( "(?s)", 4 ); /* match newlines */
     if ( patlen > 0 ) {
       if ( pattern[ 0 ] != '*' ) {
@@ -96,8 +99,12 @@ struct GlobCvt {
           this->char_out( pattern[ k ] );
         }
       }
-      if ( anchor_end )
-        this->str_out( "\\z", 2 ); /* anchor at end */
+      if ( anchor_end ) {
+        if ( opt_dirend )
+          this->str_out( "/?\\z", 4 ); /* anchor at end with directory match */
+        else
+          this->str_out( "\\z", 2 ); /* anchor at end */
+      }
     }
     if ( this->off > this->maxlen )
       return -1;
