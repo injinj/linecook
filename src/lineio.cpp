@@ -20,6 +20,18 @@ lc_line_copy( LineCook *state,  char *out )
 }
 
 int
+lc_edit_length( LineCook *state )
+{
+  return static_cast<linecook::State *>( state )->edit_length();
+}
+
+int
+lc_edit_copy( LineCook *state,  char *out )
+{
+  return static_cast<linecook::State *>( state )->edit_copy( out );
+}
+
+int
 lc_complete_term_length( LineCook *state )
 {
   return static_cast<linecook::State *>( state )->complete_term_length();
@@ -35,11 +47,26 @@ lc_complete_term_copy( LineCook *state,  char *out )
 
 using namespace linecook;
 
+int State::line_length( void ) {
+  return this->line_length( 0, this->line_len ); }
+int State::line_copy( char *out ) {
+  return this->line_copy( out, 0, this->line_len ); }
+int State::edit_length( void ) {
+  return this->line_length( 0, this->edited_len ); }
+int State::edit_copy( char *out ) {
+  return this->line_copy( out, 0, this->edited_len ); }
+int State::complete_term_length( void ) {
+  return this->line_length( this->complete_off,
+                            this->complete_off + this->complete_len ); }
+int State::complete_term_copy( char *out ) {
+  return this->line_copy( out, this->complete_off,
+                          this->complete_off + this->complete_len ); }
+
 int
-State::line_length( void )
+State::line_length( size_t from,  size_t to )
 {
   int size = 0;
-  for ( size_t i = 0; i < this->line_len; i++ ) {
+  for ( size_t i = from; i < to; i++ ) {
     if ( this->line[ i ] != 0 ) {
       int n = ku_utf32_to_utf8_len( &this->line[ i ], 1 );
       if ( n > 0 )
@@ -50,41 +77,12 @@ State::line_length( void )
 }
 
 int
-State::line_copy( char *out )
+State::line_copy( char *out,  size_t from,  size_t to )
 {
   int size = 0;
-  for ( size_t i = 0; i < this->line_len; i++ ) {
+  for ( size_t i = from; i < to; i++ ) {
     if ( this->line[ i ] != 0 ) {
       int n = ku_utf32_to_utf8( this->line[ i ], &out[ size ] );
-      if ( n > 0 )
-        size += n;
-    }
-  }
-  return size;
-}
-
-int
-State::complete_term_length( void )
-{
-  int size = 0;
-  for ( size_t i = 0; i < this->complete_len; i++ ) {
-    if ( this->line[ i ] != 0 ) {
-      int n = ku_utf32_to_utf8_len( &this->line[ this->complete_off + i ], 1 );
-      if ( n > 0 )
-        size += n;
-    }
-  }
-  return size;
-}
-
-int
-State::complete_term_copy( char *out )
-{
-  int size = 0;
-  for ( size_t i = 0; i < this->complete_len; i++ ) {
-    if ( this->line[ i ] != 0 ) {
-      int n = ku_utf32_to_utf8( this->line[ this->complete_off + i ],
-                                &out[ size ] );
       if ( n > 0 )
         size += n;
     }

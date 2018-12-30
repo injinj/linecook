@@ -90,9 +90,13 @@ int lc_completion_get_line( LineCook *state );
 int lc_line_length( LineCook *state );
 /* Utf8 copy line in this->line, return length copied, not null terminated */
 int lc_line_copy( LineCook *state,  char *out );
-/* Utf8 length of completion in this->line, not including null char */
+/* Utf8 length of line in this->line, currently editing */
+int lc_edit_length( LineCook *state );
+/* Utf8 copy line in this->line, return length copied, currently editing */
+int lc_edit_copy( LineCook *state,  char *out );
+/* Utf8 length of completion in this->line[ complete_off ], complete_len */
 int lc_complete_term_length( LineCook *state );
-/* Utf8 copy completion in this->line, return length copied, not null term */
+/* Utf8 copy completion in this->line[ complete_off ], complete_len */
 int lc_complete_term_copy( LineCook *state,  char *out );
 /* Read a line continuation */
 int lc_continue_get_line( LineCook *state );
@@ -874,10 +878,14 @@ struct State : public LineCook_s {
   void output_fmt( const char *fmt,  size_t pos ); /* A single arg ANSI seq */
   void output_newline( size_t count );  /* Put \r\n*count and flush */
   void output_flush( void );  /* Write buffer to terminal */
-  int line_length( void );    /* Utf8 length of this->line */
+  int line_length( void );    /* Utf8 length of this->line, line_len */
   int line_copy( char *out ); /* Utf8 copy line, not null terminated */
+  int edit_length( void );    /* Utf8 length of this->line, edited_len */
+  int edit_copy( char *out ); /* Utf8 copy line, not null terminated */
   int complete_term_length( void );    /* Utf8 length of line[ complete_off ] */
   int complete_term_copy( char *out ); /* Utf8 copy line, not null terminated */
+  int line_length( size_t from,  size_t to ); /* Utf8 length of this->line */
+  int line_copy( char *out,  size_t from,  size_t to ); /* Utf8 copy line */
 
   /* Add to yank buffer */
   void reset_yank( void );

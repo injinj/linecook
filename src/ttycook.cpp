@@ -1229,9 +1229,9 @@ int
 TTY::get_completion_cmd( char *cmd,  size_t len )
 {
   int n;
-  if ( (int) len + 1 < lc_line_length( this->lc ) )
+  if ( (int) len + 1 < lc_edit_length( this->lc ) )
     return -1;
-  n = lc_line_copy( this->lc, cmd );
+  n = lc_edit_copy( this->lc, cmd );
   cmd[ n ] = '\0';
   return n;
 }
