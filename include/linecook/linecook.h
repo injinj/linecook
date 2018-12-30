@@ -746,7 +746,10 @@ struct State : public LineCook_s {
   void reset_vi_insert_mode( void );
   void set_vi_insert_mode( void ); /* sets this->in.mode bits */
   void set_vi_replace_mode( void );
+  void set_emacs_replace_mode( void );
   void set_vi_command_mode( void );
+  void set_any_insert_mode( void );  /* either vi or emacs */
+  void set_any_replace_mode( void ); /* either vi or emacs */
   void reset_emacs_mode( void );
   void set_emacs_mode( void );
 
@@ -1046,7 +1049,7 @@ inline bool State::is_visual_mode( void )
 inline void State::reset_vi_insert_mode( void ) {
   this->in.mode |= VI_INSERT_MODE;
   this->in.mode &= ~( VI_COMMAND_MODE | EMACS_MODE |
-                       REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
+                      REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 inline void State::set_vi_insert_mode( void ) {
@@ -1055,23 +1058,42 @@ inline void State::set_vi_insert_mode( void ) {
 inline void State::set_vi_replace_mode( void ) {
   this->in.mode |= VI_INSERT_MODE | REPLACE_MODE;
   this->in.mode &= ~( VI_COMMAND_MODE | EMACS_MODE | SEARCH_MODE |
-                         VISUAL_MODE );
+                      VISUAL_MODE );
+  this->right_prompt_needed = true;
+}
+inline void State::set_emacs_replace_mode( void ) {
+  this->in.mode |= EMACS_MODE | REPLACE_MODE;
+  this->in.mode &= ~( VI_INSERT_MODE | VI_COMMAND_MODE | SEARCH_MODE |
+                      VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 inline void State::set_vi_command_mode( void ) {
   this->in.mode |= VI_COMMAND_MODE;
   this->in.mode &= ~( VI_INSERT_MODE | EMACS_MODE |
-                         REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
+                      REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
+/* reset emacs insert mode */
 inline void State::reset_emacs_mode( void ) {
   this->in.mode |= EMACS_MODE;
   this->in.mode &= ~( VI_INSERT_MODE | VI_COMMAND_MODE |
-                         REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
+                      REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 inline void State::set_emacs_mode( void ) {
   this->reset_emacs_mode();
+}
+inline void State::set_any_insert_mode( void ) {
+  if ( ( this->in.mode & EMACS_MODE ) == 0 )
+    this->reset_vi_insert_mode();
+  else
+    this->reset_emacs_mode();
+}
+inline void State::set_any_replace_mode( void ) {
+  if ( ( this->in.mode & EMACS_MODE ) == 0 )
+    this->set_vi_replace_mode();
+  else
+    this->set_emacs_replace_mode();
 }
 /* search mode goes into insert mode, out of search goes to command */
 inline void State::set_search_mode( void ) {

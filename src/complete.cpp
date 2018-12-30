@@ -66,6 +66,7 @@ State::tab_complete( int ctype,  bool reverse )
 void
 State::copy_complete_string( const char32_t *str,  size_t len )
 {
+  this->comp_len = 0;
   if ( this->realloc_complete( len ) ) {
     for ( size_t i = 0; i < len; i++ )
       this->comp_buf[ i ] = str[ i ];
@@ -104,7 +105,6 @@ State::fill_completions( int ctype )
     j += (size_t) n;
   }
   this->completion( p, off8, len8, ctype );
-  this->comp_len = 0;
   if ( this->comp.cnt > 0 )
     this->copy_complete_string( &this->line[ off ], len );
 failed:
@@ -115,6 +115,7 @@ failed:
 void
 State::reset_completions( void )
 {
+  this->comp_len      = 0;
   this->complete_off  = 0;
   this->complete_len  = 0;
   this->complete_type = 0;
@@ -191,7 +192,7 @@ State::tab_first_completion( int ctype )
          pref_cnt    = 0;
   bool   found_match = false;
 
-  if ( ctype == COMPLETE_SCAN || ctype == COMPLETE_REPLACE ) {
+  if ( ctype == COMPLETE_SCAN ) {
     if ( replace_len > 0 ) {
       size_t i = coff + replace_len;
       /* scan may have directory prefix, skip over that */
@@ -202,20 +203,19 @@ State::tab_first_completion( int ctype )
           break;
       }
       /* filter scan results */
-      if ( ctype != COMPLETE_REPLACE ) {
-        pattern = &this->line[ i ];
-        patlen  = replace_len - ( i - coff );
-        if ( is_glob( pattern, patlen ) ) {
-          LineSave::filter_glob( this->comp, pattern, patlen, false );
-          this->complete_has_glob = true;
-        }
-        else if ( patlen > 0 ) {
-          LineSave::filter_substr( this->comp, pattern, patlen );
-        }
+      pattern = &this->line[ i ];
+      patlen  = replace_len - ( i - coff );
+      if ( is_glob( pattern, patlen ) ) {
+        LineSave::filter_glob( this->comp, pattern, patlen, false );
+        this->complete_has_glob = true;
+      }
+      else if ( patlen > 0 ) {
+        LineSave::filter_substr( this->comp, pattern, patlen );
       }
     }
     if ( this->comp.cnt > 0 ) {
       if ( this->comp.cnt == 1 ) {
+      match_exact:;
         const LineSave &ls =
           LineSave::line_const( this->comp, this->comp.first );
         match_len = ls.edited_len;
@@ -234,6 +234,10 @@ State::tab_first_completion( int ctype )
   }
   /* either glob or prefix filter */
   else {
+    if ( ctype == COMPLETE_REPLACE ) {
+      if ( this->comp.cnt == 1 )
+        goto match_exact;
+    }
     pattern = &this->line[ coff ];
     patlen  = replace_len;
     if ( is_glob( pattern, patlen ) ) {

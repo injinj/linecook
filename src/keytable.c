@@ -198,6 +198,10 @@ lc_action_to_name( KeyAction action )
     case ACTION_VI_CHANGE_WORD:      return "vi_change_word";
     case ACTION_VI_CHANGE_CHAR:      return "vi_change_char";
     case ACTION_VI_CHANGE_EOL:       return "vi_change_eol";
+    case ACTION_INSERT:              return "insert";
+    case ACTION_INSERT_BOL:          return "insert_bol";
+    case ACTION_APPEND:              return "append";
+    case ACTION_APPEND_EOL:          return "append_eol";
     case ACTION_REPEAT_LAST:         return "repeat_last";
     case ACTION_VI_MARK:             return "vi_mark";
     case ACTION_VI_GOTO_MARK:        return "vi_goto_mark";
@@ -316,6 +320,10 @@ lc_action_to_descr( KeyAction action )
     case ACTION_VI_CHANGE_WORD:      return "Change word under cursor";
     case ACTION_VI_CHANGE_CHAR:      return "Change char under cursor";
     case ACTION_VI_CHANGE_EOL:       return "Change from cursor to line end";
+    case ACTION_INSERT:              return "Go to insert mode";
+    case ACTION_INSERT_BOL:          return "Go to insert at line start";
+    case ACTION_APPEND:              return "Go to insert after cursor";
+    case ACTION_APPEND_EOL:          return "Go to insert at line end";
     case ACTION_REPEAT_LAST:         return "Repeat last operation";
     case ACTION_VI_MARK:             return "Mark the cursor position";
     case ACTION_VI_GOTO_MARK:        return "Goto a marked position";
@@ -780,6 +788,10 @@ lc_action_options( KeyAction action )
     case ACTION_VI_CHANGE_WORD:     return OPT_UNDO; /* cw */
     case ACTION_VI_CHANGE_CHAR:     return OPT_UNDO | OPT_REPEAT; /* s */
     case ACTION_VI_CHANGE_EOL:      return OPT_UNDO; /* c$ */
+    case ACTION_INSERT:             return OPT_UNDO;
+    case ACTION_INSERT_BOL:         return OPT_UNDO;
+    case ACTION_APPEND:             return OPT_UNDO;
+    case ACTION_APPEND_EOL:         return OPT_UNDO;
     case ACTION_REPEAT_LAST:        return 0;        /* . */
     case ACTION_VI_MARK:            return OPT_VI_CHAR_ARG; /* m (char) */
     case ACTION_VI_GOTO_MARK:       return OPT_VI_CHAR_ARG; /* ` (char) */

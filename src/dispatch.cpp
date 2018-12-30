@@ -688,26 +688,42 @@ State::dispatch( void )
 
     case ACTION_QUOTED_INSERT: /* ctrl-q XXX */
       break;
+    /* generic insert/append, either vi or emacs */
+    case ACTION_INSERT:
+      this->set_any_insert_mode();
+      break;
+    case ACTION_INSERT_BOL:
+      this->set_any_insert_mode();
+      if ( off > 0 )
+        this->move_cursor_back( off );
+      break;
+    case ACTION_APPEND:
+      this->set_any_insert_mode();
+      if ( off < this->edited_len )
+        this->move_cursor_fwd( 1 );
+      break;
+    case ACTION_APPEND_EOL:
+      this->set_any_insert_mode();
+      if ( off < this->edited_len )
+        this->move_cursor_fwd( this->edited_len - off );
+      break;
+    /* vi insert/append */
     case ACTION_VI_INSERT: /* 'i' in vi mode */
       this->set_vi_insert_mode();
       break;
-
     case ACTION_VI_REPLACE: /* 'R' in vi mode */
       this->set_vi_replace_mode();
       break;
-
     case ACTION_VI_APPEND: /* 'a' in vi mode */
       this->set_vi_insert_mode();
       if ( off < this->edited_len )
         this->move_cursor_fwd( 1 );
       break;
-
     case ACTION_VI_APPEND_EOL: /* 'A' in vi mode */
       this->set_vi_insert_mode();
       if ( off < this->edited_len )
         this->move_cursor_fwd( this->edited_len - off );
       break;
-
     case ACTION_VI_INSERT_BOL: /* 'I' in vi mode */
       this->set_vi_insert_mode();
       if ( off > 0 )

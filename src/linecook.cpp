@@ -202,10 +202,7 @@ State::reset_state( void )
   this->cursor_pos  = 0;
   this->refresh_pos = 0;
 
-  if ( this->is_emacs_mode() )
-    this->reset_emacs_mode();     /* reset search / replace flags */
-  else
-    this->reset_vi_insert_mode(); /* go back to vi insert mode */
+  this->set_any_insert_mode();    /* reset search / replace flags */
   this->right_prompt_needed = false;
 
   LineSave::reset( this->undo );  /* clear undo buffer */

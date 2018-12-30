@@ -158,29 +158,45 @@ main( void )
       raise( SIGSTOP ); /* suspend */
     }
     else if ( tty->lc_status == LINE_STATUS_COMPLETE ) {
-      #define FZFCMD "find . -print | fzf --layout=reverse --height=50%"
-      const char *cmd = FZFCMD;
-      FILE *fp;
-      char buf[ 1024 ], query[ 128 ];
-      int n;
-      n = lc_tty_get_completion_term( tty, query, sizeof( query ) );
-      if ( n > 0 ) { /* append query to fzf command above */
-        snprintf( buf, sizeof( buf ), FZFCMD "% --query=\"%s\"", query );
-        cmd = buf;
-      }
-      fp = popen( cmd, "r" );
-      if ( fp != NULL ) {
-        while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
-          size_t len = strlen( buf );
-          while ( len > 0 && buf[ len - 1 ] <= ' ' )
-            buf[ --len ] = '\0';
-          if ( len > 0 )
-            lc_add_completion( lc, 0, buf, len );
+      char buf[ 1024 ];
+      int n = lc_tty_get_completion_cmd( tty, buf, sizeof( buf ) );
+      /* check if git completion */
+      if ( n > 3 && strncmp( buf, "git", 3 ) == 0 ) {
+        static const char *g[] = {
+          "init", "add", "mv", "reset", "rm", "bisect",
+          "grep", "log", "show", "status", "branch",
+          "checkout", "commit", "diff", "merge", "rebase",
+          "tag", "fetch", "pull", "push"
+        };
+        for ( size_t i = 0; i < sizeof( g ) / sizeof( g[ 0 ] ); i++ ) {
+          lc_add_completion( lc, 0, g[ i ], strlen( g[ i ] ) );
         }
-        pclose( fp );
       }
+      /* use fzf completion */
       else {
-        perror( "popen(fzf)" );
+        #define FZFCMD "find . -print | fzf --layout=reverse --height=50%"
+        const char *cmd = FZFCMD;
+        FILE *fp;
+        char query[ 128 ];
+        n = lc_tty_get_completion_term( tty, query, sizeof( query ) );
+        if ( n > 0 ) { /* append query to fzf command above */
+          snprintf( buf, sizeof( buf ), FZFCMD "% --query=\"%s\"", query );
+          cmd = buf;
+        }
+        fp = popen( cmd, "r" );
+        if ( fp != NULL ) {
+          while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
+            size_t len = strlen( buf );
+            while ( len > 0 && buf[ len - 1 ] <= ' ' )
+              buf[ --len ] = '\0';
+            if ( len > 0 )
+              lc_add_completion( lc, 0, buf, len );
+          }
+          pclose( fp );
+        }
+        else {
+          perror( "popen(fzf)" );
+        }
       }
     }
     else if ( tty->lc_status == LINE_STATUS_EXEC ) { /* if a line available */

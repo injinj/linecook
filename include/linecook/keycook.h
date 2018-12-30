@@ -86,6 +86,10 @@ typedef enum KeyAction_e { /* current storage of this is uint8_t, 255 max */
   ACTION_VI_CHANGE_WORD     , /* 'cw' (vi) */
   ACTION_VI_CHANGE_CHAR     , /* 's' (vi) */
   ACTION_VI_CHANGE_EOL      , /* 'c$' (vi) */
+  ACTION_INSERT             , /* generic actions emacs or vi work */
+  ACTION_INSERT_BOL         ,
+  ACTION_APPEND             ,
+  ACTION_APPEND_EOL         ,
   ACTION_REPEAT_LAST        , /* '.' (vi) */
   ACTION_VI_MARK            , /* 'm' (vi) */
   ACTION_VI_GOTO_MARK       , /* '`' (vi) */
