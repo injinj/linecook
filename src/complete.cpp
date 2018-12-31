@@ -74,6 +74,77 @@ State::copy_complete_string( const char32_t *str,  size_t len )
   }
 }
 
+int
+State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
+                          int *arg_len, size_t args_size )
+{
+  /* this doesn't account for quoting in the args list */
+  size_t i = args_size,
+         off, end, sz;
+  if ( i-- == 0 )
+    return -1;
+  /* work backwards from complete off, make sure that it doesn't change */
+  arg_off[ i ] = this->complete_off;
+  arg_len[ i ] = this->complete_len;
+  for ( off = this->complete_off; ; ) {
+    end = this->skip_prev_space( off ); /* space splitting args */
+    if ( end == 0 )
+      break;
+    off = end;
+    while ( off > 0 && ! this->is_spc_char( this->line[ off - 1 ] ) )
+      off--;
+    if ( i == 0 )
+      return -1;
+    i -= 1;
+    arg_off[ i ] = off;
+    arg_len[ i ] = end - off;
+  }
+  /* calculated args up to complete phrase, now compute after it */
+  sz = args_size - i;
+  ::memmove( arg_off, &arg_off[ i ], ( sz + 1 ) * sizeof( arg_off[ 0 ] ) );
+  ::memmove( arg_len, &arg_len[ i ], ( sz + 1 ) * sizeof( arg_len[ 0 ] ) );
+  arg_num = sz - 1;
+  arg_count = sz;
+  for ( end = this->complete_off + this->complete_len; ; ) {
+    off = this->skip_next_space( end );
+    if ( off == this->edited_len )
+      break;
+    end = off;
+    while ( end < this->edited_len && ! this->is_spc_char( this->line[ end ] ) )
+      end++;
+    if ( arg_count == (int) args_size )
+      return -1;
+    arg_off[ arg_count ] = off;
+    arg_len[ arg_count ] = end - off;
+    arg_count++;
+  }
+  /* convert offsets/lengths from utf32 to utf8 */
+  char p[ 4 ];
+  for ( off = 0; off < this->edited_len; off++ )
+    if ( ku_utf32_to_utf8( this->line[ off ], p ) != 1 )
+      break;
+  if ( off < this->edited_len ) {
+    int sum = 0;
+    for ( i = 0; i < (size_t) arg_count; i++ ) {
+      int n, start = arg_off[ i ], end = arg_off[ i ] + arg_len[ i ];
+      arg_off[ i ] += sum;
+      for ( ; off < (size_t) end; off++ ) {
+        n = ku_utf32_to_utf8( this->line[ off ], p );
+        if ( n <= 0 )
+          return -1;
+        if ( n > 1 ) {
+          sum += n - 1;
+          if ( off < (size_t) start )
+            arg_off[ i ] += n - 1;
+          else
+            arg_len[ i ] += n - 1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 void
 State::fill_completions( int ctype )
 {

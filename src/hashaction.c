@@ -132,10 +132,6 @@ lc_hash_to_action( unsigned int h )
     case 0xead705c8: a = 103; break;
     case 0x2477fba2: a = 104; break;
     case 0xf8c1b1d: a = 105; break;
-    case 0xc51e155b: a = 106; break;
-    case 0xb59aab19: a = 107; break;
-    case 0x6e9f53f6: a = 108; break;
-    case 0x2693b350: a = 109; break;
     default: a = 0; break;
   }
   return (KeyAction) a;

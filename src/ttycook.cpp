@@ -173,9 +173,13 @@ lc_tty_get_line( TTYCook *tty )
 }
 
 int
-lc_tty_get_completion_cmd( TTYCook *tty,  char *cmd,  size_t len )
+lc_tty_get_completion_cmd( TTYCook *tty,  char *cmd,  size_t len,
+                           int *arg_num,  int *arg_count,  int *arg_off,
+                           int *arg_len,  size_t args_size )
 {
-  return static_cast<linecook::TTY *>( tty )->get_completion_cmd( cmd, len );
+  return static_cast<linecook::TTY *>( tty )->get_completion_cmd( cmd, len,
+                                       arg_num, arg_count, arg_off, arg_len,
+                                       args_size );
 }
 
 int
@@ -1226,13 +1230,18 @@ TTY::push_line( const char *line,  size_t len )
 }
 
 int
-TTY::get_completion_cmd( char *cmd,  size_t len )
+TTY::get_completion_cmd( char *cmd,  size_t len,  int *arg_num,  int *arg_count,
+                         int *arg_off,  int *arg_len,  size_t args_size )
 {
   int n;
+  *arg_num   = 0;
+  *arg_count = 0;
   if ( (int) len + 1 < lc_edit_length( this->lc ) )
     return -1;
   n = lc_edit_copy( this->lc, cmd );
   cmd[ n ] = '\0';
+  lc_get_complete_geom( this->lc, arg_num, arg_count, arg_off, arg_len,
+                        args_size );
   return n;
 }
 

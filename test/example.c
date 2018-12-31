@@ -158,10 +158,16 @@ main( void )
       raise( SIGSTOP ); /* suspend */
     }
     else if ( tty->lc_status == LINE_STATUS_COMPLETE ) {
+      int  arg_num,   /* which arg is completed, 0 = first */
+           arg_count, /* how many args */
+           arg_off[ 32 ],  /* offset of args */
+           arg_len[ 32 ];  /* length of args */
       char buf[ 1024 ];
-      int n = lc_tty_get_completion_cmd( tty, buf, sizeof( buf ) );
+      int n = lc_tty_get_completion_cmd( tty, buf, sizeof( buf ),
+                                   &arg_num, &arg_count, arg_off, arg_len, 32 );
       /* check if git completion */
-      if ( n > 3 && strncmp( buf, "git", 3 ) == 0 ) {
+      if ( arg_num == 1 && arg_len[ 0 ] == 3 &&
+           strncmp( &buf[ arg_off[ 0 ] ], "git", 3 ) == 0 ) {
         static const char *g[] = {
           "init", "add", "mv", "reset", "rm", "bisect",
           "grep", "log", "show", "status", "branch",

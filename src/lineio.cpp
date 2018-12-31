@@ -43,6 +43,14 @@ lc_complete_term_copy( LineCook *state,  char *out )
   return static_cast<linecook::State *>( state )->complete_term_copy( out );
 }
 
+int
+lc_get_complete_geom( LineCook *state, int *arg_num, int *arg_count,
+                      int *arg_off, int *arg_len, size_t args_size )
+{
+  return static_cast<linecook::State *>( state )->
+    get_complete_geom( *arg_num, *arg_count, arg_off, arg_len, args_size );
+}
+
 } /* extern "C" */
 
 using namespace linecook;

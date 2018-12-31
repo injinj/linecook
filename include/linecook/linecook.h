@@ -85,6 +85,7 @@ int lc_bindkey( LineCook *state,  char *args[],  size_t argc );
 /* Read and edit a line, returns Line_STATUS above, if LINE_STATUS_OK, then
  * the line is null terminated in state->line with size state->line_len bytes */
 int lc_get_line( LineCook *state );
+/* Continue completion after LINE_STATUS_COMPLETE is returned */
 int lc_completion_get_line( LineCook *state );
 /* Utf8 length of line in this->line, not including null char */
 int lc_line_length( LineCook *state );
@@ -111,6 +112,9 @@ int lc_add_completion( LineCook *state,  int ctype,  const char *line,
 int lc_max_timeout( LineCook *state,  int time_ms );
 /* Clear line and refresh when get_line called again */
 void lc_clear_line( LineCook *state );
+/* Parse the edited line into arg offsets and lengths for completion */
+int lc_get_complete_geom( LineCook *state, int *arg_num,  int *arg_count,
+                          int *arg_off,  int *arg_len,  size_t args_size );
 /* Callbacks for complete, hints, read/write terminal */
 typedef int (* LineCompleteCB )( LineCook *state,  const char *buf,
                                  size_t off,  size_t len,  int complete_type );
@@ -889,7 +893,8 @@ struct State : public LineCook_s {
   int complete_term_copy( char *out ); /* Utf8 copy line, not null terminated */
   int line_length( size_t from,  size_t to ); /* Utf8 length of this->line */
   int line_copy( char *out,  size_t from,  size_t to ); /* Utf8 copy line */
-
+  int get_complete_geom( int &arg_num,  int &arg_count,  int *arg_off,
+                         int *arg_len,  size_t args_size );
   /* Add to yank buffer */
   void reset_yank( void );
   void add_yank( const char32_t *buf,  size_t size ); /* copy to yank buffer */
