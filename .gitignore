@@ -18,3 +18,5 @@
 *.out
 core.[0-9]?*
 *.rpm
+# gen files
+src/hashaction.c
