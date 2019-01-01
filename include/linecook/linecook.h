@@ -44,14 +44,13 @@ typedef enum LineStatus_e {
     e == LINE_STATUS_COMPLETE   ? "Complete" : "Unknown status" )
 
 typedef enum CompleteType_e {
-  COMPLETE_ANY     = 0,   /* type not specified */
-  COMPLETE_FILES   = 'f', /* file or dir */
-  COMPLETE_DIRS    = 'd', /* dir only */
-  COMPLETE_EXES    = 'e', /* dir or exe, uses $PATH */
-  COMPLETE_SCAN    = 's', /* directory tree scan */
-  COMPLETE_REPLACE = 'r', /* replace with anything, external expansion */
-  COMPLETE_ENV     = 'v', /* variable */
-  COMPLETE_FZF     = 'z'  /* fzf */
+  COMPLETE_ANY   = 0,   /* type not specified */
+  COMPLETE_FILES = 'f', /* file or dir */
+  COMPLETE_DIRS  = 'd', /* dir only */
+  COMPLETE_EXES  = 'e', /* dir or exe, uses $PATH */
+  COMPLETE_SCAN  = 's', /* directory tree scan */
+  COMPLETE_ENV   = 'v', /* variable */
+  COMPLETE_FZF   = 'z'  /* fzf */
 } CompleteType;
 
 /* Allocate the state */

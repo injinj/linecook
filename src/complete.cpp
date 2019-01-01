@@ -327,7 +327,7 @@ State::tab_first_completion( void )
   }
   /* either glob or prefix filter */
   else {
-    if ( this->complete_type == COMPLETE_REPLACE ) {
+    if ( this->complete_type == COMPLETE_FZF ) {
       if ( this->comp.cnt == 1 )
         goto match_exact;
     }

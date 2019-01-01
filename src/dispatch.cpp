@@ -927,22 +927,22 @@ State::dispatch( void )
     case ACTION_SHOW_TREE:      
     case ACTION_SHOW_FZF:       
 
-      switch ( this->action ) {
-        default:
-        case ACTION_TAB_COMPLETE: this->complete_type = COMPLETE_ANY;   break;
-        case ACTION_TAB_REVERSE:  this->complete_type = COMPLETE_SCAN;  break;
-        case ACTION_SHOW_DIRS:    this->complete_type = COMPLETE_DIRS;  break;
-        case ACTION_SHOW_EXES:    this->complete_type = COMPLETE_EXES;  break;
-        case ACTION_SHOW_FILES:   this->complete_type = COMPLETE_FILES; break;
-        case ACTION_SHOW_VARS:    this->complete_type = COMPLETE_ENV;   break;
-        case ACTION_SHOW_TREE:    this->complete_type = COMPLETE_SCAN;  break;
-        case ACTION_SHOW_FZF:     this->complete_type = COMPLETE_FZF;   break;
-      }
-      /* complete a term under the cursor */
-      if ( this->is_vi_command_mode() )
-        this->set_vi_insert_mode();
       if ( this->show_mode != SHOW_COMPLETION ) {
         this->reset_completions();
+        switch ( this->action ) {
+          default:
+          case ACTION_TAB_COMPLETE: this->complete_type = COMPLETE_ANY;   break;
+          case ACTION_TAB_REVERSE:  this->complete_type = COMPLETE_SCAN;  break;
+          case ACTION_SHOW_DIRS:    this->complete_type = COMPLETE_DIRS;  break;
+          case ACTION_SHOW_EXES:    this->complete_type = COMPLETE_EXES;  break;
+          case ACTION_SHOW_FILES:   this->complete_type = COMPLETE_FILES; break;
+          case ACTION_SHOW_VARS:    this->complete_type = COMPLETE_ENV;   break;
+          case ACTION_SHOW_TREE:    this->complete_type = COMPLETE_SCAN;  break;
+          case ACTION_SHOW_FZF:     this->complete_type = COMPLETE_FZF;   break;
+        }
+        /* complete a term under the cursor */
+        if ( this->is_vi_command_mode() )
+          this->set_vi_insert_mode();
         this->init_completion_term();
         this->refresh_needed = true; /* refresh line after called again */
         return LINE_STATUS_COMPLETE;

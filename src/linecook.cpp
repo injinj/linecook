@@ -333,7 +333,7 @@ State::completion_get_line( void ) /* completion entry point */
     this->fill_completions();
   }
   else {
-    this->complete_type = COMPLETE_REPLACE; /* may not match complete phrase */
+    this->complete_type = COMPLETE_FZF; /* may not match complete phrase */
   }
   if ( ! this->tab_first_completion() ) {
     if ( this->comp.cnt > 0 ) {
