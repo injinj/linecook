@@ -43,15 +43,16 @@ typedef enum LineStatus_e {
     e == LINE_STATUS_OK         ? "OK" : \
     e == LINE_STATUS_COMPLETE   ? "Complete" : "Unknown status" )
 
-typedef enum LineCompletionType_e {
+typedef enum CompleteType_e {
   COMPLETE_ANY     = 0,   /* type not specified */
   COMPLETE_FILES   = 'f', /* file or dir */
   COMPLETE_DIRS    = 'd', /* dir only */
   COMPLETE_EXES    = 'e', /* dir or exe, uses $PATH */
   COMPLETE_SCAN    = 's', /* directory tree scan */
   COMPLETE_REPLACE = 'r', /* replace with anything, external expansion */
-  COMPLETE_ENV     = 'v'  /* variable */
-} LineCompletionType;
+  COMPLETE_ENV     = 'v', /* variable */
+  COMPLETE_FZF     = 'z'  /* fzf */
+} CompleteType;
 
 /* Allocate the state */
 LineCook *lc_create_state( int cols,  int lines );
@@ -99,6 +100,10 @@ int lc_edit_copy( LineCook *state,  char *out );
 int lc_complete_term_length( LineCook *state );
 /* Utf8 copy completion in this->line[ complete_off ], complete_len */
 int lc_complete_term_copy( LineCook *state,  char *out );
+/* Get the current completion type */
+CompleteType lc_get_complete_type( LineCook *state );
+/* Set the current completion type */
+void lc_set_complete_type( LineCook *state,  CompleteType ctype );
 /* Read a line continuation */
 int lc_continue_get_line( LineCook *state );
 /* Add line to history */
@@ -106,8 +111,7 @@ int lc_add_history( LineCook *state,  const char *line,  size_t len );
 /* Compress history database to unique items */
 int lc_compress_history( LineCook *state );
 /* Add line to completion list */
-int lc_add_completion( LineCook *state,  int ctype,  const char *line,
-                       size_t len );
+int lc_add_completion( LineCook *state,  const char *line,  size_t len );
 /* If any timers are active, calc timeout */
 int lc_max_timeout( LineCook *state,  int time_ms );
 /* Clear line and refresh when get_line called again */
@@ -117,9 +121,9 @@ int lc_get_complete_geom( LineCook *state, int *arg_num,  int *arg_count,
                           int *arg_off,  int *arg_len,  size_t args_size );
 /* Callbacks for complete, hints, read/write terminal */
 typedef int (* LineCompleteCB )( LineCook *state,  const char *buf,
-                                 size_t off,  size_t len,  int complete_type );
-typedef char *(* LineHintsCB )( LineCook *state,  const char *buf,
-                                int *color,  int *bold );
+                                 size_t off,  size_t len );
+/*typedef char *(* LineHintsCB )( LineCook *state,  const char *buf,
+                                int *color,  int *bold );*/
 /* These return -1 on error, 0 on EAGAIN, > 0 when part or all fullfilled */
 typedef int (* LineReadCB )( LineCook *state,  void *buf,  size_t len );
 typedef int (* LineWriteCB )( LineCook *state,  const void *buf,  size_t len );
@@ -367,7 +371,7 @@ struct LineCook_s {
   LineReadCB     read_cb;      /* Read from terminal */
   LineWriteCB    write_cb;     /* Write to terminal */
   LineCompleteCB complete_cb;  /* Modify completion db based on input */
-  LineHintsCB    hints_cb;     /* Hint for current input */
+  /*LineHintsCB    hints_cb;     * Hint for current input */
   LineCookInput  in;
 
   /* The current state of the line edit */
@@ -463,7 +467,7 @@ struct LineCook_s {
   /* Complete off / len */
   size_t       complete_off,    /* Offset into line where completion starts */
                complete_len;    /* Length of completion phrase */
-  int          complete_type;   /* Type of completion ('d', 'e', 'v', 'f') */
+  CompleteType complete_type;   /* Type of conpletion in operation */
   uint8_t      complete_has_quote, /* Completing a quoted phrase */
                complete_has_glob,  /* Completing a glob wildcard */
                complete_is_prefix; /* Completing a prefix */
@@ -638,13 +642,12 @@ struct State : public LineCook_s {
   int write( const void *buf,  size_t len ) {
     return this->write_cb( this, buf, len );
   }
-  int completion( const char *buf,  size_t off,  size_t len,
-                  int complete_type ) {
-    return this->complete_cb( this, buf, off, len, complete_type );
+  int completion( const char *buf,  size_t off,  size_t len ) {
+    return this->complete_cb( this, buf, off, len );
   }
-  char *hints( const char *buf,  int &color,  int &bold ) {
+  /*char *hints( const char *buf,  int &color,  int &bold ) {
     return this->hints_cb( this, buf, &color, &bold );
-  }
+  }*/
   /* Prompt */
   static ScreenClass screen_class( const char32_t *code,  size_t &sz );
   static ScreenClass escape_class( const char32_t *code,  size_t &sz );
@@ -932,16 +935,18 @@ struct State : public LineCook_s {
   bool show_lsb( ShowMode m,  LineSaveBuf &lsb ); /* Init and show a page */
 
   /* Completion */
+  CompleteType get_complete_type( void ) { return this->complete_type; }
+  void set_complete_type( CompleteType ctype ) { this->complete_type = ctype; }
   size_t quote_line_length( const char32_t *buf,  size_t len );
   void quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len );
-  bool tab_complete( int ctype,  bool reverse );
+  bool tab_complete( bool reverse );
   void copy_complete_string( const char32_t *str,  size_t len );
-  void fill_completions( int ctype );
+  void fill_completions( void );
   void reset_completions( void );
-  bool tab_first_completion( int ctype );
+  bool tab_first_completion( void );
   void init_completion_term( void );
-  bool tab_next_completion( int ctype,  bool reverse );
-  int add_completion( int ctype,  const char *buf,  size_t len );
+  bool tab_next_completion( bool reverse );
+  int add_completion( const char *buf,  size_t len );
   void push_completion( const char32_t *buf,  size_t len );
 #if 0
   LineSave *match_completion( const char *buf,  size_t len,  size_t &match_len,

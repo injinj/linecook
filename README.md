@@ -353,7 +353,7 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | meta-. | yank_last_arg | EICS | Yank last argument |
 | meta-_ | yank_last_arg | EICS | Yank last argument |
 | meta-ctrl-y | yank_nth_arg | EICS | Yank Nth argument |
-| meta-/ | search_complete | EIC | Search dir tree using substring |
+| meta-/ | show_tree | EIC | Search dir tree using substring |
 | arrow-left | go_left | EICSV | Goto char before cursor |
 | arrow-right | go_right | EICSV | Goto char after cursor |
 | arrow-left-vt | go_left | EICSV | Goto char before cursor |
@@ -472,15 +472,17 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | y | visual_yank | V | Yank visual selection |
 | (other key) | visual_mark | V | Toggle visual select mode |
 | f1 | show_keys | EICSV | Show the key bindings |
-| f2 | show_files | EIC | Use TAB completion w/files |
-| f3 | show_exes | EIC | Use TAB completion w/exes |
-| f4 | show_clear | EICSV | Clear the show buffer |
-| f5 | show_dirs | EIC | Use TAB completion w/dirs |
-| f6 | show_undo | EICSV | Show the undo lines |
-| f7 | show_yank | EICSV | Show the yank lines |
-| f8 | show_history | EICS | Show the history lines |
-| f9 | redraw_line | EICSV | Refresh prompt and line |
+| f2 | show_history | EICS | Show the history lines |
+| f3 | show_files | EIC | Use TAB completion w/files |
+| f4 | show_tree | EIC | Search dir tree using substring |
+| f5 | show_exes | EIC | Use TAB completion w/exes |
+| f6 | show_dirs | EIC | Use TAB completion w/dirs |
+| f7 | show_undo | EICSV | Show the undo lines |
+| f8 | show_yank | EICSV | Show the yank lines |
+| f9 | show_fzf | EIC | Search dir tree using fzf |
 | f10 | show_vars | EIC | Use TAB completion w/env vars |
+| f11 | redraw_line | EICSV | Refresh prompt and line |
+| f12 | show_clear | EICSV | Clear the show buffer |
 | meta-ctrl-d | show_dirs | EIC | Use TAB completion w/dirs |
 | meta-ctrl-e | show_exes | EIC | Use TAB completion w/exes |
 | meta-ctrl-f | show_files | EIC | Use TAB completion w/files |

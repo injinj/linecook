@@ -7,10 +7,23 @@
 
 extern "C"
 int
-lc_add_completion( LineCook *state,  int ctype,  const char *line,  size_t len )
+lc_add_completion( LineCook *state,  const char *line,  size_t len )
 {
-  return static_cast<linecook::State *>( state )->
-    add_completion( ctype, line, len );
+  return static_cast<linecook::State *>( state )->add_completion( line, len );
+}
+
+extern "C"
+CompleteType
+lc_get_complete_type( LineCook *state )
+{
+  return static_cast<linecook::State *>( state )->get_complete_type();
+}
+
+extern "C"
+void 
+lc_set_complete_type( LineCook *state,  CompleteType ctype )
+{
+  static_cast<linecook::State *>( state )->set_complete_type( ctype );
 }
 
 using namespace linecook;
@@ -21,7 +34,7 @@ State::quote_line_length( const char32_t *buf,  size_t len )
   if ( ! this->complete_has_quote ) {
     size_t extra = 2;
     bool   needs_quotes = false;
-    if ( this->complete_type != 'v' ) {
+    if ( this->complete_type != COMPLETE_ENV ) {
       for ( size_t i = 0; i < len; i++ ) {
         if ( this->is_quote_char( buf[ i ] ) ) {
           needs_quotes = true;
@@ -50,17 +63,15 @@ State::quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len )
 }
 
 bool
-State::tab_complete( int ctype,  bool reverse )
+State::tab_complete( bool reverse )
 {
   if ( this->show_mode != SHOW_COMPLETION ) {
-    if ( reverse && ctype == 0 )
-      ctype = COMPLETE_SCAN;
     this->reset_completions();
     this->init_completion_term();
-    this->fill_completions( ctype );
-    return this->tab_first_completion( ctype );
+    this->fill_completions();
+    return this->tab_first_completion();
   }
-  return this->tab_next_completion( ctype, reverse );
+  return this->tab_next_completion( reverse );
 }
 
 void
@@ -157,7 +168,7 @@ State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
 }
 
 void
-State::fill_completions( int ctype )
+State::fill_completions( void )
 {
   char   buf[ 4 * 1024 ],
        * p    = buf;
@@ -186,7 +197,7 @@ State::fill_completions( int ctype )
       goto failed;
     j += (size_t) n;
   }
-  this->completion( p, off8, len8, ctype );
+  this->completion( p, off8, len8 );
   if ( this->comp.cnt > 0 )
     this->copy_complete_string( &this->line[ off ], len );
 failed:
@@ -200,7 +211,7 @@ State::reset_completions( void )
   this->comp_len      = 0;
   this->complete_off  = 0;
   this->complete_len  = 0;
-  this->complete_type = 0;
+  this->complete_type = COMPLETE_ANY;
   this->complete_has_quote = false;
   this->complete_has_glob  = false;
   this->complete_is_prefix = false;
@@ -258,7 +269,7 @@ matched_quotes_fwd:;
 }
 
 bool
-State::tab_first_completion( int ctype )
+State::tab_first_completion( void )
 {
   const char32_t * pattern;
   size_t patlen,
@@ -274,7 +285,7 @@ State::tab_first_completion( int ctype )
          pref_cnt    = 0;
   bool   found_match = false;
 
-  if ( ctype == COMPLETE_SCAN ) {
+  if ( this->complete_type == COMPLETE_SCAN ) {
     if ( replace_len > 0 ) {
       size_t i = coff + replace_len;
       /* scan may have directory prefix, skip over that */
@@ -316,7 +327,7 @@ State::tab_first_completion( int ctype )
   }
   /* either glob or prefix filter */
   else {
-    if ( ctype == COMPLETE_REPLACE ) {
+    if ( this->complete_type == COMPLETE_REPLACE ) {
       if ( this->comp.cnt == 1 )
         goto match_exact;
     }
@@ -437,7 +448,7 @@ State::tab_first_completion( int ctype )
 }
 
 bool
-State::tab_next_completion( int /*ctype*/,  bool reverse )
+State::tab_next_completion( bool reverse )
 {
   size_t old_idx = this->comp.idx;
   size_t off;
@@ -661,13 +672,12 @@ State::completion_bottom( void )
 }
 
 int
-State::add_completion( int ctype,  const char *buf,  size_t len )
+State::add_completion( const char *buf,  size_t len )
 {
   if ( ! this->make_utf32( buf, len, this->cvt, this->cvt_len ) )
     return this->error;
   this->push_completion( this->cvt, this->cvt_len );
   this->comp.off = this->comp.max;
-  this->complete_type = ctype;
   return 0;
 }
 

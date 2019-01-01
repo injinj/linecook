@@ -9,18 +9,18 @@
 #include <linecook/ttycook.h>
 
 static int
-complete( LineCook *lc,  const char *buf,  size_t off,  size_t len,
-          int comp_type )
+complete( LineCook *lc,  const char *buf,  size_t off,  size_t len )
 {
-  if ( comp_type == 0 ) {
+  CompleteType complete_type = lc_get_complete_type( lc );
+  if ( complete_type == COMPLETE_ANY ) {
     if ( off == 0 )
-      comp_type = COMPLETE_EXES; /* change to exe mode */
+      lc_set_complete_type( lc, COMPLETE_EXES ); /* change to exe mode */
     else if ( off + len >= 2 && buf[ 0 ] == 'c' && buf[ 1 ] == 'd' ) {
       if ( off + len == 2 || buf[ 2 ] == ' ' )
-        comp_type = COMPLETE_DIRS; /* change to dir mode */
+        lc_set_complete_type( lc, COMPLETE_DIRS ); /* change to dir mode */
     }
   }
-  return lc_tty_file_completion( lc, buf, off, len, comp_type );
+  return lc_tty_file_completion( lc, buf, off, len );
 }
 
 static size_t
@@ -165,9 +165,11 @@ main( void )
       char buf[ 1024 ];
       int n = lc_tty_get_completion_cmd( tty, buf, sizeof( buf ),
                                    &arg_num, &arg_count, arg_off, arg_len, 32 );
+      #define MATCH_CMD( CMD ) \
+        ( sizeof( CMD ) == arg_len[ 0 ] + 1 && \
+          strncmp( CMD, &buf[ arg_off[ 0 ] ], arg_len[ 0 ] ) == 0 )
       /* check if git completion */
-      if ( arg_num == 1 && arg_len[ 0 ] == 3 &&
-           strncmp( &buf[ arg_off[ 0 ] ], "git", 3 ) == 0 ) {
+      if ( MATCH_CMD( "git" ) && arg_num == 1 ) {
         static const char *g[] = {
           "init", "add", "mv", "reset", "rm", "bisect",
           "grep", "log", "show", "status", "branch",
@@ -175,11 +177,11 @@ main( void )
           "tag", "fetch", "pull", "push"
         };
         for ( size_t i = 0; i < sizeof( g ) / sizeof( g[ 0 ] ); i++ ) {
-          lc_add_completion( lc, 0, g[ i ], strlen( g[ i ] ) );
+          lc_add_completion( lc, g[ i ], strlen( g[ i ] ) );
         }
       }
-      /* use fzf completion */
-      else {
+      /* for vi(m) use fzf completion */
+      else if ( ( MATCH_CMD( "vi" ) || MATCH_CMD( "vim" ) ) && arg_num == 1 ) {
         #define FZFCMD "find . -print | fzf --layout=reverse --height=50%"
         const char *cmd = FZFCMD;
         FILE *fp;
@@ -196,7 +198,7 @@ main( void )
             while ( len > 0 && buf[ len - 1 ] <= ' ' )
               buf[ --len ] = '\0';
             if ( len > 0 )
-              lc_add_completion( lc, 0, buf, len );
+              lc_add_completion( lc, buf, len );
           }
           pclose( fp );
         }

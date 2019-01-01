@@ -161,7 +161,7 @@ void lc_tty_get_terminal_geom( int fd,  int *cols,  int *lines );
 void lc_tty_clear_line( TTYCook *tty );
 /* Do file completeion */
 int lc_tty_file_completion( LineCook *lc,  const char *buf,  size_t off,
-                            size_t len,  int comp_type );
+                            size_t len );
 #ifdef __cplusplus
 }
 

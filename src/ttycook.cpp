@@ -338,14 +338,17 @@ is_dotdir( const char *p,  size_t plen )
 extern char ** environ;
 int
 lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
-                        size_t len,  int comp_type )
+                        size_t len )
 {
   DIR           * dirp;
   struct dirent * dp;
   int             cnt = 0;
   bool            is_dot = ( len > 0 && buf[ off ] == '.' );
+  CompleteType    ctype = lc_get_complete_type( state );
 
-  if ( comp_type == COMPLETE_ENV || ( len > 0 && buf[ off ] == '$' ) ) {
+  if ( ctype == COMPLETE_ENV || ( len > 0 && buf[ off ] == '$' ) ) {
+    if ( ctype != COMPLETE_ENV )
+      lc_set_complete_type( state, COMPLETE_ENV );
     if ( environ != NULL ) { /* env var complete */
       size_t i;
       char * p;
@@ -356,7 +359,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
           if ( sz + 1 <= sizeof( var ) ) {
             var[ 0 ] = '$';
             ::memcpy( &var[ 1 ], environ[ i ], sz );
-            lc_add_completion( state, 'v', var, sz + 1 );
+            lc_add_completion( state, var, sz + 1 );
             cnt++;
           }
         }
@@ -398,11 +401,11 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
       }
     }
     if ( path_search == NULL ) {
-      if ( comp_type == COMPLETE_EXES ) { /* use PATH if no prefix */
+      if ( ctype == COMPLETE_EXES ) { /* use PATH if no prefix */
         path_search = getenv( "PATH" );
         no_directory = true; /* don't include directory */
       }
-      else if ( comp_type == COMPLETE_DIRS ) { /* use CDPATH if no prefix */
+      else if ( ctype == COMPLETE_DIRS ) { /* use CDPATH if no prefix */
         path_search = getenv( "CDPATH" );
         no_directory = false; /* include directory */
       }
@@ -482,7 +485,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
             if ( ::strncmp( user, pw->pw_name, len ) == 0 ) {
               if ( dstart[ 0 ] == '\0' ) { /* if no '/', complete users */
                 j = catp( pw_dir, "~", pw->pw_name, "/" );
-                lc_add_completion( state, comp_type, pw_dir, j );
+                lc_add_completion( state, pw_dir, j );
                 cnt++;
               }
               /* dstart[ 0 ] == '/' */
@@ -541,7 +544,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                j + dlen + 2 < sizeof( path3 ) ) {
             ::strcpy( &path2[ path_sz ], dp->d_name );
             /* resolve sym links and/or get st_mode */
-            if ( is_link || comp_type == COMPLETE_EXES || d_type == 0 ) {
+            if ( is_link || ctype == COMPLETE_EXES || d_type == 0 ) {
               if ( dirpath == path3 )
                 ::strcpy( &path3[ j ], dp->d_name );
               if ( ::stat( dirpath, &s ) == 0 ) {
@@ -554,12 +557,12 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
               }
             }
             /* any file complete */
-            if ( comp_type == COMPLETE_FILES || comp_type == COMPLETE_SCAN ||
-                 comp_type == COMPLETE_ANY ) {
+            if ( ctype == COMPLETE_FILES || ctype == COMPLETE_SCAN ||
+                 ctype == COMPLETE_ANY ) {
               bool is_dd = is_dotdir( dp->d_name, dlen ); /* . or .. */
               if ( ! is_dd || ( dlen > 1 && is_dot ) /* allow .. */) {
                 if ( d_type == DT_DIR ) {
-                  if ( comp_type == COMPLETE_SCAN && ! is_link && ! is_dd ) {
+                  if ( ctype == COMPLETE_SCAN && ! is_link && ! is_dd ) {
                     size_t sz = 0;
                     if ( no_directory ) {
                       if ( is_base_path )
@@ -571,23 +574,23 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                   }
                   completion[ comp_sz++ ] = '/';
                 }
-                lc_add_completion( state, comp_type, completion, comp_sz );
+                lc_add_completion( state, completion, comp_sz );
                 cnt++;
               }
             }
-            else if ( comp_type == COMPLETE_EXES ) { /* exe complete */
+            else if ( ctype == COMPLETE_EXES ) { /* exe complete */
               if ( ( d_type == DT_REG && ( st_mode & 0111 ) != 0 ) ||
                    d_type == DT_DIR ) {
                 if ( d_type == DT_DIR )
                   completion[ comp_sz++ ] = '/';
-                lc_add_completion( state, comp_type, completion, comp_sz );
+                lc_add_completion( state, completion, comp_sz );
                 cnt++;
               }
             }
-            else if ( comp_type == COMPLETE_DIRS ) { /* dir complete */
+            else if ( ctype == COMPLETE_DIRS ) { /* dir complete */
               if ( d_type == DT_DIR ) {
                 completion[ comp_sz++ ] = '/';
-                lc_add_completion( state, comp_type, completion, comp_sz );
+                lc_add_completion( state, completion, comp_sz );
                 cnt++;
               }
             }

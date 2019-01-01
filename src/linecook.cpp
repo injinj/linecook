@@ -329,7 +329,13 @@ State::completion_get_line( void ) /* completion entry point */
     this->prompt.is_continue = false;
     this->init_lprompt();
   }
-  if ( ! this->tab_first_completion( 'r' ) ) {
+  if ( this->comp.cnt == 0 ) {
+    this->fill_completions();
+  }
+  else {
+    this->complete_type = COMPLETE_REPLACE; /* may not match complete phrase */
+  }
+  if ( ! this->tab_first_completion() ) {
     if ( this->comp.cnt > 0 ) {
       if ( this->show_mode != SHOW_NONE )
         this->show_clear();

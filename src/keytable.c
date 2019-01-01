@@ -153,7 +153,8 @@ lc_action_to_name( KeyAction action )
     case ACTION_SEARCH_REVERSE:      return "search_reverse";
     case ACTION_SEARCH_INLINE:       return "search_inline";
     case ACTION_HISTORY_COMPLETE:    return "history_complete";
-    case ACTION_SEARCH_COMPLETE:     return "search_complete";
+    case ACTION_SHOW_TREE:           return "show_tree";
+    case ACTION_SHOW_FZF:            return "show_fzf";
     case ACTION_CANCEL_SEARCH:       return "cancel_search";
     case ACTION_TRANSPOSE:           return "transpose";
     case ACTION_TRANSPOSE_WORDS:     return "transpose_words";
@@ -275,7 +276,8 @@ lc_action_to_descr( KeyAction action )
     case ACTION_SEARCH_REVERSE:      return "Search history from start";
     case ACTION_SEARCH_INLINE:       return "Insert history search at cursor";
     case ACTION_HISTORY_COMPLETE:    return "Search hist using word at cursor";
-    case ACTION_SEARCH_COMPLETE:     return "Search dir tree using substring";
+    case ACTION_SHOW_TREE:           return "Search dir tree using substring";
+    case ACTION_SHOW_FZF:            return "Search dir tree using fzf";
     case ACTION_CANCEL_SEARCH:       return "Cancel history search";
     case ACTION_TRANSPOSE:           return "Transpose two chars at cursor";
     case ACTION_TRANSPOSE_WORDS:     return "Transpose two words at cursor";
@@ -559,7 +561,7 @@ KeyRecipe lc_default_key_recipe[] = {
 { META_DOT        , ACTION_YANK_LAST_ARG   , EVILS_MODE      },
 { META__          , ACTION_YANK_LAST_ARG   , EVILS_MODE      },
 { META_CTRL_Y     , ACTION_YANK_NTH_ARG    , EVILS_MODE      },
-{ META_SLASH      , ACTION_SEARCH_COMPLETE , EVIL_MODE       },
+{ META_SLASH      , ACTION_SHOW_TREE       , EVIL_MODE       },
 { ARROW_LEFT      , ACTION_GO_LEFT         , MOVE_MODE       },
 { ARROW_RIGHT     , ACTION_GO_RIGHT        , MOVE_MODE       },
 { ARROW_LEFT2     , ACTION_GO_LEFT         , MOVE_MODE       },
@@ -680,15 +682,17 @@ KeyRecipe lc_default_key_recipe[] = {
 { 0               , ACTION_VISUAL_MARK     , VISUAL_MODE     }, /* default */
 /* show commands */
 { F1_FUNCTION     , ACTION_SHOW_KEYS       , MOVE_MODE       },
-{ F2_FUNCTION     , ACTION_SHOW_FILES      , EVIL_MODE       },
-{ F3_FUNCTION     , ACTION_SHOW_EXES       , EVIL_MODE       },
-{ F4_FUNCTION     , ACTION_SHOW_CLEAR      , MOVE_MODE       },
-{ F5_FUNCTION     , ACTION_SHOW_DIRS       , EVIL_MODE       },
-{ F6_FUNCTION     , ACTION_SHOW_UNDO       , MOVE_MODE       },
-{ F7_FUNCTION     , ACTION_SHOW_YANK       , MOVE_MODE       },
-{ F8_FUNCTION     , ACTION_SHOW_HISTORY    , EVILS_MODE      },
-{ F9_FUNCTION     , ACTION_REDRAW_LINE     , MOVE_MODE       },
+{ F2_FUNCTION     , ACTION_SHOW_HISTORY    , EVILS_MODE      },
+{ F3_FUNCTION     , ACTION_SHOW_FILES      , EVIL_MODE       },
+{ F4_FUNCTION     , ACTION_SHOW_TREE       , EVIL_MODE       },
+{ F5_FUNCTION     , ACTION_SHOW_EXES       , EVIL_MODE       },
+{ F6_FUNCTION     , ACTION_SHOW_DIRS       , EVIL_MODE       },
+{ F7_FUNCTION     , ACTION_SHOW_UNDO       , MOVE_MODE       },
+{ F8_FUNCTION     , ACTION_SHOW_YANK       , MOVE_MODE       },
+{ F9_FUNCTION     , ACTION_SHOW_FZF        , EVIL_MODE       },
 { F10_FUNCTION    , ACTION_SHOW_VARS       , EVIL_MODE       },
+{ F11_FUNCTION    , ACTION_REDRAW_LINE     , MOVE_MODE       },
+{ F12_FUNCTION    , ACTION_SHOW_CLEAR      , MOVE_MODE       },
 
 { META_CTRL_D     , ACTION_SHOW_DIRS       , EVIL_MODE       },
 { META_CTRL_E     , ACTION_SHOW_EXES       , EVIL_MODE       },
@@ -742,7 +746,8 @@ lc_action_options( KeyAction action )
     case ACTION_SEARCH_REVERSE:     return 0; /* ? */
     case ACTION_SEARCH_INLINE:      return 0; /* meta-s */
     case ACTION_HISTORY_COMPLETE:   return 0; /* meta-p */
-    case ACTION_SEARCH_COMPLETE:    return 0; /* meta-/ */
+    case ACTION_SHOW_TREE:          return 0; /* meta-/ */
+    case ACTION_SHOW_FZF:           return 0;
     case ACTION_CANCEL_SEARCH:      return 0; /* esc */
     case ACTION_TRANSPOSE:          return OPT_UNDO | OPT_REPEAT; /* ctrl-t */
     case ACTION_TRANSPOSE_WORDS:    return OPT_UNDO | OPT_REPEAT; /* meta-t */

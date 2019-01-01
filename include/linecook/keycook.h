@@ -41,7 +41,7 @@ typedef enum KeyAction_e { /* current storage of this is uint8_t, 255 max */
   ACTION_SEARCH_REVERSE     , /* '?' (vi)  */
   ACTION_SEARCH_INLINE      , /* mata-s */
   ACTION_HISTORY_COMPLETE   , /* meta-p */
-  ACTION_SEARCH_COMPLETE    , /* meta-/ */
+  ACTION_SHOW_TREE          , /* meta-/ */
   ACTION_CANCEL_SEARCH      , /* esc */
   ACTION_TRANSPOSE          , /* ctrl-t */
   ACTION_TRANSPOSE_WORDS    , /* meta-t */
@@ -108,6 +108,7 @@ typedef enum KeyAction_e { /* current storage of this is uint8_t, 255 max */
   ACTION_SHOW_UNDO          , /* meta-ctrl-u show undo buffers */
   ACTION_SHOW_VARS          , /* meta-ctrl-v completion vars */
   ACTION_SHOW_YANK          , /* meta-ctrl-y show yank buffer */
+  ACTION_SHOW_FZF           ,
   ACTION_SHOW_PREV_PAGE     , /* pgup */
   ACTION_SHOW_NEXT_PAGE     , /* pgdn */
   ACTION_GOTO_FIRST_ENTRY   , /* meta-< */
