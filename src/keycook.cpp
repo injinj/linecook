@@ -360,7 +360,7 @@ State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode )
               c2 = this->recipe[ i ].char_sequence[ 1 ];
 
       if ( ( this->recipe[ i ].valid_mode & mode ) != 0 ) {
-        if ( km.recipe[ c ] == km.def )
+        if ( km.recipe[ c ] == km.def || c2 == 0 )
           km.recipe[ c ] = i; /* transition for char -> this->recipe[ i ] */
         if ( c2 != 0 ) /* if is a multichar sequence */
           km.mc_size++;
