@@ -80,13 +80,24 @@ State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
 {
   /* this doesn't account for quoting in the args list */
   size_t i = args_size,
-         off, end, sz;
+         off, end, sz, coff, clen;
   if ( i-- == 0 )
     return -1;
   /* work backwards from complete off, make sure that it doesn't change */
-  arg_off[ i ] = this->complete_off;
-  arg_len[ i ] = this->complete_len;
-  for ( off = this->complete_off; ; ) {
+  coff = this->complete_off;
+  clen = this->complete_len;
+  while ( coff > 0 &&
+          ! this->is_spc_char( this->line[ coff - 1 ] ) ) {
+    coff--;
+    clen++;
+  }
+  while ( coff + clen < this->edited_len &&
+          ! this->is_spc_char( this->line[ coff + clen ] ) ) {
+    clen++;
+  }
+  arg_off[ i ] = coff;
+  arg_len[ i ] = clen;
+  for ( off = coff; ; ) {
     end = this->skip_prev_space( off ); /* space splitting args */
     if ( end == 0 )
       break;
@@ -105,7 +116,7 @@ State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
   ::memmove( arg_len, &arg_len[ i ], ( sz + 1 ) * sizeof( arg_len[ 0 ] ) );
   arg_num = sz - 1;
   arg_count = sz;
-  for ( end = this->complete_off + this->complete_len; ; ) {
+  for ( end = coff + clen; ; ) {
     off = this->skip_next_space( end );
     if ( off == this->edited_len )
       break;
