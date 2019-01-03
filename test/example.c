@@ -160,6 +160,7 @@ main( void )
     else if ( tty->lc_status == LINE_STATUS_COMPLETE ) {
       CompleteType ctype = lc_get_complete_type( lc );
       if ( ctype != COMPLETE_HIST ) {
+        size_t i;
         int  arg_num,   /* which arg is completed, 0 = first */
              arg_count, /* how many args */
              arg_off[ 32 ],  /* offset of args */
@@ -179,7 +180,7 @@ main( void )
             "checkout", "commit", "diff", "merge", "rebase",
             "tag", "fetch", "pull", "push"
           };
-          for ( size_t i = 0; i < sizeof( g ) / sizeof( g[ 0 ] ); i++ ) {
+          for ( i = 0; i < sizeof( g ) / sizeof( g[ 0 ] ); i++ ) {
             lc_add_completion( lc, g[ i ], strlen( g[ i ] ) );
           }
         }

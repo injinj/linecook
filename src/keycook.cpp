@@ -165,9 +165,11 @@ parse_key( char *key,  size_t maxsize,  const char *keyseq )
           case 'c': /* ctrl key */
           case 'C':
             if ( keyseq[ 2 ] == '-' ) { /* ctrl key */
-              if ( keyseq[ 3 ] >= 'A' && keyseq[ 3 ] <= 'A' + 30 )
+              if ( keyseq[ 3 ] >= 'A' &&
+                   (uint8_t) keyseq[ 3 ] <= (uint8_t) ( 'A' + 30 ) )
                 key[ n++ ] = keyseq[ 3 ] - 'A' + 1;
-              else if ( keyseq[ 3 ] >= 'a' && keyseq[ 3 ] <= 'a' + 30 )
+              else if ( keyseq[ 3 ] >= 'a' &&
+                        (uint8_t) keyseq[ 3 ] <= (uint8_t) ( 'a' + 30 ) )
                 key[ n++ ] = keyseq[ 3 ] - 'a' + 1;
               else
                 return -1;

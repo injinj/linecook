@@ -42,10 +42,10 @@ lc_key_to_name( const char *key,  char *name )
      { "f11",           F11_FUNCTION },
      { "f12",           F12_FUNCTION } };
   size_t code_name_size = sizeof( code_name ) / sizeof( code_name[ 0 ] );
-  size_t sz, j, k = 0, m;
+  size_t i, sz, j, k = 0, m;
   int nospace = 1;
   name[ 0 ] = 0;
-  for ( size_t i = 0; i < sizeof( KeyCode ) && key[ i ] != 0; i += sz ) {
+  for ( i = 0; i < sizeof( KeyCode ) && key[ i ] != 0; i += sz ) {
     sz = 1;
     if ( ! nospace )
       name[ k++ ] = ' ';

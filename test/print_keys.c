@@ -61,7 +61,6 @@ main( int argc, char *argv[] )
       }
       printf( "| %s | %s | %s | %s |\n", name, action, mode, descr );
     }
-    return 0;
   }
   else if ( argc == 2 && strcmp( argv[ 1 ], "hash" ) == 0 ) {
     printf(
@@ -104,5 +103,6 @@ main( int argc, char *argv[] )
 "  return (KeyAction) a;\n"
 "}\n" );
   }
+  return 0;
 }
 
