@@ -19,7 +19,75 @@ lc_compress_history( LineCook *state )
   return static_cast<linecook::State *>( state )->compress_history();
 }
 
+extern "C"
+size_t
+lc_history_count( LineCook *state )
+{
+  return static_cast<linecook::State *>( state )->history_count();
+}
+
+extern "C"
+int
+lc_history_line_length( LineCook *state,  size_t index )
+{
+  return static_cast<linecook::State *>( state )->history_line_length( index );
+}
+
+extern "C"
+int
+lc_history_line_copy( LineCook *state,  size_t index,  char *out )
+{
+  return static_cast<linecook::State *>( state )->
+    history_line_copy( index, out );
+}
+
 using namespace linecook;
+
+size_t
+State::history_count( void )
+{
+  return this->hist.cnt;
+}
+
+int
+State::history_line_length( size_t index )
+{
+  size_t off = LineSave::find( this->hist, this->hist.off, index );
+  if ( off == 0 )
+    return -1;
+  this->hist.off = off;
+  LineSave &ls = LineSave::line( this->hist, off );
+  char32_t *buf = &this->hist.buf[ ls.line_off ];
+  int size = 0;
+  for ( size_t i = 0; i < ls.edited_len; i++ ) {
+    if ( buf[ i ] != 0 ) {
+      int n = ku_utf32_to_utf8_len( &buf[ i ], 1 );
+      if ( n > 0 )
+        size += n;
+    }
+  }
+  return size;
+}
+
+int
+State::history_line_copy( size_t index,  char *out )
+{
+  size_t off = LineSave::find( this->hist, this->hist.off, index );
+  if ( off == 0 )
+    return -1;
+  this->hist.off = off;
+  LineSave &ls = LineSave::line( this->hist, off );
+  char32_t *buf = &this->hist.buf[ ls.line_off ];
+  int size = 0;
+  for ( size_t i = 0; i < ls.edited_len; i++ ) {
+    if ( buf[ i ] != 0 ) {
+      int n = ku_utf32_to_utf8( buf[ i ], &out[ size ] );
+      if ( n > 0 )
+        size += n;
+    }
+  }
+  return size;
+}
 
 void
 State::do_search( void )

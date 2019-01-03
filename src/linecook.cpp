@@ -342,7 +342,13 @@ State::completion_get_line( void ) /* completion entry point */
     }
   }
   else {
-    this->complete_type = COMPLETE_FZF; /* may not match complete phrase */
+    if ( this->complete_type == COMPLETE_HIST ) {
+      LineSave &ls = LineSave::line( this->comp, this->comp.first );
+      this->restore_save( this->comp, ls );
+    }
+    else {
+      this->complete_type = COMPLETE_FZF; /* may not match complete phrase */
+    }
   }
   /* if there is a completion for history, complete type will be FZF */
   if ( this->complete_type != COMPLETE_HIST ) {

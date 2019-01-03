@@ -100,6 +100,12 @@ int lc_edit_copy( LineCook *state,  char *out );
 int lc_complete_term_length( LineCook *state );
 /* Utf8 copy completion in this->line[ complete_off ], complete_len */
 int lc_complete_term_copy( LineCook *state,  char *out );
+/* Return the count of lines in history buffer */
+size_t lc_history_count( LineCook *state );
+/* Utf8 length of history line at index */
+int lc_history_line_length( LineCook *state,  size_t index );
+/* Utf8 copy of history line at index */
+int lc_history_line_copy( LineCook *state,  size_t index,  char *out );
 /* Get the current completion type */
 CompleteType lc_get_complete_type( LineCook *state );
 /* Set the current completion type */
@@ -897,6 +903,9 @@ struct State : public LineCook_s {
   int edit_copy( char *out ); /* Utf8 copy line, not null terminated */
   int complete_term_length( void );    /* Utf8 length of line[ complete_off ] */
   int complete_term_copy( char *out ); /* Utf8 copy line, not null terminated */
+  int history_line_length( size_t index );
+  int history_line_copy( size_t index,  char *out );
+  size_t history_count( void );
   int line_length( size_t from,  size_t to ); /* Utf8 length of this->line */
   int line_copy( char *out,  size_t from,  size_t to ); /* Utf8 copy line */
   int get_complete_geom( int &arg_num,  int &arg_count,  int *arg_off,

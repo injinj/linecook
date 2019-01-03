@@ -211,6 +211,11 @@ main( void )
           }
         }
       }
+#if 0
+      else { /* test history completion */
+        lc_add_completion( lc, "a test line example", 19 );
+      }
+#endif
     }
     else if ( tty->lc_status == LINE_STATUS_EXEC ) { /* if a line available */
       int is_continue = 0;
