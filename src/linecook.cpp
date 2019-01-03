@@ -330,20 +330,32 @@ State::completion_get_line( void ) /* completion entry point */
     this->init_lprompt();
   }
   if ( this->comp.cnt == 0 ) {
-    this->fill_completions();
+    /* if no complete for history, use builtin history viewer */
+    if ( this->complete_type == COMPLETE_HIST ) {
+      if ( this->show_mode != SHOW_NONE )
+        this->show_clear();
+      this->show_history_index();
+      this->output_show();
+    }
+    else {
+      this->fill_completions();
+    }
   }
   else {
     this->complete_type = COMPLETE_FZF; /* may not match complete phrase */
   }
-  if ( ! this->tab_first_completion() ) {
-    if ( this->comp.cnt > 0 ) {
-      if ( this->show_mode != SHOW_NONE )
-        this->show_clear();
-      this->show_completion_index();
-      this->output_show();
+  /* if there is a completion for history, complete type will be FZF */
+  if ( this->complete_type != COMPLETE_HIST ) {
+    if ( ! this->tab_first_completion() ) {
+      if ( this->comp.cnt > 0 ) {
+        if ( this->show_mode != SHOW_NONE )
+          this->show_clear();
+        this->show_completion_index();
+        this->output_show();
+      }
+      else
+        this->bell();
     }
-    else
-      this->bell();
   }
   return this->do_get_line();
 }

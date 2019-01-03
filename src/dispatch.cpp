@@ -920,12 +920,13 @@ State::dispatch( void )
         break;
       }
       /* FALLTHRU */
-    case ACTION_SHOW_DIRS:
+    case ACTION_SHOW_DIRS:   /* show kinds are modes of completion */
     case ACTION_SHOW_EXES:
     case ACTION_SHOW_FILES:
     case ACTION_SHOW_VARS:
     case ACTION_SHOW_TREE:      
     case ACTION_SHOW_FZF:       
+    case ACTION_SHOW_HISTORY:/* display show window with history buffer */
 
       if ( this->show_mode != SHOW_COMPLETION ) {
         this->reset_completions();
@@ -935,6 +936,7 @@ State::dispatch( void )
           case ACTION_TAB_REVERSE:  this->complete_type = COMPLETE_SCAN;  break;
           case ACTION_SHOW_DIRS:    this->complete_type = COMPLETE_DIRS;  break;
           case ACTION_SHOW_EXES:    this->complete_type = COMPLETE_EXES;  break;
+          case ACTION_SHOW_HISTORY: this->complete_type = COMPLETE_HIST;  break;
           case ACTION_SHOW_FILES:   this->complete_type = COMPLETE_FILES; break;
           case ACTION_SHOW_VARS:    this->complete_type = COMPLETE_ENV;   break;
           case ACTION_SHOW_TREE:    this->complete_type = COMPLETE_SCAN;  break;
@@ -946,6 +948,13 @@ State::dispatch( void )
         this->init_completion_term();
         this->refresh_needed = true; /* refresh line after called again */
         return LINE_STATUS_COMPLETE;
+      }
+      if ( this->action == ACTION_SHOW_HISTORY ) {
+        if ( this->show_mode != SHOW_NONE )
+          this->show_clear();
+        this->show_history_index();
+        this->output_show();
+        break;
       }
       if ( this->tab_complete( this->action == ACTION_TAB_REVERSE ) ) {
         if ( this->show_mode == SHOW_COMPLETION )
@@ -991,12 +1000,6 @@ State::dispatch( void )
       if ( this->show_mode != SHOW_NONE )
         this->show_clear();
       this->show_yank();
-      this->output_show();
-      break;
-    case ACTION_SHOW_HISTORY:/* display show window with history buffer */
-      if ( this->show_mode != SHOW_NONE )
-        this->show_clear();
-      this->show_history_index();
       this->output_show();
       break;
     case ACTION_SHOW_KEYS:   /* display show window with key events */

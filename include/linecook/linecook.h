@@ -48,6 +48,7 @@ typedef enum CompleteType_e {
   COMPLETE_FILES = 'f', /* file or dir */
   COMPLETE_DIRS  = 'd', /* dir only */
   COMPLETE_EXES  = 'e', /* dir or exe, uses $PATH */
+  COMPLETE_HIST  = 'h', /* history */
   COMPLETE_SCAN  = 's', /* directory tree scan */
   COMPLETE_ENV   = 'v', /* variable */
   COMPLETE_FZF   = 'z'  /* fzf */
