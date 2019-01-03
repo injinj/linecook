@@ -244,7 +244,8 @@ typedef struct LineKeyMode_s { /* Key transitions for mode: ins, cmd, emacs..*/
   KeyRecipe ** mc;         /* Multikey recipes:  arrows, meta-X, etc */
   size_t       mc_size;    /* Size of mc[] */
   uint8_t      recipe[ 128 ], /* Char to action: <ctrl-a> -> ACTION_GOTO_BOL */
-               def;        /* Default recipe, likely bell or insert char */
+               def,        /* Default recipe, likely bell or insert char */
+               mode;       /* Which mode is it */
 } LineKeyMode;
 
 typedef struct LinePrompt_s {
@@ -627,11 +628,13 @@ struct State : public LineCook_s {
   void free_recipe( void );
   void init_single_key_transitions( LineKeyMode &km,  uint8_t mode );
   void init_multi_key_transitions( LineKeyMode &km,  uint8_t mode );
+  void filter_macro( LineKeyMode &km,  uint8_t mode,  KeyRecipe &r );
+  void filter_mode( LineKeyMode &km,  uint8_t &mode,  KeyRecipe &r );
   /* Bind key sequence */
   int bindkey( char *args[],  size_t argc );
   void push_bindkey_recipe( void );
   int add_bindkey_recipe( const char *key,  size_t n,  char **args,
-                          size_t argc );
+                          size_t argc,  uint8_t valid_mode );
   int remove_bindkey_recipe( const char *key,  size_t n );
 
   /* Callbacks */

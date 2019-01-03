@@ -101,6 +101,18 @@ State::set_recipe( KeyRecipe *key_rec,  size_t key_rec_count )
   this->init_multi_key_transitions( this->visual, VISUAL_MODE );
   this->init_multi_key_transitions( this->search, SEARCH_MODE );
 
+  for ( size_t i = 0; i < macro_cnt; i++ ) {
+    this->filter_macro( this->emacs, EMACS_MODE, this->recipe[ i ] );
+    this->filter_macro( this->vi_insert, VI_INSERT_MODE, this->recipe[ i ] );
+    this->filter_macro( this->vi_command, VI_COMMAND_MODE, this->recipe[ i ] );
+    this->filter_macro( this->visual, VISUAL_MODE, this->recipe[ i ] );
+    this->filter_macro( this->search, SEARCH_MODE, this->recipe[ i ] );
+  }
+
+  LineSave::reset( this->keys );
+  this->keys_pg = 0;
+  if ( this->show_mode == SHOW_KEYS )
+    this->show_keys();
   return 0;
 }
 
@@ -217,20 +229,36 @@ parse_key( char *key,  size_t maxsize,  const char *keyseq )
 int
 State::bindkey( char *args[],  size_t argc )
 {
+  uint8_t valid_mode = VI_EMACS_MODE; /* default: vi insert & emacs */
+  uint8_t parse_mode = 0;
   char key[ 16 ]/*, name[ 40 ]*/;
   int  n, status = 0;
-/*  for ( size_t i = 0; i < argc; i++ ) {
-    printf( "args[%lu] = %s\n", i, args[ i ] );
-  }*/
+
+  while ( argc > 0 && args[ 0 ][ 0 ] == '-' ) {
+    const char *s = &args[ 0 ][ 1 ];
+    for ( ; *s != '\0'; s++ ) {
+      switch ( *s ) {
+        case 'i': case 'I': parse_mode |= VI_INSERT_MODE;  break;
+        case 'e': case 'E': parse_mode |= EMACS_MODE;      break;
+        case 'c': case 'C': parse_mode |= VI_COMMAND_MODE; break;
+        case 's': case 'S': parse_mode |= SEARCH_MODE;     break;
+        case 'v': case 'V': parse_mode |= VISUAL_MODE;     break;
+        default: break;
+      }
+    }
+    argc--;
+    args++;
+    valid_mode = parse_mode;
+  }
   if ( argc > 0 ) {
     n = parse_key( key, sizeof( key ), args[ 0 ] );
     if ( n < 0 )
       return -1;
-/*    printf( "seq[%.*s]\n", lc_key_to_name( key, name ), name );*/
     if ( argc == 1 )
       status = this->remove_bindkey_recipe( key, n );
     else
-      status = this->add_bindkey_recipe( key, n, &args[ 1 ], argc - 1 );
+      status = this->add_bindkey_recipe( key, n, &args[ 1 ], argc - 1,
+                                         valid_mode );
     if ( status == 0 )
       status = this->set_recipe( NULL, 0 );
   }
@@ -268,7 +296,7 @@ State::push_bindkey_recipe( void )
 
 int
 State::add_bindkey_recipe( const char *key,  size_t keylen,  char **args,
-                           size_t argc )
+                           size_t argc,  uint8_t valid_mode )
 {
   RecipeNode *n;
   size_t i, len = sizeof( RecipeNode ) + keylen + 1 + sizeof( RecipeNode * );
@@ -300,7 +328,7 @@ State::add_bindkey_recipe( const char *key,  size_t keylen,  char **args,
     s = &s[ ::strlen( s ) + 1 ];
   }
   n->r.action     = ACTION_MACRO;
-  n->r.valid_mode = EVIL_MODE;
+  n->r.valid_mode = valid_mode;
 
   if ( this->recipe_list.tl == NULL )
     this->recipe_list.hd = n;
@@ -340,6 +368,7 @@ State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode )
   size_t i;
   /* find the default transition */
   km.def = 0;
+  km.mode = mode;
   for ( i = 0; i < this->recipe_size; i++ ) {
     if ( this->recipe[ i ].char_sequence == NULL ) {
       if ( ( this->recipe[ i ].valid_mode & mode ) != 0 ) {
@@ -360,8 +389,13 @@ State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode )
               c2 = this->recipe[ i ].char_sequence[ 1 ];
 
       if ( ( this->recipe[ i ].valid_mode & mode ) != 0 ) {
-        if ( km.recipe[ c ] == km.def || c2 == 0 )
+        if ( km.recipe[ c ] == km.def ) {
           km.recipe[ c ] = i; /* transition for char -> this->recipe[ i ] */
+        }
+        else if ( c2 == 0 ) {/* the single char sequence wins */
+          if ( this->recipe[ km.recipe[ c ] ].char_sequence[ 1 ] != 0 )
+            km.recipe[ c ] = i;
+        }
         if ( c2 != 0 ) /* if is a multichar sequence */
           km.mc_size++;
       }
@@ -378,6 +412,43 @@ State::init_multi_key_transitions( LineKeyMode &km,  uint8_t mode )
       if ( this->recipe[ i ].char_sequence[ 1 ] != 0 )
         if ( ( this->recipe[ i ].valid_mode & mode ) != 0 )
           km.mc[ j++ ] = &this->recipe[ i ];
+}
+
+void
+State::filter_macro( LineKeyMode &km,  uint8_t mode,  KeyRecipe &r )
+{
+  size_t i;
+  if ( ( r.valid_mode & mode ) == 0 )
+    return;
+  for ( i = 0; i < km.mc_size; i++ ) {
+    if ( ::strcmp( km.mc[ i ]->char_sequence, r.char_sequence ) == 0 )
+      break;
+  }
+  if ( i == km.mc_size )
+    return;
+  ::memmove( &km.mc[ i ], &km.mc[ i + 1 ],
+             sizeof( km.mc[ 0 ] ) * ( km.mc_size - ( i + 1 ) ) );
+  km.mc_size -= 1;
+}
+
+void
+State::filter_mode( LineKeyMode &km,  uint8_t &mode,  KeyRecipe &r )
+{
+  if ( r.char_sequence[ 1 ] == '\0' ) {
+    size_t off = &r - this->recipe;
+    if ( km.recipe[ (uint8_t) r.char_sequence[ 0 ] ] != (uint8_t) off ) {
+      mode &= ~km.mode;
+    }
+  }
+  else {
+    size_t i;
+    for ( i = 0; i < km.mc_size; i++ ) {
+      if ( km.mc[ i ] == &r )
+        break;
+    }
+    if ( i == km.mc_size )
+      mode &= ~km.mode;
+  }
 }
 
 void
@@ -433,28 +504,40 @@ State::show_keys( void )
       this->layout_keys( "---", "------", "----", NULL );
       for ( size_t i = 0; i < this->recipe_size; i++ ) {
         KeyRecipe &r = this->recipe[ i ];
+        uint8_t valid_mode = r.valid_mode;
         if ( r.char_sequence == NULL )
           ::strcpy( name, "(other key)" );
-        else
+        else {
           lc_key_to_name( r.char_sequence, name );
+          if ( this->recipe_list.hd != NULL ) {
+            if ( ( valid_mode & EMACS_MODE ) != 0 )
+              this->filter_mode( this->emacs, valid_mode, r );
+            if ( ( valid_mode & VI_INSERT_MODE ) != 0 )
+              this->filter_mode( this->vi_insert, valid_mode, r );
+            if ( ( valid_mode & VI_COMMAND_MODE ) != 0 )
+              this->filter_mode( this->vi_command, valid_mode, r );
+            if ( ( valid_mode & SEARCH_MODE ) != 0 )
+              this->filter_mode( this->search, valid_mode, r );
+            if ( ( valid_mode & VISUAL_MODE ) != 0 )
+              this->filter_mode( this->visual, valid_mode, r );
+          }
+        }
+        if ( valid_mode == 0 )
+          continue;
         action = lc_action_to_name( r.action );
         descr  = lc_action_to_descr( r.action );
         k = 0;
-        if ( ( r.valid_mode & EMACS_MODE ) != 0 ) {
-          ::strcpy( &mode[ k ], "E" ); k++;
-        }
-        if ( ( r.valid_mode & VI_INSERT_MODE ) != 0 ) {
-          ::strcpy( &mode[ k ], "I" ); k++;
-        }
-        if ( ( r.valid_mode & VI_COMMAND_MODE ) != 0 ) {
-          ::strcpy( &mode[ k ], "C" ); k++;
-        }
-        if ( ( r.valid_mode & SEARCH_MODE ) != 0 ) {
-          ::strcpy( &mode[ k ], "S" ); k++;
-        }
-        if ( ( r.valid_mode & VISUAL_MODE ) != 0 ) {
-          ::strcpy( &mode[ k ], "V" ); k++;
-        }
+        mode[ 0 ] = '\0';
+        if ( ( valid_mode & EMACS_MODE ) != 0 )
+          ::strcpy( &mode[ k++ ], "E" );
+        if ( ( valid_mode & VI_INSERT_MODE ) != 0 )
+          ::strcpy( &mode[ k++ ], "I" );
+        if ( ( valid_mode & VI_COMMAND_MODE ) != 0 )
+          ::strcpy( &mode[ k++ ], "C" );
+        if ( ( valid_mode & SEARCH_MODE ) != 0 )
+          ::strcpy( &mode[ k++ ], "S" );
+        if ( ( valid_mode & VISUAL_MODE ) != 0 )
+          ::strcpy( &mode[ k++ ], "V" );
         this->layout_keys( name, action, mode, descr );
       }
     }

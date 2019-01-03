@@ -7,6 +7,7 @@ short_dist_lc := $(patsubst CentOS,rh,$(patsubst RedHatEnterprise,rh,\
                      $(patsubst Fedora,fc,$(patsubst Ubuntu,ub,\
                        $(patsubst Debian,deb,$(patsubst SUSE,ss,$(lsb_dist))))))))
 short_dist    := $(shell echo $(short_dist_lc) | tr a-z A-Z)
+pwd           := $(shell pwd)
 rpm_os        := $(short_dist_lc)$(lsb_dist_ver).$(uname_m)
 
 # this is where the targets are compiled
@@ -53,7 +54,7 @@ cppflags   := -fno-rtti -fno-exceptions
 #cpplink   := $(CC) -lasan
 cpplink    := $(CC)
 
-rpath      := -Wl,-rpath,$(libd)
+rpath      := -Wl,-rpath,$(pwd)/$(libd)
 cpp_lnk    :=
 lnk_lib    := -lpcre2-32
 
