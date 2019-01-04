@@ -11,7 +11,8 @@
 static const char *
 get_arg( int argc, char *argv[], int b, const char *f, const char *def )
 {
-  for ( int i = 1; i < argc - b; i++ )
+  int i;
+  for ( i = 1; i < argc - b; i++ )
     if ( strcmp( f, argv[ i ] ) == 0 ) /* -p port */
       return argv[ i + b ];
   return def; /* default value */
