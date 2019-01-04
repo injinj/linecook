@@ -528,11 +528,13 @@ State::output_show_string( const char32_t *str,  size_t off,  size_t len )
 size_t
 State::output_show_line( const char32_t *show_line,  size_t len )
 {
+  static const size_t SHOW_PAD = 3;
   LinePrompt &l = this->sel_left,
              &r = this->sel_right;
   size_t off = 0, j;
   if ( len > 0 && l.prompt_cols == 1 ) {
-    if ( show_line[ 0 ] == '*' ) {
+    if ( show_line[ 0 ] == '*' &&
+         this->show_mode != SHOW_HELP && this->show_mode != SHOW_KEYS ) {
       this->output( l.prompt, l.prompt_len );
       this->cursor_pos++;
       off++; len--;

@@ -112,6 +112,7 @@ State::~State()
   if ( this->comp.buf )         ::free( this->comp.buf );
   if ( this->edit.buf )         ::free( this->edit.buf );
   if ( this->keys.buf )         ::free( this->keys.buf );
+  if ( this->help.buf )         ::free( this->help.buf );
   if ( this->yank.buf )         ::free( this->yank.buf );
   if ( this->search_buf )       ::free( this->search_buf );
   if ( this->comp_buf )         ::free( this->comp_buf );
@@ -228,9 +229,7 @@ State::reset_state( void )
   this->save_mode   = this->in.mode; /* save mode for hist searches */
   this->save_action = this->action;
 
-  LineSave::reset( this->comp ); /* reset any completions */
   LineSave::reset( this->edit ); /* reset any history edits */
-
   this->reset_completions();
   this->reset_yank();
   this->visual_off   = 0;  /* reset visual position */
@@ -325,6 +324,7 @@ State::get_line( void ) /* main processing loop, eat chars until input empty */
 int
 State::completion_get_line( void ) /* completion entry point */
 {
+  bool do_tab_complete = false;
   if ( this->prompt.is_continue ) {
     this->prompt.is_continue = false;
     this->init_lprompt();
@@ -337,8 +337,16 @@ State::completion_get_line( void ) /* completion entry point */
       this->show_history_index();
       this->output_show();
     }
+    else if ( this->complete_type == COMPLETE_MAN ||
+              this->complete_type == COMPLETE_HELP ) {
+      if ( this->show_mode != SHOW_NONE )
+        this->show_clear();
+      this->show_help();
+      this->output_show();
+    }
     else {
       this->fill_completions();
+      do_tab_complete = true;
     }
   }
   else {
@@ -346,12 +354,21 @@ State::completion_get_line( void ) /* completion entry point */
       LineSave &ls = LineSave::line( this->comp, this->comp.first );
       this->restore_save( this->comp, ls );
     }
+    else if ( this->complete_type == COMPLETE_MAN ||
+              this->complete_type == COMPLETE_HELP ) {
+      if ( this->show_mode != SHOW_NONE )
+        this->show_clear();
+      this->copy_help( this->comp );
+      this->reset_completions();
+      this->output_show();
+    }
     else {
       this->complete_type = COMPLETE_FZF; /* may not match complete phrase */
+      do_tab_complete = true;
     }
   }
   /* if there is a completion for history, complete type will be FZF */
-  if ( this->complete_type != COMPLETE_HIST ) {
+  if ( do_tab_complete ) {
     if ( ! this->tab_first_completion() ) {
       if ( this->comp.cnt > 0 ) {
         if ( this->show_mode != SHOW_NONE )
@@ -746,6 +763,7 @@ State::incr_show_size( int amt )
     case SHOW_HISTORY:    this->show_history_index(); break;
     case SHOW_COMPLETION: return;
     case SHOW_KEYS:       this->show_keys(); this->show_keys_start(); break;
+    case SHOW_HELP:       this->show_help(); break;
   }
   this->output_show();
 }
@@ -889,6 +907,12 @@ ShowState::ShowState( State &state )
       this->off = state.keys.first;
       this->cnt = state.keys.cnt;
       break;
+    case SHOW_HELP:
+      this->lsb = &state.help;
+      this->off = state.help.first;
+      this->cnt = state.help.cnt;
+      this->show_pad = 1;
+      break;
     case SHOW_YANK:
       this->lsb = &state.yank;
       this->off = state.yank.first;
@@ -955,7 +979,7 @@ State::show_update( size_t old_idx,  size_t new_idx )
     }
     if ( display ) {
       this->move_cursor( pos );
-      this->output_show_line( buf, this->cols - SHOW_PAD + 2 );
+      this->output_show_line( buf, this->cols - (size_t) state.show_pad + 2 );
     }
     if ( ls.index == this->show_end )
       break;
@@ -1047,11 +1071,11 @@ State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
   bool       is_cur_pos    = ( ls.index == cur_idx );
   size_t     ls_edited_len = ls.edited_len;
   char32_t * ls_line       = &state.lsb->buf[ ls.line_off ];
-  size_t     spc           = this->cols - SHOW_PAD;
+  size_t     spc           = this->cols - (size_t) state.show_pad;
 
   if ( lsptr != NULL )
     *lsptr = &ls;
-  if ( this->cols <= SHOW_PAD + 1 )
+  if ( this->cols <= (size_t) state.show_pad + 1 )
     return false;
   if ( state.has_local_edit ) {
     size_t off = LineSave::scan( this->edit, ls.index );
@@ -1061,11 +1085,14 @@ State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
       ls_line       = &this->edit.buf[ local.line_off ];
     }
   }
-  if ( ! is_cur_pos )
-    *buf = ' ';
-  else
-    *buf = '*';
-  size_t i = 1;
+  size_t i = 0;
+  if ( state.show_pad > 1 ) {
+    if ( ! is_cur_pos )
+      *buf = ' ';
+    else
+      *buf = '*';
+    i++;
+  }
   if ( state.show_index ) {
     size_t d = uint_digits( ls.index );
     if ( d + 1 < spc ) {

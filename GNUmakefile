@@ -108,6 +108,14 @@ simple_lnk   := $(simple_libs) $(lnk_lib)
 
 $(bind)/simple: $(simple_objs) $(simple_libs)
 
+lc_hist_cat_files := hist_cat
+lc_hist_cat_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(lc_hist_cat_files)))
+lc_hist_cat_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_hist_cat_files)))
+lc_hist_cat_libs  := $(libd)/liblinecook.a
+lc_hist_cat_lnk   := $(lc_hist_cat_libs) $(lnk_lib)
+
+$(bind)/lc_hist_cat: $(lc_hist_cat_objs) $(lc_hist_cat_libs)
+
 print_keys_files := print_keys keytable
 print_keys_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(print_keys_files)))
 print_keys_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(print_keys_files)))
@@ -115,7 +123,8 @@ print_keys_lnk   := $(print_keys_libs)
 
 $(bind)/print_keys: $(print_keys_objs) $(print_keys_libs)
 
-all_exes    += $(bind)/lc_example $(bind)/simple $(bind)/print_keys
+all_exes    += $(bind)/lc_example $(bind)/simple $(bind)/lc_hist_cat \
+               $(bind)/print_keys
 all_depends += $(lc_example_deps) $(simple_deps)
 
 all_dirs := $(bind) $(libd) $(objd) $(dependd)
@@ -152,9 +161,10 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 
 # target used by rpmbuild, dpkgbuild
 .PHONY: dist_bins
-dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example
+dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example $(bind)/lc_hist_cat
 	chrpath -d $(libd)/liblinecook.so
 	chrpath -d $(bind)/lc_example
+	chrpath -d $(bind)/lc_hist_cat
 
 # target for building installable rpm
 .PHONY: dist_rpm
@@ -186,6 +196,7 @@ install: dist_bins
 	fi ; \
 	done
 	install $(bind)/lc_example $(install_prefix)/bin
+	install $(bind)/lc_hist_cat $(install_prefix)/bin
 	install -m 644 include/linecook/*.h $(install_prefix)/include/linecook
 
 $(objd)/%.o: src/%.cpp

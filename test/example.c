@@ -133,6 +133,26 @@ init_tty( TTYCook *tty )
   return 0;
 }
 
+static void
+popen_completions( LineCook *lc,  const char *cmd )
+{
+  FILE *fp = popen( cmd, "r" );
+  char  buf[ 1024 ];
+  if ( fp != NULL ) {
+    while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
+      size_t len = strlen( buf );
+      while ( len > 0 && buf[ len - 1 ] <= ' ' )
+        buf[ --len ] = '\0';
+      if ( len > 0 )
+        lc_add_completion( lc, buf, len );
+    }
+    pclose( fp );
+  }
+  else {
+    perror( "popen(fzf)" );
+  }
+}
+
 int
 main( void )
 {
@@ -165,58 +185,54 @@ main( void )
              arg_count, /* how many args */
              arg_off[ 32 ],  /* offset of args */
              arg_len[ 32 ];  /* length of args */
-        char buf[ 1024 ];
+        char buf[ 1024 ], buf2[ 1024 ];
         int n = lc_tty_get_completion_cmd( tty, buf, sizeof( buf ),
                                            &arg_num, &arg_count, arg_off,
                                            arg_len, 32 );
-        #define MATCH_CMD( CMD ) \
-          ( sizeof( CMD ) == arg_len[ 0 ] + 1 && \
-            strncmp( CMD, &buf[ arg_off[ 0 ] ], arg_len[ 0 ] ) == 0 )
-        /* check if git completion */
-        if ( MATCH_CMD( "git" ) && arg_num == 1 ) {
-          static const char *g[] = {
-            "init", "add", "mv", "reset", "rm", "bisect",
-            "grep", "log", "show", "status", "branch",
-            "checkout", "commit", "diff", "merge", "rebase",
-            "tag", "fetch", "pull", "push"
-          };
-          for ( i = 0; i < sizeof( g ) / sizeof( g[ 0 ] ); i++ ) {
-            lc_add_completion( lc, g[ i ], strlen( g[ i ] ) );
+        if ( arg_len[ 0 ] > 0 ) {
+          if ( ctype == COMPLETE_HELP ) {
+            snprintf( buf2, sizeof( buf2 ), "%.*s --help",
+                      (int) arg_len[ 0 ], &buf[ arg_off[ 0 ] ] );
+            popen_completions( lc, buf2 );
           }
-        }
-        /* for vi(m) use fzf completion */
-        else if ( ( MATCH_CMD( "vi" ) || MATCH_CMD( "vim" ) ) &&
-                  arg_num == 1 ) {
-          #define FZFCMD "find . -print | fzf --layout=reverse --height=50%"
-          const char *cmd = FZFCMD;
-          FILE *fp;
-          char query[ 128 ];
-          n = lc_tty_get_completion_term( tty, query, sizeof( query ) );
-          if ( n > 0 ) { /* append query to fzf command above */
-            snprintf( buf, sizeof( buf ), FZFCMD "% --query=\"%s\"", query );
-            cmd = buf;
-          }
-          fp = popen( cmd, "r" );
-          if ( fp != NULL ) {
-            while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
-              size_t len = strlen( buf );
-              while ( len > 0 && buf[ len - 1 ] <= ' ' )
-                buf[ --len ] = '\0';
-              if ( len > 0 )
-                lc_add_completion( lc, buf, len );
-            }
-            pclose( fp );
+          else if ( ctype == COMPLETE_MAN ) {
+            snprintf( buf2, sizeof( buf2 ), "man %.*s",
+                      (int) arg_len[ 0 ], &buf[ arg_off[ 0 ] ] );
+            popen_completions( lc, buf2 );
           }
           else {
-            perror( "popen(fzf)" );
+            #define MATCH_CMD( CMD ) \
+              ( sizeof( CMD ) == arg_len[ 0 ] + 1 && \
+                strncmp( CMD, &buf[ arg_off[ 0 ] ], arg_len[ 0 ] ) == 0 )
+            /* check if git completion */
+            if ( MATCH_CMD( "git" ) && arg_num == 1 ) {
+              static const char *g[] = {
+                "init", "add", "mv", "reset", "rm", "bisect",
+                "grep", "log", "show", "status", "branch",
+                "checkout", "commit", "diff", "merge", "rebase",
+                "tag", "fetch", "pull", "push"
+              };
+              for ( i = 0; i < sizeof( g ) / sizeof( g[ 0 ] ); i++ ) {
+                lc_add_completion( lc, g[ i ], strlen( g[ i ] ) );
+              }
+            }
+            /* for vi(m) use fzf completion */
+            else if ( ( MATCH_CMD( "vi" ) || MATCH_CMD( "vim" ) ) &&
+                      arg_num == 1 ) {
+              #define FZFCMD "find . -print | fzf --layout=reverse --height=50%"
+              const char *cmd = FZFCMD;
+              char query[ 128 ];
+              n = lc_tty_get_completion_term( tty, query, sizeof( query ) );
+              if ( n > 0 ) { /* append query to fzf command above */
+                snprintf( buf2, sizeof( buf2 ), FZFCMD "% --query=\"%s\"",
+                          query );
+                cmd = buf2;
+              }
+              popen_completions( lc, cmd );
+            }
           }
         }
       }
-#if 0
-      else { /* test history completion */
-        lc_add_completion( lc, "a test line example", 19 );
-      }
-#endif
     }
     else if ( tty->lc_status == LINE_STATUS_EXEC ) { /* if a line available */
       int is_continue = 0;

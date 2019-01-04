@@ -796,20 +796,30 @@ State::make_utf32( const char *buf,  size_t len,  char32_t *&x,  size_t &xlen )
   char32_t tmp[ 1024 ], * p = tmp;
   size_t i = 0, j = 0;
   this->error = 0;
-  if ( len > 512 ) {
-    if ( (p = (char32_t *) ::malloc( len * 2 * sizeof( char32_t ) )) == NULL )
+  if ( len > 128 ) {
+    if ( (p = (char32_t *) ::malloc( len * 8 * sizeof( char32_t ) )) == NULL )
       this->error = LINE_STATUS_ALLOC_FAIL;
   }
   if ( this->error == 0 ) {
-    for ( ; j < len; i++ ) {
+    while ( j < len ) {
       int n = ku_utf8_to_utf32( &buf[ j ], len - j, &p[ i ] );
       if ( n <= 0 ) {
         this->error = LINE_STATUS_BAD_INPUT;
         break;
       }
+      /* replace tab with space */
+      else if ( p[ i ] == '\t' ) {
+        do {
+          p[ i++ ] = ' ';
+        } while ( ( i % 8 ) != 0 );
+      }
       /* double width chars need padding */
       else if ( wcwidth9( p[ i ] ) > 1 ) {
-        p[ ++i ] = 0;
+        i++;
+        p[ i++ ] = 0;
+      }
+      else {
+        i++;
       }
       j += n;
     }

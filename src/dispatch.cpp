@@ -906,6 +906,18 @@ State::dispatch( void )
       break;
     }
 
+    case ACTION_SHOW_HELP:
+    case ACTION_SHOW_MAN:
+      if ( this->show_mode != SHOW_NONE )
+        this->show_clear();
+      this->init_completion_term();
+      this->refresh_needed = true; /* refresh line after called again */
+      if ( this->action == ACTION_SHOW_HELP )
+        this->complete_type = COMPLETE_HELP;
+      else
+        this->complete_type = COMPLETE_MAN;
+      return LINE_STATUS_COMPLETE;
+
     case ACTION_TAB_COMPLETE:
     case ACTION_TAB_REVERSE:
       if ( this->show_mode == SHOW_HISTORY ) { /* tab accept history */
@@ -1029,20 +1041,33 @@ State::dispatch( void )
     case ACTION_SHOW_PREV_PAGE:/* pgup function */
     case ACTION_GOTO_FIRST_ENTRY:
     case ACTION_GOTO_LAST_ENTRY:
-      if ( this->show_mode == SHOW_KEYS ) {
+      if ( this->show_mode == SHOW_KEYS ||
+           this->show_mode == SHOW_HELP ) {
         switch ( this->action ) {
           case ACTION_GOTO_FIRST_ENTRY:
-            this->show_keys_start();
+            if ( this->show_mode == SHOW_KEYS )
+              this->show_keys_start();
+            else
+              this->show_help_start();
             break;
           case ACTION_SHOW_NEXT_PAGE:
-            this->show_keys_next_page();
+            if ( this->show_mode == SHOW_KEYS )
+              this->show_keys_next_page();
+            else
+              this->show_help_next_page();
             break;
           case ACTION_SHOW_PREV_PAGE:
-            this->show_keys_prev_page();
+            if ( this->show_mode == SHOW_KEYS )
+              this->show_keys_prev_page();
+            else
+              this->show_help_prev_page();
             break;
           case ACTION_GOTO_ENTRY:
           case ACTION_GOTO_LAST_ENTRY:
-            this->show_keys_end();
+            if ( this->show_mode == SHOW_KEYS )
+              this->show_keys_end();
+            else
+              this->show_help_end();
             break;
           default: break;
         }

@@ -109,6 +109,8 @@ typedef enum KeyAction_e { /* current storage of this is uint8_t, 255 max */
   ACTION_SHOW_VARS          , /* meta-ctrl-v completion vars */
   ACTION_SHOW_YANK          , /* meta-ctrl-y show yank buffer */
   ACTION_SHOW_FZF           ,
+  ACTION_SHOW_HELP          ,
+  ACTION_SHOW_MAN           ,
   ACTION_SHOW_PREV_PAGE     , /* pgup */
   ACTION_SHOW_NEXT_PAGE     , /* pgdn */
   ACTION_GOTO_FIRST_ENTRY   , /* meta-< */

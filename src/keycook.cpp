@@ -423,7 +423,8 @@ State::filter_macro( LineKeyMode &km,  uint8_t mode,  KeyRecipe &r )
   if ( ( r.valid_mode & mode ) == 0 )
     return;
   for ( i = 0; i < km.mc_size; i++ ) {
-    if ( ::strcmp( km.mc[ i ]->char_sequence, r.char_sequence ) == 0 )
+    if ( km.mc[ i ] != &r &&
+         ::strcmp( km.mc[ i ]->char_sequence, r.char_sequence ) == 0 )
       break;
   }
   if ( i == km.mc_size )
@@ -590,5 +591,67 @@ State::show_keys_prev_page( void )
     this->show_pg++;
   this->keys_pg = this->show_pg;
   return this->show_lsb( SHOW_KEYS, this->keys );
+}
+
+bool
+State::copy_help( LineSaveBuf &lsb )
+{
+  if ( this->help.buf != NULL )
+    ::free( this->help.buf );
+  ::memcpy( &this->help, &lsb, sizeof( this->help ) );
+  lsb.buf    = NULL;
+  lsb.buflen = 0;
+  LineSave::reset( lsb );
+  this->show_mode = SHOW_HELP;
+  this->show_pg   = this->pgcount( this->help ) - 1;
+  return this->show_lsb( SHOW_HELP, this->help );
+}
+
+bool
+State::show_help( void )
+{
+  char32_t help_str[ 4 ];
+  help_str[ 0 ] = 'h';
+  help_str[ 1 ] = '3';
+  help_str[ 2 ] = 'l';
+  help_str[ 3 ] = 'P';
+  if ( this->help.cnt == 0 ) {
+    if ( ! this->realloc_lsb( this->help, 1024 ) )
+      return false;
+    LineSave::make( this->help, help_str, 4, 0, ++this->help.cnt );
+  }
+  this->show_mode = SHOW_HELP;
+  return this->show_lsb( SHOW_HELP, this->help );
+}
+
+bool
+State::show_help_start( void )
+{
+  this->show_pg  = this->pgcount( this->help ) - 1;
+  this->help.off = this->help.first;
+  return this->show_save( 0, 0 );
+}
+
+bool
+State::show_help_end( void )
+{
+  this->show_pg = 0;
+  return this->show_lsb( SHOW_HELP, this->help );
+}
+
+bool
+State::show_help_next_page( void )
+{
+  if ( this->show_pg > 0 )
+    this->show_pg--;
+  return this->show_lsb( SHOW_HELP, this->help );
+}
+
+bool
+State::show_help_prev_page( void )
+{
+  if ( this->show_pg < this->pgcount( this->help ) - 1 )
+    this->show_pg++;
+  return this->show_lsb( SHOW_HELP, this->help );
 }
 

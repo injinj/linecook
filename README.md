@@ -480,8 +480,8 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | f7 | show_undo | EICSV | Show the undo lines |
 | f8 | show_yank | EICSV | Show the yank lines |
 | f9 | show_fzf | EIC | Search dir tree using fzf |
-| f10 | show_vars | EIC | Use TAB completion w/env vars |
-| f11 | redraw_line | EICSV | Refresh prompt and line |
+| f10 | show_help | EICSV | Show help option on cmd |
+| f11 | show_man | EICSV | Show man page of cmd |
 | f12 | show_clear | EICSV | Clear the show buffer |
 | meta-ctrl-d | show_dirs | EIC | Use TAB completion w/dirs |
 | meta-ctrl-e | show_exes | EIC | Use TAB completion w/exes |

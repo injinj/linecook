@@ -51,7 +51,9 @@ typedef enum CompleteType_e {
   COMPLETE_HIST  = 'h', /* history */
   COMPLETE_SCAN  = 's', /* directory tree scan */
   COMPLETE_ENV   = 'v', /* variable */
-  COMPLETE_FZF   = 'z'  /* fzf */
+  COMPLETE_FZF   = 'z', /* fzf */
+  COMPLETE_HELP  = 'p', /* --help */
+  COMPLETE_MAN   = 'm'  /* man */
 } CompleteType;
 
 /* Allocate the state */
@@ -228,7 +230,8 @@ typedef enum ShowMode_e { /* what is in the show window */
   SHOW_YANK       ,
   SHOW_HISTORY    ,
   SHOW_COMPLETION ,
-  SHOW_KEYS
+  SHOW_KEYS       ,
+  SHOW_HELP
 } ShowMode;
 
 typedef struct LineSaveBuf_s {
@@ -425,7 +428,8 @@ struct LineCook_s {
                comp,            /* Completion stack, filled by tab */
                edit,            /* History edits, one entry for every edit */
                keys,            /* Key code translations */
-               yank;            /* Yank kill ring */
+               yank,            /* Yank kill ring */
+               help;            /* Help/man page */
 
   size_t       last_yank_start, /* Last command yank start offset */
                last_yank_size;  /* Last command yank size */
@@ -604,12 +608,13 @@ struct LineSave {
   static bool shrink_unique( LineSaveBuf &lsb );
 };
 
-static const size_t SHOW_PAD = 3;
+/*static const size_t SHOW_PAD = 3;*/
 struct State;
 struct ShowState {
   LineSaveBuf * lsb;
   size_t        off,
                 cnt;
+  uint8_t       show_pad;
   bool          has_local_edit, /* line may exist in local edit lines */
                 left_overflow,  /* show end of line if overflow */
                 show_index;     /* show index number of line */
@@ -617,6 +622,7 @@ struct ShowState {
   void zero( void ) {
     this->lsb = NULL;
     this->off = this->cnt = 0;
+    this->show_pad = 3;
     this->has_local_edit = this->left_overflow = this->show_index = false;
   }
 };
@@ -996,6 +1002,13 @@ struct State : public LineCook_s {
   bool show_keys_end( void );
   bool show_keys_next_page( void );
   bool show_keys_prev_page( void );
+
+  bool copy_help( LineSaveBuf &lsb ); /* Copy help from another lsb (comp) */
+  bool show_help( void );             /* Show the help */
+  bool show_help_start( void );
+  bool show_help_end( void );
+  bool show_help_next_page( void );
+  bool show_help_prev_page( void );
 
   void reset_marks( void );
   void fix_marks( size_t mark_idx );

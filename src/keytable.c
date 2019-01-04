@@ -155,6 +155,8 @@ lc_action_to_name( KeyAction action )
     case ACTION_HISTORY_COMPLETE:    return "history_complete";
     case ACTION_SHOW_TREE:           return "show_tree";
     case ACTION_SHOW_FZF:            return "show_fzf";
+    case ACTION_SHOW_HELP:           return "show_help";
+    case ACTION_SHOW_MAN:            return "show_man";
     case ACTION_CANCEL_SEARCH:       return "cancel_search";
     case ACTION_TRANSPOSE:           return "transpose";
     case ACTION_TRANSPOSE_WORDS:     return "transpose_words";
@@ -278,6 +280,8 @@ lc_action_to_descr( KeyAction action )
     case ACTION_HISTORY_COMPLETE:    return "Search hist using word at cursor";
     case ACTION_SHOW_TREE:           return "Search dir tree using substring";
     case ACTION_SHOW_FZF:            return "Search dir tree using fzf";
+    case ACTION_SHOW_HELP:           return "Show help option on cmd";
+    case ACTION_SHOW_MAN:            return "Show man page of cmd";
     case ACTION_CANCEL_SEARCH:       return "Cancel history search";
     case ACTION_TRANSPOSE:           return "Transpose two chars at cursor";
     case ACTION_TRANSPOSE_WORDS:     return "Transpose two words at cursor";
@@ -690,8 +694,8 @@ KeyRecipe lc_default_key_recipe[] = {
 { F7_FUNCTION     , ACTION_SHOW_UNDO       , MOVE_MODE       },
 { F8_FUNCTION     , ACTION_SHOW_YANK       , MOVE_MODE       },
 { F9_FUNCTION     , ACTION_SHOW_FZF        , EVIL_MODE       },
-{ F10_FUNCTION    , ACTION_SHOW_VARS       , EVIL_MODE       },
-{ F11_FUNCTION    , ACTION_REDRAW_LINE     , MOVE_MODE       },
+{ F10_FUNCTION    , ACTION_SHOW_HELP       , MOVE_MODE       },
+{ F11_FUNCTION    , ACTION_SHOW_MAN        , MOVE_MODE       },
 { F12_FUNCTION    , ACTION_SHOW_CLEAR      , MOVE_MODE       },
 
 { META_CTRL_D     , ACTION_SHOW_DIRS       , EVIL_MODE       },
@@ -748,6 +752,8 @@ lc_action_options( KeyAction action )
     case ACTION_HISTORY_COMPLETE:   return 0; /* meta-p */
     case ACTION_SHOW_TREE:          return 0; /* meta-/ */
     case ACTION_SHOW_FZF:           return 0;
+    case ACTION_SHOW_HELP:          return 0;
+    case ACTION_SHOW_MAN:           return 0;
     case ACTION_CANCEL_SEARCH:      return 0; /* esc */
     case ACTION_TRANSPOSE:          return OPT_UNDO | OPT_REPEAT; /* ctrl-t */
     case ACTION_TRANSPOSE_WORDS:    return OPT_UNDO | OPT_REPEAT; /* meta-t */
