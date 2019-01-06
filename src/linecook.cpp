@@ -338,7 +338,8 @@ State::completion_get_line( void ) /* completion entry point */
       this->output_show();
     }
     else if ( this->complete_type == COMPLETE_MAN ||
-              this->complete_type == COMPLETE_HELP ) {
+              this->complete_type == COMPLETE_HELP ||
+              this->complete_type == COMPLETE_NEXT ) {
       if ( this->show_mode != SHOW_NONE )
         this->show_clear();
       this->show_help();
@@ -355,7 +356,8 @@ State::completion_get_line( void ) /* completion entry point */
       this->restore_save( this->comp, ls );
     }
     else if ( this->complete_type == COMPLETE_MAN ||
-              this->complete_type == COMPLETE_HELP ) {
+              this->complete_type == COMPLETE_HELP ||
+              this->complete_type == COMPLETE_NEXT ) {
       if ( this->show_mode != SHOW_NONE )
         this->show_clear();
       this->copy_help( this->comp );

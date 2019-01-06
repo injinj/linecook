@@ -48,6 +48,13 @@ lc_set_right_prompt( LineCook *state,
                       sel2,  sel2_len );
 }
 
+extern "C"
+void
+lc_set_eval_status( LineCook *state,  int status )
+{
+  return static_cast<linecook::State *>( state )->set_eval_status( status );
+}
+
 using namespace linecook;
 
 static const char32_t *cur_fmt( LeftPrompt &pr ) {
@@ -211,6 +218,19 @@ State::format_prompt( void )
             if ( ( fl & P_HAS_SHNAME ) != 0 ) {
               q     = pr.shname;
               q_len = pr.shname_len;
+            }
+            break;
+          case 'O': /* ok status */
+            if ( ( fl & P_HAS_OK_STATUS ) != 0 ) {
+              q     = "ok";
+              q_len = pr.ok_len;
+            }
+            break;
+          case 'S': /* status */
+          case 'N': /* non-zero status */
+            if ( ( fl & ( P_HAS_STATUS | P_HAS_NZ_STATUS ) ) != 0 ) {
+              q     = pr.stat;
+              q_len = pr.stat_len;
             }
             break;
           case 'l': /* ttyXX */
@@ -477,6 +497,25 @@ State::get_prompt_vars( void )
               }
             }
             break;
+          case 'O': /* Ok Status */
+            pr.flags |= P_HAS_OK_STATUS;
+            pr.cur_stat = this->eval_status;
+            if ( pr.cur_stat == 0 )
+              pr.ok_len = 2;
+            else
+              pr.ok_len = 0;
+            break;
+          case 'S': /* Status */
+          case 'N': /* Non-zero Status */
+            pr.flags |= ( p[ i ] == 'S' ? P_HAS_STATUS : P_HAS_NZ_STATUS );
+            pr.cur_stat = this->eval_status;
+            pr.stat_len = int_digits( pr.cur_stat );
+            int_to_str( pr.cur_stat, pr.stat, pr.stat_len );
+            if ( pr.cur_stat == 0 ) {
+              if ( p[ i ] == 'N' )
+                pr.stat_len = 0;
+            }
+            break;
           case 'd': /* Mon Nov 5 */
             pr.flags |= P_HAS_DATE;
             if ( pr.cur_time == 0 )
@@ -676,6 +715,23 @@ State::update_prompt_time( void )
       }
     }
   }
+  if ( ( fl & ( P_HAS_STATUS | P_HAS_NZ_STATUS | P_HAS_OK_STATUS ) ) != 0 ) {
+    if ( pr.cur_stat != this->eval_status ) {
+      pr.cur_stat = this->eval_status;
+      pr.stat_len = int_digits( pr.cur_stat );
+      int_to_str( this->eval_status, pr.stat, pr.stat_len );
+      if ( pr.cur_stat == 0 ) {
+        if ( ( fl & P_HAS_NZ_STATUS ) != 0 )
+          pr.stat_len = 0;
+        if ( ( fl & P_HAS_OK_STATUS ) != 0 )
+          pr.ok_len = 2;
+      }
+      else {
+        pr.ok_len = 0;
+      }
+      b = true;
+    }
+  }
   if ( ( fl & ( P_HAS_ANY_TIME | P_HAS_DATE ) ) == 0 )
     return b;
   /* if a new second elapsed */
@@ -750,6 +806,24 @@ State::update_prompt( bool force )
       b = true;
     }
   }
+  if ( ( pr.flags & ( P_HAS_STATUS | P_HAS_NZ_STATUS |
+                      P_HAS_OK_STATUS ) ) != 0 ) {
+    if ( pr.cur_stat != this->eval_status ) {
+      pr.cur_stat = this->eval_status;
+      pr.stat_len = int_digits( this->eval_status );
+      int_to_str( this->eval_status, pr.stat, pr.stat_len );
+      if ( pr.cur_stat == 0 ) {
+        if ( ( pr.flags & P_HAS_NZ_STATUS ) != 0 )
+          pr.stat_len = 0;
+        if ( ( pr.flags & P_HAS_OK_STATUS ) != 0 )
+          pr.ok_len = 2;
+      }
+      else {
+        pr.ok_len = 0;
+      }
+      b = true;
+    }
+  }
   b |= this->update_prompt_time();
   if ( b || force ) {
     for (;;) {
@@ -771,6 +845,12 @@ State::update_prompt( bool force )
         pr.flags_mask |= P_HAS_ANY_TIME;
       else if ( ( ( pr.flags & ~pr.flags_mask ) & P_HAS_SHNAME ) != 0 )
         pr.flags_mask |= P_HAS_SHNAME;
+      else if ( ( ( pr.flags & ~pr.flags_mask ) & P_HAS_STATUS ) != 0 )
+        pr.flags_mask |= P_HAS_STATUS;
+      else if ( ( ( pr.flags & ~pr.flags_mask ) & P_HAS_NZ_STATUS ) != 0 )
+        pr.flags_mask |= P_HAS_NZ_STATUS;
+      else if ( ( ( pr.flags & ~pr.flags_mask ) & P_HAS_OK_STATUS ) != 0 )
+        pr.flags_mask |= P_HAS_OK_STATUS;
       else if ( ( ( pr.flags & ~pr.flags_mask ) & P_HAS_TTYNAME ) != 0 )
         pr.flags_mask |= P_HAS_TTYNAME;
       else if ( ( ( pr.flags & ~pr.flags_mask ) & P_HAS_DATE ) != 0 )

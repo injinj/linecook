@@ -70,8 +70,8 @@ static int
 init_tty( TTYCook *tty )
 {
   /* this prompt setup looks like this:
-   *  \u     \h       \w          \R            \4      \l       \d      \@
-   * chris@deedee:~/linecook/                10.4.4.21 pts/0 Sat Nov 03 11:49pm
+   *  \u     \h       \w          \R        \4      \l       \d      \@     \O
+   * chris@deedee:~/linecook/            10.4.4.21 pts/0 Sat Nov 03 11:49pm ok
    *  \# \$
    * [13]$
    */
@@ -81,7 +81,9 @@ init_tty( TTYCook *tty )
                                ANSI_MAGENTA "\\h"   ANSI_NORMAL ":"
                                ANSI_GREEN   "\\w"   ANSI_NORMAL "\\R"
                                ANSI_DEVOLVE "\\4 \\l" ANSI_NORMAL " "
-                               ANSI_BLUE    "\\d \\@" ANSI_NORMAL "\\r\\n"
+                               ANSI_BLUE    "\\d \\@" ANSI_NORMAL " "
+                               ANSI_RED     "\\N"   ANSI_NORMAL
+                               ANSI_BLUE    "\\O"   ANSI_NORMAL  "\\r\\n"
                              //ANSI_BLUE    "\\u2514\\u2518 " ANSI_NORMAL
                                ANSI_BLUE    "["     ANSI_NORMAL 
                                ANSI_RED     "\\#"   ANSI_NORMAL
@@ -190,7 +192,10 @@ main( void )
                                            &arg_num, &arg_count, arg_off,
                                            arg_len, 32 );
         if ( arg_len[ 0 ] > 0 ) {
-          if ( ctype == COMPLETE_HELP ) {
+          if ( ctype == COMPLETE_NEXT ) {
+            popen_completions( lc, buf );
+          }
+          else if ( ctype == COMPLETE_HELP ) {
             snprintf( buf2, sizeof( buf2 ), "%.*s --help",
                       (int) arg_len[ 0 ], &buf[ arg_off[ 0 ] ] );
             popen_completions( lc, buf2 );
@@ -286,8 +291,14 @@ main( void )
         }
         /* otherwise, let sh do the work */
         else {
-          if ( system( tty->line ) != 0 )
-            fprintf( stderr, "system() errno = %d (%s)\n", errno, strerror( errno ) );
+          if ( system( tty->line ) != 0 ) {
+            lc_set_eval_status( lc, errno );
+            fprintf( stderr, "system() errno = %d (%s)\n", errno,
+                     strerror( errno ) );
+          }
+          else {
+            lc_set_eval_status( lc, 0 );
+          }
         }
       }
     }

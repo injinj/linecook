@@ -231,26 +231,17 @@ State::dispatch( void )
       break;
 
     case ACTION_SUSPEND: /* ctrl-z */
-    case ACTION_OPER_AND_NEXT: /* ctrl-o */
       if ( this->show_mode != SHOW_NONE ) /* clear show buffer */
         this->show_clear();
       if ( this->is_visual_mode() ) {
         this->toggle_visual_mode();
         this->refresh_visual_line();
       }
-      if ( this->action == ACTION_SUSPEND ) {
-        /* send cursor to the next line, which may be multiple rows */
-        this->output_right_prompt( true ); /* clear right prompt */
-        this->output_newline( ( this->edited_len - off ) / this->cols + 1 );
-        this->refresh_needed = true; /* refresh line after called again */
-        return LINE_STATUS_SUSPEND;
-      }
-      if ( this->is_vi_command_mode() )
-        this->set_vi_insert_mode();
-      this->reset_completions();
-      this->init_completion_term();
+      /* send cursor to the next line, which may be multiple rows */
+      this->output_right_prompt( true ); /* clear right prompt */
+      this->output_newline( ( this->edited_len - off ) / this->cols + 1 );
       this->refresh_needed = true; /* refresh line after called again */
-      return LINE_STATUS_COMPLETE;
+      return LINE_STATUS_SUSPEND;
 
     case ACTION_INTERRUPT: /* ctrl-c */
       is_interrupt = true; /* same as finish, reset state */
@@ -908,14 +899,17 @@ State::dispatch( void )
 
     case ACTION_SHOW_HELP:
     case ACTION_SHOW_MAN:
+    case ACTION_OPER_AND_NEXT: /* ctrl-o */
       if ( this->show_mode != SHOW_NONE )
         this->show_clear();
       this->init_completion_term();
       this->refresh_needed = true; /* refresh line after called again */
       if ( this->action == ACTION_SHOW_HELP )
         this->complete_type = COMPLETE_HELP;
-      else
+      else if ( this->action == ACTION_SHOW_MAN )
         this->complete_type = COMPLETE_MAN;
+      else
+        this->complete_type = COMPLETE_NEXT;
       return LINE_STATUS_COMPLETE;
 
     case ACTION_TAB_COMPLETE:

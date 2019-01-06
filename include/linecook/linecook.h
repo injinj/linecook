@@ -53,7 +53,8 @@ typedef enum CompleteType_e {
   COMPLETE_ENV   = 'v', /* variable */
   COMPLETE_FZF   = 'z', /* fzf */
   COMPLETE_HELP  = 'p', /* --help */
-  COMPLETE_MAN   = 'm'  /* man */
+  COMPLETE_MAN   = 'm', /* man */
+  COMPLETE_NEXT  = 'n'  /* oper and next */
 } CompleteType;
 
 /* Allocate the state */
@@ -84,7 +85,13 @@ void lc_set_completion_break( LineCook *state,  const char *brk,
 /* Set the file name quote chars and quote */
 void lc_set_quotables( LineCook *state,  const char *qc,  size_t qc_len,
                        char quote );
+/* Bind a keys sequence to an action, for example:
+ * args[ 0 ] = "\C-y" args[ 1 ] = "&erase-eol"
+ * causes ctrl-y to erase from cursor to end of line */
 int lc_bindkey( LineCook *state,  char *args[],  size_t argc );
+/* Set the eval status of the last command, for display of status in prompt
+ * with the \S escape in lc_set_prompt() above */
+void lc_set_eval_status( LineCook *state,  int status );
 /* Read and edit a line, returns Line_STATUS above, if LINE_STATUS_OK, then
  * the line is null terminated in state->line with size state->line_len bytes */
 int lc_get_line( LineCook *state );
@@ -278,7 +285,10 @@ enum LeftPrompt_fl {
   P_HAS_IPADDR     = 1<<9,  /* \4 ipv4 address derived from hostname */
   P_HAS_DATE       = 1<<10, /* \d Mon Nov 5 */
   P_HAS_SHNAME     = 1<<11, /* \s /proc/self/exe */
-  P_HAS_TTYNAME    = 1<<12  /* \l /proc/self/fd/0 */
+  P_HAS_TTYNAME    = 1<<12, /* \l /proc/self/fd/0 */
+  P_HAS_STATUS     = 1<<13, /* \S current status */
+  P_HAS_NZ_STATUS  = 1<<14, /* \N current status */
+  P_HAS_OK_STATUS  = 1<<15  /* \O ok status */
 };
 
 typedef struct LeftPrompt_s {
@@ -302,10 +312,12 @@ typedef struct LeftPrompt_s {
   size_t           cur_hist;   /* Current history # */
   char             hist[ 8 ],  /* Hist formatted        \# or \! */
                    vers[ 8 ],  /* Version of program    \v or \V */
+                   stat[ 8 ],  /* Status                \S */
                    ipaddr[ 16 ]; /* Ipaddr of hostname  \4 */
   uint32_t         euid,       /* Euid from geteuid() */
                    flags,      /* Fmt string requires (LeftPrompt_fl bits) */
                    flags_mask; /* Mask out some formats when term geom is small */
+  int              cur_stat;   /* Current status */
   uint8_t          is_continue,/* Prompt is using fmt2 */
                    pad_cols;   /* Prompt has padding to align dbl char edge */
   size_t           fmt_len,    /* Length of fmt string */
@@ -322,6 +334,8 @@ typedef struct LeftPrompt_s {
                    date_len,   /* Len of date */
                    hist_len,   /* Len of hist */
                    vers_len,   /* Len of vers */
+                   stat_len,   /* Len of stat */
+                   ok_len,     /* Len of "ok", 2 or 0 */
                    ipaddr_len, /* Len of ipaddr */
                    time_off,   /* Offset of time for ticking */
                    date_off,   /* Offset of date for ticking */
@@ -391,7 +405,8 @@ struct LineCook_s {
                erase_len,       /* Max extent of line text on the terminal */
                buflen;          /* Current line allocation len of line */
   int          save_mode,       /* Mode saved for hist searches */
-               error;           /* If error, non-zero */
+               error,           /* If error, non-zero */
+               eval_status;     /* Status displayed in prompt */
 
   /* Actions for repeat operations, for example '.' in vi mode */
   KeyAction    action,          /* Current action (KeyAction) */
@@ -680,6 +695,7 @@ struct State : public LineCook_s {
                           size_t &xlen );
   int set_prompt( const char *p,  size_t p_len,
                   const char *p2,  size_t p2_len );
+  void set_eval_status( int status ) { this->eval_status = status; }
   int init_lprompt( void );
   bool init_rprompt( LinePrompt &p,  const char *buf,  size_t len );
   /* Right prompt / select cursor */
