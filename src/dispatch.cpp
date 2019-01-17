@@ -494,7 +494,8 @@ State::dispatch( void )
       }
       else {
         start = off;
-        if ( this->action == ACTION_ERASE_NEXT_WORD )
+        if ( this->action == ACTION_ERASE_NEXT_WORD ||
+             this->action == ACTION_VI_CHANGE_WORD )
           end = this->next_word( off );
         else if ( this->action == ACTION_VI_ERASE_NEXT_WORD )
           end = this->next_word_start( off );
