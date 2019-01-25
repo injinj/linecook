@@ -470,6 +470,15 @@ State::get_prompt_vars( void )
             n = ::readlink( 
               ( p[ i ] == 'l' ) ? "/proc/self/fd/0" : "/proc/self/exe",
               tmp, sizeof( tmp ) );
+            if ( n < 0 ) {
+              const char *name = ttyname( 0 );
+              if ( name != NULL ) {
+                n = ::strlen( name );
+                if ( (size_t) n < sizeof( tmp ) ) {
+                  ::strcpy( tmp, name );
+                }
+              }
+            }
             if ( n > 0 && (size_t) n + 1 < sizeof( tmp ) ) {
               tmp[ n ] = '\0';
               if ( p[ i ] == 'l' )

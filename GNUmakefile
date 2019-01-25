@@ -1,5 +1,5 @@
-lsb_dist     := $(shell if [ -x /usr/bin/lsb_release ] ; then lsb_release -is ; else echo Linux ; fi)
-lsb_dist_ver := $(shell if [ -x /usr/bin/lsb_release ] ; then lsb_release -rs | sed 's/[.].*//' ; fi)
+lsb_dist     := $(shell if [ -x /usr/bin/lsb_release ] ; then lsb_release -is ; else uname -s ; fi)
+lsb_dist_ver := $(shell if [ -x /usr/bin/lsb_release ] ; then lsb_release -rs | sed 's/[.].*//' ; else uname -r | sed 's/[-].*//' ; fi)
 uname_m      := $(shell uname -m)
 
 short_dist_lc := $(patsubst CentOS,rh,$(patsubst RedHatEnterprise,rh,\
@@ -159,12 +159,17 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 	@echo "# depend file" > $(dependd)/depend.make
 	@cat $(all_depends) >> $(dependd)/depend.make
 
+ifeq (SunOS,$(lsb_dist))
+remove_rpath = rpath -r
+else
+remove_rpath = chrpath -d
+endif
 # target used by rpmbuild, dpkgbuild
 .PHONY: dist_bins
 dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example $(bind)/lc_hist_cat
-	chrpath -d $(libd)/liblinecook.so
-	chrpath -d $(bind)/lc_example
-	chrpath -d $(bind)/lc_hist_cat
+	$(remove_rpath) $(libd)/liblinecook.so
+	$(remove_rpath) $(bind)/lc_example
+	$(remove_rpath) $(bind)/lc_hist_cat
 
 # target for building installable rpm
 .PHONY: dist_rpm
@@ -180,19 +185,22 @@ depend: $(dependd)/depend.make
 
 ifeq ($(DESTDIR),)
 # 'sudo make install' puts things in /usr/local/lib, /usr/local/include
-install_prefix = /usr/local
+install_prefix ?= /usr/local
 else
 # debuild uses DESTDIR to put things into debian/libdecnumber/usr
 install_prefix = $(DESTDIR)/usr
 endif
+# this should be 64 for rpm based, /64 for SunOS
+install_lib_suffix ?=
 
 install: dist_bins
-	install -d $(install_prefix)/lib $(install_prefix)/bin $(install_prefix)/include/linecook
+	install -d $(install_prefix)/lib$(install_lib_suffix)
+	install -d $(install_prefix)/bin $(install_prefix)/include/linecook
 	for f in $(libd)/liblinecook.* ; do \
 	if [ -h $$f ] ; then \
-	cp -a $$f $(install_prefix)/lib ; \
+	cp -a $$f $(install_prefix)/lib$(install_lib_suffix) ; \
 	else \
-	install $$f $(install_prefix)/lib ; \
+	install $$f $(install_prefix)/lib$(install_lib_suffix) ; \
 	fi ; \
 	done
 	install $(bind)/lc_example $(install_prefix)/bin

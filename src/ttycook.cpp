@@ -520,8 +520,25 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
       if ( dirp != NULL ) {
         while ( (dp = ::readdir( dirp )) != NULL ) {
           struct stat s;
-          unsigned char d_type = dp->d_type;
-          bool      is_link    = ( d_type == DT_LNK );
+#ifdef __linux__
+          unsigned char d_type  = dp->d_type;
+          bool          is_link = ( d_type == DT_LNK );
+          enum {
+            X_NO_TYPE   = 0,
+            X_FILE_TYPE = DT_REG,
+            X_DIR_TYPE  = DT_DIR,
+            X_LNK_TYPE  = DT_LNK
+          };
+#else
+          unsigned char d_type  = 0;
+          bool          is_link = false;
+          enum {
+            X_NO_TYPE = 0,
+            X_FILE_TYPE,
+            X_DIR_TYPE,
+            X_LNK_TYPE
+          };
+#endif
           mode_t    st_mode    = 0;
           char    * completion;
           size_t    dlen       = ::strlen( dp->d_name ),
@@ -549,8 +566,18 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                 ::strcpy( &path3[ j ], dp->d_name );
               if ( ::stat( dirpath, &s ) == 0 ) {
                 switch ( s.st_mode & S_IFMT ) {
-                  case S_IFDIR: d_type = DT_DIR; break;
-                  case S_IFREG: d_type = DT_REG; break;
+                  case S_IFDIR:
+                    d_type = X_DIR_TYPE;
+                    if ( ctype == COMPLETE_SCAN ) {
+                      if ( is_link ||
+                           ( ::lstat( dirpath, &s ) == 0 &&
+                             ( s.st_mode & S_IFLNK ) != 0 ) ) {
+                        d_type = X_LNK_TYPE;
+                        is_link = true;
+                      }
+                    }
+                    break;
+                  case S_IFREG: d_type = X_FILE_TYPE; break;
                   default: break;
                 }
                 st_mode = s.st_mode;
@@ -561,7 +588,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
                  ctype == COMPLETE_ANY ) {
               bool is_dd = is_dotdir( dp->d_name, dlen ); /* . or .. */
               if ( ! is_dd || ( dlen > 1 && is_dot ) /* allow .. */) {
-                if ( d_type == DT_DIR ) {
+                if ( d_type == X_DIR_TYPE ) {
                   if ( ctype == COMPLETE_SCAN && ! is_link && ! is_dd ) {
                     size_t sz = 0;
                     if ( no_directory ) {
@@ -579,16 +606,16 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
               }
             }
             else if ( ctype == COMPLETE_EXES ) { /* exe complete */
-              if ( ( d_type == DT_REG && ( st_mode & 0111 ) != 0 ) ||
-                   d_type == DT_DIR ) {
-                if ( d_type == DT_DIR )
+              if ( ( d_type == X_FILE_TYPE && ( st_mode & 0111 ) != 0 ) ||
+                   d_type == X_DIR_TYPE ) {
+                if ( d_type == X_DIR_TYPE )
                   completion[ comp_sz++ ] = '/';
                 lc_add_completion( state, completion, comp_sz );
                 cnt++;
               }
             }
             else if ( ctype == COMPLETE_DIRS ) { /* dir complete */
-              if ( d_type == DT_DIR ) {
+              if ( d_type == X_DIR_TYPE ) {
                 completion[ comp_sz++ ] = '/';
                 lc_add_completion( state, completion, comp_sz );
                 cnt++;
