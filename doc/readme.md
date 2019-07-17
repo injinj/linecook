@@ -42,7 +42,7 @@ Some people and projects that inspired this library:
    I started with this library.  I believe it is not possible, 20,000 lines are
    necessary :).
 
-2. Bob Steagall for [UTF-32](https://githup.com/BobSteagall/CppCon2018).  Easy
+2. Bob Steagall for [UTF-32](https://github.com/BobSteagall/CppCon2018).  Easy
    to follow, problem solving with SSE (even though I didn't use that part).
 
 3. Joshua Rubin for [wcwidth9](https://github.com/joshuarubin/wcwidth9).  He
