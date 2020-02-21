@@ -775,7 +775,8 @@ TTY::read_history( int rfd,  size_t max_len,  size_t &line_cnt ) noexcept
     if ( n <= 0 )
       return amount_consumed;
     file_off += n;
-    off = this->load_history_buffer( buf, off + n, line_cnt );
+    n += off;
+    off = this->load_history_buffer( buf, n, line_cnt );
     if ( off != 0 ) {
       sz = (size_t) n - off; /* leftover, move to front */
       if ( sz > 0 )
