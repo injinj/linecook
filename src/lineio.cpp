@@ -55,23 +55,23 @@ lc_get_complete_geom( LineCook *state, int *arg_num, int *arg_count,
 
 using namespace linecook;
 
-int State::line_length( void ) {
+int State::line_length( void ) noexcept {
   return this->line_length( 0, this->line_len ); }
-int State::line_copy( char *out ) {
+int State::line_copy( char *out ) noexcept {
   return this->line_copy( out, 0, this->line_len ); }
-int State::edit_length( void ) {
+int State::edit_length( void ) noexcept {
   return this->line_length( 0, this->edited_len ); }
-int State::edit_copy( char *out ) {
+int State::edit_copy( char *out ) noexcept {
   return this->line_copy( out, 0, this->edited_len ); }
-int State::complete_term_length( void ) {
+int State::complete_term_length( void ) noexcept {
   return this->line_length( this->complete_off,
                             this->complete_off + this->complete_len ); }
-int State::complete_term_copy( char *out ) {
+int State::complete_term_copy( char *out ) noexcept {
   return this->line_copy( out, this->complete_off,
                           this->complete_off + this->complete_len ); }
 
 int
-State::line_length( size_t from,  size_t to )
+State::line_length( size_t from,  size_t to ) noexcept
 {
   int size = 0;
   for ( size_t i = from; i < to; i++ ) {
@@ -85,7 +85,7 @@ State::line_length( size_t from,  size_t to )
 }
 
 int
-State::line_copy( char *out,  size_t from,  size_t to )
+State::line_copy( char *out,  size_t from,  size_t to ) noexcept
 {
   int size = 0;
   for ( size_t i = from; i < to; i++ ) {
@@ -99,7 +99,7 @@ State::line_copy( char *out,  size_t from,  size_t to )
 }
 
 void
-State::reset_input( LineCookInput &input )
+State::reset_input( LineCookInput &input ) noexcept
 {
   input.input_mode = 0;     /* clear modes */
   input.cur_input  = NULL;
@@ -110,7 +110,7 @@ State::reset_input( LineCookInput &input )
 }
 
 char32_t
-State::next_input_char( LineCookInput &input )
+State::next_input_char( LineCookInput &input ) noexcept
 {
   for (;;) {
     char32_t c;
@@ -128,9 +128,9 @@ State::next_input_char( LineCookInput &input )
     return 0;
   }
 }
-
+/* multichar actions */
 KeyAction
-State::eat_multichar( LineCookInput &input ) /* multichar actions */
+State::eat_multichar( LineCookInput &input ) noexcept
 {
   char32_t c = input.cur_char;
   if ( input.pcnt == 0 ) {
@@ -186,9 +186,9 @@ State::eat_multichar( LineCookInput &input ) /* multichar actions */
     return ACTION_PUTBACK;
   return ACTION_PENDING;
 }
-
+/* eat chars from input */
 KeyAction
-State::eat_input( LineCookInput &input ) /* eat chars from input */
+State::eat_input( LineCookInput &input ) noexcept
 {
   char32_t  c;
   bool      putback = false;
@@ -288,9 +288,9 @@ State::eat_input( LineCookInput &input ) /* eat chars from input */
   input.cur_recipe = &this->recipe[ input.cur_input->def ]; /* bell or insert */
   return input.cur_recipe->action;
 }
-
+/* subtract from current position */
 void
-State::move_cursor_back( size_t amt ) /* subtract from current position */
+State::move_cursor_back( size_t amt ) noexcept
 {
   if ( amt == 0 || this->cursor_pos == 0 )
     return;
@@ -306,9 +306,9 @@ State::move_cursor_back( size_t amt ) /* subtract from current position */
   else
     this->move_cursor( this->cursor_pos - amt );
 }
-
+/* add to current position */
 void
-State::move_cursor_fwd( size_t amt ) /* add to current position */
+State::move_cursor_fwd( size_t amt ) noexcept
 {
   if ( amt == 0 )
     return;
@@ -324,9 +324,9 @@ State::move_cursor_fwd( size_t amt ) /* add to current position */
   else
     this->move_cursor( this->cursor_pos + amt );
 }
-
+/* move from current position to new pos */
 void
-State::move_cursor( size_t new_pos ) /* move from current position to new pos */
+State::move_cursor( size_t new_pos ) noexcept
 {
   size_t amt;
   for (;;) {
@@ -360,7 +360,7 @@ State::move_cursor( size_t new_pos ) /* move from current position to new pos */
 }
 
 bool
-State::input_available( LineCookInput &input )
+State::input_available( LineCookInput &input ) noexcept
 {
   if ( input.input_off < input.input_len ) {
     if ( input.input_off + 3 < input.input_len )
@@ -379,7 +379,7 @@ State::input_available( LineCookInput &input )
 }
 
 int
-State::fill_input( void )
+State::fill_input( void ) noexcept
 {
   if ( this->in.input_off != this->in.input_len ) {
     ::memmove( this->in.input_buf, &this->in.input_buf[ this->in.input_off ],
@@ -402,7 +402,7 @@ State::fill_input( void )
 }
 
 void
-State::cursor_output( char32_t c )
+State::cursor_output( char32_t c ) noexcept
 {
   static const size_t pad = 2 + 4;
   if ( ! this->realloc_output( this->output_off + pad ) )
@@ -418,9 +418,9 @@ State::cursor_output( char32_t c )
     }
   }
 }
-
+/* output at cursor */
 void
-State::cursor_output( const char32_t *str,  size_t len ) /* output at cursor */
+State::cursor_output( const char32_t *str,  size_t len ) noexcept
 {
   static const size_t pad = 2;
   size_t left = this->cols - ( this->cursor_pos % this->cols );
@@ -444,9 +444,9 @@ State::cursor_output( const char32_t *str,  size_t len ) /* output at cursor */
     left = this->cols;
   }
 }
-
+/* erase from cursor to erase_len col/row */
 void
-State::cursor_erase_eol( void ) /* erase from cursor to erase_len col/row */
+State::cursor_erase_eol( void ) noexcept
 {
   this->erase_eol_with_right_prompt();
   /* erase to the max extent of multiline input */
@@ -464,7 +464,8 @@ State::cursor_erase_eol( void ) /* erase from cursor to erase_len col/row */
 }
 
 void
-State::output_show_string( const char32_t *str,  size_t off,  size_t len )
+State::output_show_string( const char32_t *str,  size_t off,
+                           size_t len ) noexcept
 {
   const char32_t * s;
   size_t           slen,
@@ -526,7 +527,7 @@ State::output_show_string( const char32_t *str,  size_t off,  size_t len )
 }
 
 size_t
-State::output_show_line( const char32_t *show_line,  size_t len )
+State::output_show_line( const char32_t *show_line,  size_t len ) noexcept
 {
   static const size_t SHOW_PAD = 3;
   LinePrompt &l = this->sel_left,
@@ -559,7 +560,7 @@ State::output_show_line( const char32_t *show_line,  size_t len )
 }
 
 void
-State::output_show( void )
+State::output_show( void ) noexcept
 {
   if ( this->show_len > 0 ) {
     size_t row   = this->next_row(),
@@ -591,7 +592,7 @@ State::output_show( void )
 }
 
 void
-State::output( char32_t c ) /* send char to output */
+State::output( char32_t c ) noexcept /* send char to output */
 {
   if ( ! this->realloc_output( this->output_off + 4 ) )
     return;
@@ -601,7 +602,7 @@ State::output( char32_t c ) /* send char to output */
 }
 
 void
-State::output( const char32_t *str,  size_t len ) /* send bytes to output */
+State::output( const char32_t *str,  size_t len ) noexcept /* send to output */
 {
   if ( ! this->realloc_output( this->output_off + len * 4 ) )
     return;
@@ -613,7 +614,7 @@ State::output( const char32_t *str,  size_t len ) /* send bytes to output */
 }
 
 void
-State::output_str( const char *str,  size_t len ) /* send bytes to output */
+State::output_str( const char *str,  size_t len ) noexcept
 {
   if ( ! this->realloc_output( this->output_off + len ) )
     return;
@@ -622,7 +623,7 @@ State::output_str( const char *str,  size_t len ) /* send bytes to output */
 }
 
 void
-State::output_fmt( const char *fmt,  size_t d )
+State::output_fmt( const char *fmt,  size_t d ) noexcept
 {
   char buf[ 40 ];
   size_t n = 0;
@@ -642,18 +643,18 @@ State::output_fmt( const char *fmt,  size_t d )
   }
   this->output_str( buf, n );
 }
-
+/* end of current line edit */
 void
-State::output_newline( size_t count ) /* end of current line edit */
+State::output_newline( size_t count ) noexcept
 {
   this->output_str( "\r\n", 2 );
   for ( ; count > 1; count-- ) /* if multiline and cursor is not at the end */
     this->output_str( "\n", 1 );
   this->output_flush();
 }
-
+/* send current output buf to terminal */
 void
-State::output_flush( void ) /* send current output buf to terminal */
+State::output_flush( void ) noexcept
 {
   for (;;) {
     size_t n = this->output_off;

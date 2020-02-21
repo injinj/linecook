@@ -560,67 +560,78 @@ static const size_t LINE_BUF_BIG_INCR = 64 * 1024;
  */
 struct LineSave {
   void * operator new( size_t, void *ptr ) { return ptr; }
-  size_t line_off,   /* Index into buffer where line starts */
-         next_off,   /* Offset of next line in buffer */
-         edited_len, /* Length of the line at line_off */
-         cursor_off, /* Where the cursor position was in the line */
-         index;      /* Used to identify a line */
-  LineSave( size_t off,  size_t edit,  size_t curs,  size_t idx )
-    : line_off( off ), next_off( 0 ), edited_len( edit ), cursor_off( curs ),
-      index( idx ) {}
+  size_t line_off, /* Index into buffer where line starts */
+    next_off,      /* Offset of next line in buffer */
+    edited_len,    /* Length of the line at line_off */
+    cursor_off,    /* Where the cursor position was in the line */
+    index;         /* Used to identify a line */
+  LineSave( size_t off, size_t edit, size_t curs, size_t idx )
+    : line_off( off )
+    , next_off( 0 )
+    , edited_len( edit )
+    , cursor_off( curs )
+    , index( idx )
+  {
+  }
   /* Compare buf, len to line at off */
-  static bool equals( const LineSaveBuf &lsb,  size_t off,  const char32_t *buf,
-                      size_t len );
-  static int compare( const LineSaveBuf &lsb,  size_t off,  size_t off2 );
-
-  static size_t size( size_t len ); /* Amount of space needed for line len */
+  static bool   equals( const LineSaveBuf &lsb, size_t off, const char32_t *buf,
+                        size_t len ) noexcept;
+  static int    compare( const LineSaveBuf &lsb, size_t off,
+                         size_t off2 ) noexcept;
+  static size_t size( size_t len ) noexcept; /* Amount needed for line len */
   /* Make a new line by copying data into save buffer and adding a LineSave */
-  static size_t make( LineSaveBuf &lsb,  const char32_t *buf,  size_t len, 
-                      size_t cursor_off,  size_t idx );
+  static size_t make( LineSaveBuf &lsb, const char32_t *buf, size_t len,
+                      size_t cursor_off, size_t idx ) noexcept;
   /* Return the LineSave node at off */
-  static LineSave &line( LineSaveBuf &lsb,  size_t off );
+  static LineSave &line( LineSaveBuf &lsb, size_t off ) noexcept;
   /* Return the LineSave node at off */
-  static const LineSave &line_const( const LineSaveBuf &lsb,  size_t off );
+  static const LineSave &line_const( const LineSaveBuf &lsb,
+                                     size_t             off ) noexcept;
   /* Count how man nodes a save buf contains, starting at off */
-  static size_t card( const LineSaveBuf &lsb );
+  static size_t card( const LineSaveBuf &lsb ) noexcept;
   /* Return the offset of i when in sorted order */
-  static size_t find( const LineSaveBuf &lsb,  size_t off,  size_t i );
+  static size_t find( const LineSaveBuf &lsb, size_t off, size_t i ) noexcept;
   /* Return the offset of the index >= of i */
-  static size_t find_gteq( const LineSaveBuf &lsb,  size_t off,  size_t i );
+  static size_t find_gteq( const LineSaveBuf &lsb, size_t off,
+                           size_t i ) noexcept;
   /* Return the offset of the index >= of i */
-  static size_t find_lt( const LineSaveBuf &lsb,  size_t off,  size_t i );
+  static size_t find_lt( const LineSaveBuf &lsb, size_t off,
+                         size_t i ) noexcept;
   /* Find a subscring in a line */
-  static size_t find_substr( const LineSaveBuf &lsb,  size_t off,
-                             const char32_t *str,  size_t len,  int dir );
+  static size_t find_substr( const LineSaveBuf &lsb, size_t off,
+                             const char32_t *str, size_t len,
+                             int dir ) noexcept;
   /* Find the shortest prefix matching str + len */
-  static size_t find_prefix( const LineSaveBuf &lsb,  size_t off,
-                             const char32_t *str,  size_t len,
-                             size_t &prefix_len,  size_t &match_cnt,
-                             size_t &prefix_cnt );
+  static size_t find_prefix( const LineSaveBuf &lsb, size_t off,
+                             const char32_t *str, size_t len,
+                             size_t &prefix_len, size_t &match_cnt,
+                             size_t &prefix_cnt ) noexcept;
   /* Find longest prefix in set */
-  static size_t find_longest_prefix( const LineSaveBuf &lsb,  size_t off,
-                                     size_t &prefix_len,  size_t &match_cnt );
+  static size_t find_longest_prefix( const LineSaveBuf &lsb, size_t off,
+                                     size_t &prefix_len,
+                                     size_t &match_cnt ) noexcept;
   /* Remove entries which do not contain substr */
-  static bool filter_substr( LineSaveBuf &lsb,  const char32_t *str,
-                             size_t len );
+  static bool filter_substr( LineSaveBuf &lsb, const char32_t *str,
+                             size_t len ) noexcept;
   /* Remove entries which do not match glob */
-  static bool filter_glob( LineSaveBuf &lsb,  const char32_t *str,
-                           size_t len,  bool implicit_anchor );
+  static bool filter_glob( LineSaveBuf &lsb, const char32_t *str, size_t len,
+                           bool implicit_anchor ) noexcept;
   /* Return the offset of idx when not in sorted order */
-  static size_t scan( const LineSaveBuf &lsb,  size_t i );
+  static size_t scan( const LineSaveBuf &lsb, size_t i ) noexcept;
   /* Debug check the fwd & bck links */
-  static size_t check_links( LineSaveBuf &lsb,  size_t first,  size_t max_off,
-                             size_t cnt );
+  static size_t check_links( LineSaveBuf &lsb, size_t first, size_t max_off,
+                             size_t cnt ) noexcept;
   /* Resize an element by adjusting the line_off, next_off */
-  static size_t resize( LineSaveBuf &lsb,  size_t &off,  size_t newsz );
+  static size_t resize( LineSaveBuf &lsb, size_t &off, size_t newsz ) noexcept;
   /* Reset a save buffer, zero indexes */
-  static void reset( LineSaveBuf &lsb );
+  static void reset( LineSaveBuf &lsb ) noexcept;
   /* Sort lines */
-  static bool sort( LineSaveBuf &lsb );
+  static bool sort( LineSaveBuf &lsb ) noexcept;
   /* Shrink line buffer to items between range */
-  static bool shrink_range( LineSaveBuf &lsb,  size_t off,  size_t to_off );
+  static bool shrink_range( LineSaveBuf &lsb, size_t off,
+                            size_t to_off ) noexcept;
   /* Shrink line buffer to unique items (history compression) */
-  static bool shrink_unique( LineSaveBuf &lsb );
+  static bool shrink_unique( LineSaveBuf &lsb ) noexcept;
 };
 
 /*static const size_t SHOW_PAD = 3;*/
@@ -633,7 +644,7 @@ struct ShowState {
   bool          has_local_edit, /* line may exist in local edit lines */
                 left_overflow,  /* show end of line if overflow */
                 show_index;     /* show index number of line */
-  ShowState( State &state );
+  ShowState( State &state ) noexcept;
   void zero( void ) {
     this->lsb = NULL;
     this->off = this->cnt = 0;
@@ -646,90 +657,87 @@ struct ShowState {
  * We pass this state to functions implementing specific editing
  * functionalities. */
 struct State : public LineCook_s {
-  void * operator new( size_t, void *ptr ) { return ptr; }
-  void operator delete( void *ptr ) { ::free( ptr ); }
-  State( int num_cols,  int num_lines );
-  ~State();
+  void *operator new( size_t, void *ptr ) { return ptr; }
+  void  operator delete( void *ptr ) { ::free( ptr ); }
+  State( int num_cols, int num_lines ) noexcept;
+  ~State() noexcept;
 
   /* Initialize key sequence translations */
-  int set_recipe( KeyRecipe *key_rec,  size_t key_rec_count );
-  void free_recipe( void );
-  void init_single_key_transitions( LineKeyMode &km,  uint8_t mode );
-  void init_multi_key_transitions( LineKeyMode &km,  uint8_t mode );
-  void filter_macro( LineKeyMode &km,  uint8_t mode,  KeyRecipe &r );
-  void filter_mode( LineKeyMode &km,  uint8_t &mode,  KeyRecipe &r );
+  int  set_recipe( KeyRecipe *key_rec, size_t key_rec_count ) noexcept;
+  void free_recipe( void ) noexcept;
+  void init_single_key_transitions( LineKeyMode &km, uint8_t mode ) noexcept;
+  void init_multi_key_transitions( LineKeyMode &km, uint8_t mode ) noexcept;
+  void filter_macro( LineKeyMode &km, uint8_t mode, KeyRecipe &r ) noexcept;
+  void filter_mode( LineKeyMode &km, uint8_t &mode, KeyRecipe &r ) noexcept;
   /* Bind key sequence */
-  int bindkey( char *args[],  size_t argc );
-  void push_bindkey_recipe( void );
-  int add_bindkey_recipe( const char *key,  size_t n,  char **args,
-                          size_t argc,  uint8_t valid_mode );
-  int remove_bindkey_recipe( const char *key,  size_t n );
+  int  bindkey( char *args[], size_t argc ) noexcept;
+  void push_bindkey_recipe( void ) noexcept;
+  int  add_bindkey_recipe( const char *key, size_t n, char **args, size_t argc,
+                           uint8_t valid_mode ) noexcept;
+  int  remove_bindkey_recipe( const char *key, size_t n ) noexcept;
 
   /* Callbacks */
-  int read( void *buf,  size_t len ) { /* do the C callbacks */
+  int read( void *buf, size_t len ) { /* do the C callbacks */
     return this->read_cb( this, buf, len );
   }
-  int write( const void *buf,  size_t len ) {
+  int write( const void *buf, size_t len ) {
     return this->write_cb( this, buf, len );
   }
-  int completion( const char *buf,  size_t off,  size_t len ) {
+  int completion( const char *buf, size_t off, size_t len ) {
     return this->complete_cb( this, buf, off, len );
   }
   /*char *hints( const char *buf,  int &color,  int &bold ) {
     return this->hints_cb( this, buf, &color, &bold );
   }*/
   /* Prompt */
-  static ScreenClass screen_class( const char32_t *code,  size_t &sz );
-  static ScreenClass escape_class( const char32_t *code,  size_t &sz );
-  bool format_prompt( void );
-  bool get_prompt_vars( void );
-  bool get_prompt_geom( void );
-  bool update_date( time_t t );
-  bool update_cwd( void );
-  bool update_user( void );
-  bool update_prompt_time( void );
-  bool update_prompt( bool force );
-  void set_default_prompt( void );
-  bool make_utf32( const char *s,  size_t len,  char32_t *&x,  size_t &xlen );
-  bool make_prompt_utf32( const char *s,  size_t len,  char32_t *&x,
-                          size_t &xlen );
-  int set_prompt( const char *p,  size_t p_len,
-                  const char *p2,  size_t p2_len );
+  static ScreenClass screen_class( const char32_t *code, size_t &sz ) noexcept;
+  static ScreenClass escape_class( const char32_t *code, size_t &sz ) noexcept;
+  bool               format_prompt( void ) noexcept;
+  bool               get_prompt_vars( void ) noexcept;
+  bool               get_prompt_geom( void ) noexcept;
+  bool               update_date( time_t t ) noexcept;
+  bool               update_cwd( void ) noexcept;
+  bool               update_user( void ) noexcept;
+  bool               update_prompt_time( void ) noexcept;
+  bool               update_prompt( bool force ) noexcept;
+  void               set_default_prompt( void ) noexcept;
+  bool               make_utf32( const char *s, size_t len, char32_t *&x,
+                                 size_t &xlen ) noexcept;
+  bool               make_prompt_utf32( const char *s, size_t len, char32_t *&x,
+                                        size_t &xlen ) noexcept;
+  int                set_prompt( const char *p, size_t p_len, const char *p2,
+                                 size_t p2_len ) noexcept;
   void set_eval_status( int status ) { this->eval_status = status; }
-  int init_lprompt( void );
-  bool init_rprompt( LinePrompt &p,  const char *buf,  size_t len );
+  int  init_lprompt( void ) noexcept;
+  bool init_rprompt( LinePrompt &p, const char *buf, size_t len ) noexcept;
   /* Right prompt / select cursor */
-  int set_right_prompt( const char *ins,    size_t ins_len,
-                        const char *cmd,    size_t cmd_len,
-                        const char *emacs,  size_t emacs_len,
-                        const char *srch,   size_t srch_len,
-                        const char *comp,   size_t comp_len,
-                        const char *visu,   size_t visu_len,
-                        const char *ouch,   size_t ouch_len,
-                        const char *sel1,   size_t sel1_len,
-                        const char *sel2,   size_t sel2_len );
-  static uint64_t time_ms( void ); /* used for bell timeout */
-  void output_right_prompt( bool clear = false );
-  void clear_right_prompt( LinePrompt &p );
-  void show_right_prompt( LinePrompt &p );
-  void erase_eol_with_right_prompt( void );
+  int set_right_prompt( const char *ins, size_t ins_len, const char *cmd,
+                        size_t cmd_len, const char *emacs, size_t emacs_len,
+                        const char *srch, size_t srch_len, const char *comp,
+                        size_t comp_len, const char *visu, size_t visu_len,
+                        const char *ouch, size_t ouch_len, const char *sel1,
+                        size_t sel1_len, const char *sel2,
+                        size_t sel2_len ) noexcept;
+  static uint64_t time_ms( void ) noexcept; /* used for bell timeout */
+  void            output_right_prompt( bool clear = false ) noexcept;
+  void            clear_right_prompt( LinePrompt &p ) noexcept;
+  void            show_right_prompt( LinePrompt &p ) noexcept;
+  void            erase_eol_with_right_prompt( void ) noexcept;
   /* Clear line and refresh */
-  void clear_line( void );
+  void clear_line( void ) noexcept;
   /* Geom */
-  int set_geom( int num_cols,  int num_lines );
+  int set_geom( int num_cols, int num_lines ) noexcept;
   /* Word break chars */
-  void set_word_break( const char *brk,  size_t brk_len );
-  void set_completion_break( const char *brk,  size_t brk_len );
-  void set_quotables( const char *qc,  size_t qc_len,  char quote );
-  static void set_char_bit( uint32_t *bits,  char c ) {
-    uint32_t off  = (uint8_t) c / 32,
-             shft = (uint8_t) c % 32;
+  void set_word_break( const char *brk, size_t brk_len ) noexcept;
+  void set_completion_break( const char *brk, size_t brk_len ) noexcept;
+  void set_quotables( const char *qc, size_t qc_len, char quote ) noexcept;
+  static void set_char_bit( uint32_t *bits, char c ) {
+    uint32_t off = (uint8_t) c / 32, shft = (uint8_t) c % 32;
     if ( off < CHAR_BITS_SZ )
       bits[ off ] |= ( 1U << shft );
   }
-  static bool test_char_bit( const uint32_t *bits,  char32_t c ) {
-    uint32_t off  = c / 32,
-             shft = c % 32;
+  static bool test_char_bit( const uint32_t *bits, char32_t c ) {
+    uint32_t off = c / 32, shft = c % 32;
     return ( off < CHAR_BITS_SZ && bits[ off ] & ( 1U << shft ) ) != 0;
   }
   bool is_brk_char( char32_t c ) const {
@@ -741,27 +749,28 @@ struct State : public LineCook_s {
   bool is_quote_char( char32_t c ) const {
     return test_char_bit( this->quotable, c );
   }
-  static bool is_spc_char( char32_t c ) {
-    return c == ' ';
-  }
+  static bool is_spc_char( char32_t c ) { return c == ' '; }
   /* Main loop */
-  int get_line( void ); /* Process input chars and return LINE_STATUS_EXEC when
-                           available, < 0 on error, 0 when more input needed  */
-  int completion_get_line( void ); /* Get line after completion */
-  int continue_get_line( void ); /* Get line after continuation */
-  int do_get_line( void );
-  int dispatch( void ); /* Process a single command sequence */
-  int max_timeout( int time_ms ); /* Get max timer */
+  int get_line( void ) noexcept;            /* Process input chars and return
+                                               LINE_STATUS_EXEC when available, < 0 on
+                                               error, 0 when more input needed  */
+  int completion_get_line( void ) noexcept; /* Get line after completion */
+  int continue_get_line( void ) noexcept;   /* Get line after continuation */
+  int do_get_line( void ) noexcept;
+  int dispatch( void ) noexcept; /* Process a single command sequence */
+  int max_timeout( int time_ms ) noexcept; /* Get max timer */
   /* Input key to action matching */
-  void reset_state( void );     /* Clears line modal vars */
-  void reset_input( LineCookInput &input );
-  char32_t next_input_char( LineCookInput &input ); /* Multichar to action */
-  KeyAction eat_multichar( LineCookInput &input );  /* Char input to action */
-  KeyAction eat_input( LineCookInput &input );
-  bool input_available( LineCookInput &input );
-  int fill_input( void ); /* Read bytes */
-  void bell( void );    /* You can ring my bell */
-  int char_width_next( size_t off ) const {
+  void     reset_state( void ) noexcept; /* Clears line modal vars */
+  void     reset_input( LineCookInput &input ) noexcept;
+  char32_t next_input_char(
+    LineCookInput &input ) noexcept; /* Multichar to action */
+  KeyAction eat_multichar(
+    LineCookInput &input ) noexcept; /* Char input to action */
+  KeyAction eat_input( LineCookInput &input ) noexcept;
+  bool      input_available( LineCookInput &input ) noexcept;
+  int       fill_input( void ) noexcept; /* Read bytes */
+  void      bell( void ) noexcept;       /* You can ring my bell */
+  int       char_width_next( size_t off ) const {
     return ( off + 1 < this->edited_len && this->line[ off + 1 ] == 0 ) ? 2 : 1;
   }
   int char_width_back( size_t off ) const {
@@ -769,58 +778,61 @@ struct State : public LineCook_s {
   }
 
   /* Mode testing and setting */
-  static int test( int mode,  int fl ) { return mode & fl; }
+  static int test( int mode, int fl ) { return mode & fl; }
 
-  bool is_emacs_mode( void );      /* this->in.mode bit test functions */
-  static bool is_emacs_mode( int mode );
-  bool is_vi_mode( void );
-  bool is_vi_insert_mode( void );
-  bool is_vi_command_mode( void );
-  static bool is_vi_command_mode( int mode );
-  bool is_search_mode( void );
-  bool is_replace_mode( void );
-  bool is_visual_mode( void );
+  bool is_emacs_mode( void ) noexcept; /* this->in.mode bit test functions */
+  static bool is_emacs_mode( int mode ) noexcept;
+  bool        is_vi_mode( void ) noexcept;
+  bool        is_vi_insert_mode( void ) noexcept;
+  bool        is_vi_command_mode( void ) noexcept;
+  static bool is_vi_command_mode( int mode ) noexcept;
+  bool        is_search_mode( void ) noexcept;
+  bool        is_replace_mode( void ) noexcept;
+  bool        is_visual_mode( void ) noexcept;
 
-  void reset_vi_insert_mode( void );
-  void set_vi_insert_mode( void ); /* sets this->in.mode bits */
-  void set_vi_replace_mode( void );
-  void set_emacs_replace_mode( void );
-  void set_vi_command_mode( void );
-  void set_any_insert_mode( void );  /* either vi or emacs */
-  void set_any_replace_mode( void ); /* either vi or emacs */
-  void reset_emacs_mode( void );
-  void set_emacs_mode( void );
+  void reset_vi_insert_mode( void ) noexcept;
+  void set_vi_insert_mode( void ) noexcept; /* sets this->in.mode bits */
+  void set_vi_replace_mode( void ) noexcept;
+  void set_emacs_replace_mode( void ) noexcept;
+  void set_vi_command_mode( void ) noexcept;
+  void set_any_insert_mode( void ) noexcept;  /* either vi or emacs */
+  void set_any_replace_mode( void ) noexcept; /* either vi or emacs */
+  void reset_emacs_mode( void ) noexcept;
+  void set_emacs_mode( void ) noexcept;
 
-  void set_search_mode( void );
-  void clear_search_mode( void );
-  void toggle_replace_mode( void );
-  void toggle_visual_mode( void );
+  void set_search_mode( void ) noexcept;
+  void clear_search_mode( void ) noexcept;
+  void toggle_replace_mode( void ) noexcept;
+  void toggle_visual_mode( void ) noexcept;
 
-  void do_search( void );     /* Set history index to search in line buffer */
-  void show_search( size_t off );/* Show the line text of the history entry */
-  bool display_history_index( size_t idx );
-  void display_history_line( LineSave *ls );
-  void cancel_search( void ); /* Clear line buffer and cancel search mode */
+  void do_search( void ) noexcept; /* Set hist index to search in line buffer */
+  void show_search(
+    size_t off ) noexcept; /* Show the line text of the history entry */
+  bool display_history_index( size_t idx ) noexcept;
+  void display_history_line( LineSave *ls ) noexcept;
+  void cancel_search(
+    void ) noexcept; /* Clear line buffer and cancel search mode */
 
   /* Convenience functions for word boundaries */
   size_t skip_next_space( size_t off ) { /* find space */
-    while ( off < this->edited_len &&
-            this->is_spc_char( this->line[ off ] ) ) off++;
+    while ( off < this->edited_len && this->is_spc_char( this->line[ off ] ) )
+      off++;
     return off;
   }
   size_t skip_next_break( size_t off ) { /* find non-break */
-    while ( off < this->edited_len &&
-            this->is_brk_char( this->line[ off ] ) ) off++;
+    while ( off < this->edited_len && this->is_brk_char( this->line[ off ] ) )
+      off++;
     return off;
   }
   size_t skip_next_word( size_t off ) { /* find not space*/
-    while ( off < this->edited_len &&
-            ! this->is_brk_char( this->line[ off ] ) ) off++;
+    while ( off < this->edited_len && !this->is_brk_char( this->line[ off ] ) )
+      off++;
     return off;
   }
-  size_t skip_next_word( size_t off,  uint32_t *b ) {
+  size_t skip_next_word( size_t off, uint32_t *b ) {
     while ( off < this->edited_len &&
-            ! this->test_char_bit( b, this->line[ off ] ) ) off++;
+            !this->test_char_bit( b, this->line[ off ] ) )
+      off++;
     return off;
   }
   size_t skip_next_bword( size_t off ) { /* find not space or not break */
@@ -829,19 +841,22 @@ struct State : public LineCook_s {
     return this->skip_next_word( off );
   }
   size_t skip_prev_space( size_t off ) { /* find space */
-    while ( off > 0 && this->is_spc_char( this->line[ off - 1 ] ) ) off--;
+    while ( off > 0 && this->is_spc_char( this->line[ off - 1 ] ) )
+      off--;
     return off;
   }
   size_t skip_prev_break( size_t off ) { /* find non-break */
-    while ( off > 0 && this->is_brk_char( this->line[ off - 1 ] ) ) off--;
+    while ( off > 0 && this->is_brk_char( this->line[ off - 1 ] ) )
+      off--;
     return off;
   }
   size_t skip_prev_word( size_t off ) {
-    while ( off > 0 && ! this->is_brk_char( this->line[ off - 1 ] ) ) off--;
+    while ( off > 0 && !this->is_brk_char( this->line[ off - 1 ] ) )
+      off--;
     return off;
   }
-  size_t skip_prev_word( size_t off,  uint32_t *b ) {
-    while ( off > 0 && ! this->test_char_bit( b, this->line[ off - 1 ] ) )
+  size_t skip_prev_word( size_t off, uint32_t *b ) {
+    while ( off > 0 && !this->test_char_bit( b, this->line[ off - 1 ] ) )
       off--;
     return off;
   }
@@ -871,177 +886,196 @@ struct State : public LineCook_s {
       return this->skip_next_word( this->skip_next_space( off + 1 ) ) - 1;
     return off;
   }
-  size_t match_paren( size_t off ); /* Find matching paren */
-  void incr_decr( int64_t delta );
+  size_t match_paren( size_t off ) noexcept; /* Find matching paren */
+  void   incr_decr( int64_t delta ) noexcept;
 
   /* Cursor movement */
-  void move_cursor_back( size_t amt ); /* sub amt to cursor pos */
-  void move_cursor_fwd( size_t amt ); /* add amt to cursor pos */
-  void move_cursor( size_t new_pos ); /* move cursor to new pos */
+  void move_cursor_back( size_t amt ) noexcept; /* sub amt to cursor pos */
+  void move_cursor_fwd( size_t amt ) noexcept;  /* add amt to cursor pos */
+  void move_cursor( size_t new_pos ) noexcept;  /* move cursor to new pos */
 
-  void output_prompt( void );
-  void refresh_line( void ); /* Output line and reposition cursor */
-  void visual_bounds( size_t off,  size_t &start,  size_t &end );
-  void refresh_visual_line( void ); /* Output visual line mark */
+  void output_prompt( void ) noexcept;
+  void refresh_line( void ) noexcept; /* Output line and reposition cursor */
+  void visual_bounds( size_t off, size_t &start, size_t &end ) noexcept;
+  void refresh_visual_line( void ) noexcept; /* Output visual line mark */
 
   void extend( size_t extent ) { /* Chars appended to line after edited_len */
     this->edited_len = extent;
     if ( extent > this->erase_len ) /* track max col/row for erasing */
       this->erase_len = extent;
   }
-  size_t cursor_row( void ) {
-    return this->cursor_pos / this->cols;
-  }
+  size_t cursor_row( void ) { return this->cursor_pos / this->cols; }
   size_t num_rows( void ) {
     return ( ( this->prompt.cols + this->edited_len ) / this->cols );
   }
   size_t erase_rows( void ) {
     return ( ( this->prompt.cols + this->erase_len ) / this->cols );
   }
-  size_t next_row( void ) {
-    return this->num_rows() + 1;
-  }
+  size_t next_row( void ) { return this->num_rows() + 1; }
   /* Display text and increment cursor */
-  void cursor_output( char32_t c ); /* output one char, increment cursor */
-  void cursor_output( const char32_t *str,  size_t len ); /* output, incr cursor */
-  void cursor_erase_eol( void ); /* erase lines after cursor */
-  void output_show_string( const char32_t *str,  size_t off,  size_t len );
-  size_t output_show_line( const char32_t *show_line,  size_t len );
-  void output_show( void ); /* Write show buffer */
-  void show_clear( void );  /* Clear show screen area */
-  void show_clear_lines( size_t from_row,  size_t to_row ); /* Clear show rows*/
-  void incr_show_size( int amt );
+  void cursor_output(
+    char32_t c ) noexcept; /* output one char, increment cursor */
+  void   cursor_output( const char32_t *str,
+                        size_t          len ) noexcept; /* output, incr cursor */
+  void   cursor_erase_eol( void ) noexcept;    /* erase lines after cursor */
+  void   output_show_string( const char32_t *str, size_t off,
+                             size_t len ) noexcept;
+  size_t output_show_line( const char32_t *show_line, size_t len ) noexcept;
+  void   output_show( void ) noexcept; /* Write show buffer */
+  void   show_clear( void ) noexcept;  /* Clear show screen area */
+  void   show_clear_lines( size_t from_row,
+                           size_t to_row ) noexcept; /* Clear show rows*/
+  void   incr_show_size( int amt ) noexcept;
 
   /* Output functions */
-  void output( char32_t c ); /* Output functions buffer output until return */
-  void output( const char32_t *str,  size_t len );
-  void output_str( const char *str,  size_t len ); /* A ANSI seq */
-  void output_fmt( const char *fmt,  size_t pos ); /* A single arg ANSI seq */
-  void output_newline( size_t count );  /* Put \r\n*count and flush */
-  void output_flush( void );  /* Write buffer to terminal */
-  int line_length( void );    /* Utf8 length of this->line, line_len */
-  int line_copy( char *out ); /* Utf8 copy line, not null terminated */
-  int edit_length( void );    /* Utf8 length of this->line, edited_len */
-  int edit_copy( char *out ); /* Utf8 copy line, not null terminated */
-  int complete_term_length( void );    /* Utf8 length of line[ complete_off ] */
-  int complete_term_copy( char *out ); /* Utf8 copy line, not null terminated */
-  int history_line_length( size_t index );
-  int history_line_copy( size_t index,  char *out );
-  size_t history_count( void );
-  int line_length( size_t from,  size_t to ); /* Utf8 length of this->line */
-  int line_copy( char *out,  size_t from,  size_t to ); /* Utf8 copy line */
-  int get_complete_geom( int &arg_num,  int &arg_count,  int *arg_off,
-                         int *arg_len,  size_t args_size );
+  void output(
+    char32_t c ) noexcept; /* Output functions buffer output until return */
+  void output( const char32_t *str, size_t len ) noexcept;
+  void output_str( const char *str, size_t len ) noexcept; /* A ANSI seq */
+  void output_fmt( const char *fmt,
+                   size_t      pos ) noexcept;       /* A single arg ANSI seq */
+  void output_newline( size_t count ) noexcept; /* Put \r\n*count and flush */
+  void output_flush( void ) noexcept;           /* Write buffer to terminal */
+  int  line_length( void ) noexcept;   /* Utf8 length of this->line, line_len */
+  int line_copy( char *out ) noexcept; /* Utf8 copy line, not null terminated */
+  int edit_length( void ) noexcept; /* Utf8 length of this->line, edited_len */
+  int edit_copy( char *out ) noexcept; /* Utf8 copy line, not null terminated */
+  int complete_term_length(
+    void ) noexcept; /* Utf8 length of line[ complete_off ] */
+  int complete_term_copy(
+    char *out ) noexcept; /* Utf8 copy line, not null terminated */
+  int    history_line_length( size_t index ) noexcept;
+  int    history_line_copy( size_t index, char *out ) noexcept;
+  size_t history_count( void ) noexcept;
+  int    line_length( size_t from,
+                      size_t to ) noexcept; /* Utf8 length of this->line */
+  int    line_copy( char *out, size_t from,
+                    size_t to ) noexcept; /* Utf8 copy line */
+  int    get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
+                            int *arg_len, size_t args_size ) noexcept;
   /* Add to yank buffer */
-  void reset_yank( void );
-  void add_yank( const char32_t *buf,  size_t size ); /* copy to yank buffer */
-  bool get_yank_buf( char32_t *&buf,  size_t &size );
-  bool get_yank_pop( char32_t *&buf,  size_t &size );
+  void reset_yank( void ) noexcept;
+  void add_yank( const char32_t *buf,
+                 size_t          size ) noexcept; /* copy to yank buffer */
+  bool get_yank_buf( char32_t *&buf, size_t &size ) noexcept;
+  bool get_yank_pop( char32_t *&buf, size_t &size ) noexcept;
 
   /* Undo/Redo */
-  void push_undo( void );       /* Push line state, happens before a change */
-  LineSave *pop_undo( void );   /* Pop line undo state */
-  LineSave *peek_undo( void );  /* Return current undo state */
-  LineSave *revert_undo( void );/* Goto top of line undo state */
-  LineSave *push_redo( void );  /* Push the last state popped */
-  void restore_save( const LineSaveBuf &lsb,  const LineSave &ls );
-  void restore_insert( const LineSaveBuf &lsb,  const LineSave &ls,
-                       const LineSaveBuf &lsb2,  const LineSave &ls2 );
-
+  void push_undo(
+    void ) noexcept; /* Push line state, happens before a change */
+  LineSave *pop_undo( void ) noexcept;    /* Pop line undo state */
+  LineSave *peek_undo( void ) noexcept;   /* Return current undo state */
+  LineSave *revert_undo( void ) noexcept; /* Goto top of line undo state */
+  LineSave *push_redo( void ) noexcept;   /* Push the last state popped */
+  void      restore_save( const LineSaveBuf &lsb, const LineSave &ls ) noexcept;
+  void      restore_insert( const LineSaveBuf &lsb, const LineSave &ls,
+                            const LineSaveBuf &lsb2,
+                            const LineSave &ls2 ) noexcept;
   /* History push, iter */
-  int add_history( const char *buf,  size_t len );
-  int compress_history( void );
-  void push_history( const char32_t *buf,  size_t len ); /* Push hist stack */
-  LineSave *history_older( void );    /* Find older history entry */
-  LineSave *history_newer( void );    /* Find newer history entry */
-  LineSave *history_top( void );      /* Find top history entry */
-  LineSave *history_middle( void );   /* Find middle history entry */
-  LineSave *history_bottom( void );   /* Find bottom history entry */
-  LineSave *history_move( size_t old_idx );
-  void save_hist_edit( size_t idx );  /* Check if line edited then save it */
-  LineSave *find_edit( size_t idx );  /* Check if a line edit exists */
-  bool get_hist_arg( char32_t *&buf,  size_t &size,  bool nth );
-  bool show_history_next_page( void );/* Page down the hist stack */
-  bool show_history_prev_page( void );/* Page up the hist stack */
-  bool show_history_start( void );    /* First page the hist stack */
-  bool show_history_end( void );      /* Last page of the hist stack */
-  bool show_history_index( void );    /* Show the page of the hist.idx ptr */
-  bool show_lsb( ShowMode m,  LineSaveBuf &lsb ); /* Init and show a page */
+  int       add_history( const char *buf, size_t len ) noexcept;
+  int       compress_history( void ) noexcept;
+  void      push_history( const char32_t *buf,
+                          size_t          len ) noexcept; /* Push hist stack */
+  LineSave *history_older( void ) noexcept;      /* Find older history entry */
+  LineSave *history_newer( void ) noexcept;      /* Find newer history entry */
+  LineSave *history_top( void ) noexcept;        /* Find top history entry */
+  LineSave *history_middle( void ) noexcept;     /* Find middle history entry */
+  LineSave *history_bottom( void ) noexcept;     /* Find bottom history entry */
+  LineSave *history_move( size_t old_idx ) noexcept;
+  void      save_hist_edit(
+         size_t idx ) noexcept; /* Check if line edited then save it */
+  LineSave *find_edit( size_t idx ) noexcept; /* Check if a line edit exists */
+  bool      get_hist_arg( char32_t *&buf, size_t &size, bool nth ) noexcept;
+  bool show_history_next_page( void ) noexcept; /* Page down the hist stack */
+  bool show_history_prev_page( void ) noexcept; /* Page up the hist stack */
+  bool show_history_start( void ) noexcept;     /* First page the hist stack */
+  bool show_history_end( void ) noexcept; /* Last page of the hist stack */
+  bool show_history_index(
+    void ) noexcept; /* Show the page of the hist.idx ptr */
+  bool show_lsb( ShowMode     m,
+                 LineSaveBuf &lsb ) noexcept; /* Init and show a page */
 
   /* Completion */
   CompleteType get_complete_type( void ) { return this->complete_type; }
   void set_complete_type( CompleteType ctype ) { this->complete_type = ctype; }
-  size_t quote_line_length( const char32_t *buf,  size_t len );
-  void quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len );
-  bool tab_complete( bool reverse );
-  void copy_complete_string( const char32_t *str,  size_t len );
-  void fill_completions( void );
-  void reset_completions( void );
-  bool tab_first_completion( void );
-  void init_completion_term( void );
-  bool tab_next_completion( bool reverse );
-  int add_completion( const char *buf,  size_t len );
-  void push_completion( const char32_t *buf,  size_t len );
+  size_t quote_line_length( const char32_t *buf, size_t len ) noexcept;
+  void   quote_line_copy( char32_t *out, const char32_t *buf,
+                          size_t len ) noexcept;
+  bool   tab_complete( bool reverse ) noexcept;
+  void   copy_complete_string( const char32_t *str, size_t len ) noexcept;
+  void   fill_completions( void ) noexcept;
+  void   reset_completions( void ) noexcept;
+  bool   tab_first_completion( void ) noexcept;
+  void   init_completion_term( void ) noexcept;
+  bool   tab_next_completion( bool reverse ) noexcept;
+  int    add_completion( const char *buf, size_t len ) noexcept;
+  void   push_completion( const char32_t *buf, size_t len ) noexcept;
 #if 0
   LineSave *match_completion( const char *buf,  size_t len,  size_t &match_len,
                               size_t &match_cnt,  CompletionType t );
 #endif
-  void completion_accept( void );
-  void completion_update( int delta );
-  void completion_next( void );
-  void completion_prev( void );
-  void show_completion_index( void );
-  void show_completion_prev_page( void );
-  void show_completion_next_page( void );
-  void completion_start( void );
-  void completion_end( void );
-  void completion_top( void );
-  void completion_bottom( void );
+  void completion_accept( void ) noexcept;
+  void completion_update( int delta ) noexcept;
+  void completion_next( void ) noexcept;
+  void completion_prev( void ) noexcept;
+  void show_completion_index( void ) noexcept;
+  void show_completion_prev_page( void ) noexcept;
+  void show_completion_next_page( void ) noexcept;
+  void completion_start( void ) noexcept;
+  void completion_end( void ) noexcept;
+  void completion_top( void ) noexcept;
+  void completion_bottom( void ) noexcept;
 
   /* Show commands */
   size_t max_show_lines( void ) const { return this->show_lines; }
-  size_t pgcount( LineSaveBuf &lsb ); /* How many pages in the stack */
-  size_t pgnum( LineSaveBuf &lsb );   /* What page stack cnt is on */
-  bool show_update( size_t old_idx,  size_t new_idx );  /* Update index ptr */
-  bool show_save( size_t cur_idx,  size_t start_idx );  /* Show lines in save */
-  bool show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
-                  LineSave **lsptr ); /* Copy a line into the save buf */
+  size_t pgcount( LineSaveBuf &lsb ) noexcept; /* How many pages in the stack */
+  size_t pgnum( LineSaveBuf &lsb ) noexcept;   /* What page stack cnt is on */
+  bool   show_update( size_t old_idx,
+                      size_t new_idx ) noexcept; /* Update index ptr */
+  bool   show_save( size_t cur_idx,
+                    size_t start_idx ) noexcept; /* Show lines in save */
+  bool   show_line(
+      ShowState &state, char32_t *buf, size_t cur_idx,
+      LineSave **lsptr ) noexcept; /* Copy a line into the save buf */
 
   /* Other show windows */
-  bool show_undo( void );             /* Show the contents of the undo stack */
-  bool show_yank( void );             /* Show the contents of the yank buf */
+  bool show_undo( void ) noexcept; /* Show the contents of the undo stack */
+  bool show_yank( void ) noexcept; /* Show the contents of the yank buf */
 
-  void layout_keys( const char *key,  const char *action,  const char *mode,
-                    const char *descr );
-  bool show_keys( void );             /* Show the keys */
-  bool show_keys_start( void );
-  bool show_keys_end( void );
-  bool show_keys_next_page( void );
-  bool show_keys_prev_page( void );
+  void layout_keys( const char *key, const char *action, const char *mode,
+                    const char *descr ) noexcept;
+  bool show_keys( void ) noexcept; /* Show the keys */
+  bool show_keys_start( void ) noexcept;
+  bool show_keys_end( void ) noexcept;
+  bool show_keys_next_page( void ) noexcept;
+  bool show_keys_prev_page( void ) noexcept;
 
-  bool copy_help( LineSaveBuf &lsb ); /* Copy help from another lsb (comp) */
-  bool show_help( void );             /* Show the help */
-  bool show_help_start( void );
-  bool show_help_end( void );
-  bool show_help_next_page( void );
-  bool show_help_prev_page( void );
+  bool copy_help(
+    LineSaveBuf &lsb ) noexcept;   /* Copy help from another lsb (comp) */
+  bool show_help( void ) noexcept; /* Show the help */
+  bool show_help_start( void ) noexcept;
+  bool show_help_end( void ) noexcept;
+  bool show_help_next_page( void ) noexcept;
+  bool show_help_prev_page( void ) noexcept;
 
-  void reset_marks( void );
-  void fix_marks( size_t mark_idx );
-  void add_mark( size_t mark_off,  size_t mark_idx,  char32_t c );
-  bool get_mark( size_t &mark_off,  size_t &mark_idx,  char32_t c );
+  void reset_marks( void ) noexcept;
+  void fix_marks( size_t mark_idx ) noexcept;
+  void add_mark( size_t mark_off, size_t mark_idx, char32_t c ) noexcept;
+  bool get_mark( size_t &mark_off, size_t &mark_idx, char32_t c ) noexcept;
 
   /* Buffer reallocs (buf is a ptr to a ptr) */
-  bool do_realloc( void *buf,  size_t &len,  size_t newlen ); /* Expand */
+  bool do_realloc( void *buf, size_t &len,
+                   size_t newlen ) noexcept; /* Expand */
 
-  bool realloc_buf32( char32_t **buf,  size_t &len,  size_t newlen ) {
+  bool realloc_buf32( char32_t **buf, size_t &len, size_t newlen ) {
     size_t len32;
-    bool b = this->do_realloc( buf, len32, newlen * sizeof( char32_t ) );
-    if ( b ) len = len32 / sizeof( char32_t );
+    bool   b = this->do_realloc( buf, len32, newlen * sizeof( char32_t ) );
+    if ( b )
+      len = len32 / sizeof( char32_t );
     return b;
   }
 
-  bool realloc_buf8( char **buf,  size_t &len,  size_t newlen ) {
+  bool realloc_buf8( char **buf, size_t &len, size_t newlen ) {
     return this->do_realloc( buf, len, newlen );
   }
 
@@ -1058,7 +1092,7 @@ struct State : public LineCook_s {
     return this->output_buflen >= needed ||
            this->realloc_buf8( &this->output_buf, this->output_buflen, needed );
   }
-  bool realloc_lsb( LineSaveBuf &lsb,  size_t needed ) {
+  bool realloc_lsb( LineSaveBuf &lsb, size_t needed ) {
     return lsb.buflen >= needed ||
            this->realloc_buf32( &lsb.buf, lsb.buflen, needed );
   }
@@ -1068,7 +1102,8 @@ struct State : public LineCook_s {
   }
   bool realloc_search( size_t needed ) {
     return this->search_buflen >= needed ||
-           this->realloc_buf32( &this->search_buf, this->search_buflen, needed);
+           this->realloc_buf32( &this->search_buf, this->search_buflen,
+                                needed );
   }
   bool realloc_complete( size_t needed ) {
     return this->comp_buflen >= needed ||
@@ -1076,78 +1111,78 @@ struct State : public LineCook_s {
   }
 };
 
-inline bool State::is_emacs_mode( void )
+inline bool State::is_emacs_mode( void ) noexcept
   { return State::test( this->in.mode, EMACS_MODE ) != 0; }
-inline bool State::is_emacs_mode( int mode )
+inline bool State::is_emacs_mode( int mode ) noexcept
   { return State::test( mode, EMACS_MODE ) != 0; }
-inline bool State::is_vi_mode( void )
+inline bool State::is_vi_mode( void ) noexcept
   { return State::test( this->in.mode,
                          ( VI_INSERT_MODE | VI_COMMAND_MODE ) ) != 0; }
-inline bool State::is_vi_insert_mode( void )
+inline bool State::is_vi_insert_mode( void ) noexcept
   { return State::test( this->in.mode, VI_INSERT_MODE ) != 0; }
-inline bool State::is_vi_command_mode( void )
+inline bool State::is_vi_command_mode( void ) noexcept
   { return State::test( this->in.mode, VI_COMMAND_MODE ) != 0; }
-inline bool State::is_vi_command_mode( int mode )
+inline bool State::is_vi_command_mode( int mode ) noexcept
   { return State::test( mode, VI_COMMAND_MODE ) != 0; }
-inline bool State::is_search_mode( void )
+inline bool State::is_search_mode( void ) noexcept
   { return State::test( this->in.mode, SEARCH_MODE ) != 0; }
-inline bool State::is_replace_mode( void )
+inline bool State::is_replace_mode( void ) noexcept
   { return State::test( this->in.mode, REPLACE_MODE ) != 0; }
-inline bool State::is_visual_mode( void )
+inline bool State::is_visual_mode( void ) noexcept
   { return State::test( this->in.mode, VISUAL_MODE ) != 0; }
 
 /* these can only be in one state: emacs, vi-ins, vi-cmd */
-inline void State::reset_vi_insert_mode( void ) {
+inline void State::reset_vi_insert_mode( void ) noexcept {
   this->in.mode |= VI_INSERT_MODE;
   this->in.mode &= ~( VI_COMMAND_MODE | EMACS_MODE |
                       REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
-inline void State::set_vi_insert_mode( void ) {
+inline void State::set_vi_insert_mode( void ) noexcept {
   this->reset_vi_insert_mode();
 }
-inline void State::set_vi_replace_mode( void ) {
+inline void State::set_vi_replace_mode( void ) noexcept {
   this->in.mode |= VI_INSERT_MODE | REPLACE_MODE;
   this->in.mode &= ~( VI_COMMAND_MODE | EMACS_MODE | SEARCH_MODE |
                       VISUAL_MODE );
   this->right_prompt_needed = true;
 }
-inline void State::set_emacs_replace_mode( void ) {
+inline void State::set_emacs_replace_mode( void ) noexcept {
   this->in.mode |= EMACS_MODE | REPLACE_MODE;
   this->in.mode &= ~( VI_INSERT_MODE | VI_COMMAND_MODE | SEARCH_MODE |
                       VISUAL_MODE );
   this->right_prompt_needed = true;
 }
-inline void State::set_vi_command_mode( void ) {
+inline void State::set_vi_command_mode( void ) noexcept {
   this->in.mode |= VI_COMMAND_MODE;
   this->in.mode &= ~( VI_INSERT_MODE | EMACS_MODE |
                       REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
 /* reset emacs insert mode */
-inline void State::reset_emacs_mode( void ) {
+inline void State::reset_emacs_mode( void ) noexcept {
   this->in.mode |= EMACS_MODE;
   this->in.mode &= ~( VI_INSERT_MODE | VI_COMMAND_MODE |
                       REPLACE_MODE | SEARCH_MODE | VISUAL_MODE );
   this->right_prompt_needed = true;
 }
-inline void State::set_emacs_mode( void ) {
+inline void State::set_emacs_mode( void ) noexcept {
   this->reset_emacs_mode();
 }
-inline void State::set_any_insert_mode( void ) {
+inline void State::set_any_insert_mode( void ) noexcept {
   if ( ( this->in.mode & EMACS_MODE ) == 0 )
     this->reset_vi_insert_mode();
   else
     this->reset_emacs_mode();
 }
-inline void State::set_any_replace_mode( void ) {
+inline void State::set_any_replace_mode( void ) noexcept {
   if ( ( this->in.mode & EMACS_MODE ) == 0 )
     this->set_vi_replace_mode();
   else
     this->set_emacs_replace_mode();
 }
 /* search mode goes into insert mode, out of search goes to command */
-inline void State::set_search_mode( void ) {
+inline void State::set_search_mode( void ) noexcept {
   if ( ! this->is_search_mode() ) {
     this->save_mode = this->in.mode;
 
@@ -1156,18 +1191,18 @@ inline void State::set_search_mode( void ) {
     this->right_prompt_needed = true;
   }
 }
-inline void State::clear_search_mode( void ) {
+inline void State::clear_search_mode( void ) noexcept {
   if ( this->is_search_mode() ) {
     this->in.mode = this->save_mode;
     this->right_prompt_needed = true;
   }
 }
-inline void State::toggle_replace_mode( void ) {
+inline void State::toggle_replace_mode( void ) noexcept {
   if ( State::test( this->in.mode, VI_COMMAND_MODE ) == 0 )
     this->in.mode ^= REPLACE_MODE;
   this->right_prompt_needed = true;
 }
-inline void State::toggle_visual_mode( void ) {
+inline void State::toggle_visual_mode( void ) noexcept {
   this->in.mode ^= VISUAL_MODE;
   this->right_prompt_needed = true;
 }

@@ -24,7 +24,7 @@ endif
 
 CC          ?= gcc
 CXX         ?= $(CC) -x c++
-cc          := $(CC)
+cc          := $(CC) -std=c11
 cpp         := $(CXX)
 arch_cflags := -fno-omit-frame-pointer
 gcc_wflags  := -Wall -Wextra -Werror
@@ -49,10 +49,12 @@ DEFINES    ?=
 includes   := $(INCLUDES)
 defines    := $(DEFINES)
 
-cppflags   := -fno-rtti -fno-exceptions
+cppflags   := -std=c++11
+#cppflags  := -fno-rtti -fno-exceptions
 #cppflags  := -fno-rtti -fno-exceptions -fsanitize=address
 #cpplink   := $(CC) -lasan
-cpplink    := $(CC)
+cpplink    := $(CXX)
+cclink     := $(CC)
 
 rpath      := -Wl,-rpath,$(pwd)/$(libd)
 cpp_lnk    :=
@@ -103,16 +105,16 @@ $(bind)/lc_example: $(lc_example_objs) $(lc_example_libs)
 simple_files := simple
 simple_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(simple_files)))
 simple_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(simple_files)))
-simple_libs  := $(libd)/liblinecook.a
-simple_lnk   := $(simple_libs) $(lnk_lib)
+simple_libs  := $(libd)/liblinecook.so
+simple_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/simple: $(simple_objs) $(simple_libs)
 
 lc_hist_cat_files := hist_cat
 lc_hist_cat_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(lc_hist_cat_files)))
 lc_hist_cat_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_hist_cat_files)))
-lc_hist_cat_libs  := $(libd)/liblinecook.a
-lc_hist_cat_lnk   := $(lc_hist_cat_libs) $(lnk_lib)
+lc_hist_cat_libs  := $(libd)/liblinecook.so
+lc_hist_cat_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/lc_hist_cat: $(lc_hist_cat_objs) $(lc_hist_cat_libs)
 
@@ -233,7 +235,7 @@ $(libd)/%.so:
 	cd $(libd) && ln -f -s $(@F).$($(*)_spec) $(@F).$($(*)_ver) && ln -f -s $(@F).$($(*)_ver) $(@F)
 
 $(bind)/%:
-	$(cpplink) $(cflags) $(rpath) -o $@ $($(*)_objs) -L$(libd) $($(*)_lnk) $(cpp_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib)
+	$(cclink) $(cflags) $(rpath) -o $@ $($(*)_objs) -L$(libd) $($(*)_lnk) $(cpp_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib)
 
 $(dependd)/%.d: src/%.cpp
 	$(cpp) $(arch_cflags) $(defines) $(includes) $($(notdir $*)_includes) $($(notdir $*)_defines) -MM $< -MT $(objd)/$(*).o -MF $@

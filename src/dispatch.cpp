@@ -8,16 +8,18 @@
 using namespace linecook;
 
 int
-State::dispatch( void )
+State::dispatch( void ) noexcept
 {
   LineSave    * ls;
   LineSaveBuf * lsb;
-  size_t        off = this->cursor_pos - this->prompt.cols; /* off of line[] */
+  size_t        off = 0;
   char32_t      c   = this->in.cur_char;
   int           w, x;
   bool          is_interrupt = false,
                 is_search,
                 need_undo;
+  if ( this->cursor_pos > this->prompt.cols )
+    off = this->cursor_pos - this->prompt.cols; /* off of line[] */
   /* process tab completions, it should be it's own mode */
   if ( this->show_mode == SHOW_COMPLETION ) {
     switch ( this->action ) {

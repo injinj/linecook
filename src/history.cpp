@@ -44,13 +44,13 @@ lc_history_line_copy( LineCook *state,  size_t index,  char *out )
 using namespace linecook;
 
 size_t
-State::history_count( void )
+State::history_count( void ) noexcept
 {
   return this->hist.cnt;
 }
 
 int
-State::history_line_length( size_t index )
+State::history_line_length( size_t index ) noexcept
 {
   size_t off = LineSave::find( this->hist, this->hist.off, index );
   if ( off == 0 )
@@ -70,7 +70,7 @@ State::history_line_length( size_t index )
 }
 
 int
-State::history_line_copy( size_t index,  char *out )
+State::history_line_copy( size_t index,  char *out ) noexcept
 {
   size_t off = LineSave::find( this->hist, this->hist.off, index );
   if ( off == 0 )
@@ -90,7 +90,7 @@ State::history_line_copy( size_t index,  char *out )
 }
 
 void
-State::do_search( void )
+State::do_search( void ) noexcept
 {
   size_t off = 0,
          len = this->edited_len,
@@ -150,7 +150,7 @@ State::do_search( void )
 }
 
 void
-State::show_search( size_t off )
+State::show_search( size_t off ) noexcept
 {
   LineSave *lsu;
   LineSave &ls = LineSave::line( this->hist, off );
@@ -172,7 +172,7 @@ State::show_search( size_t off )
 }
 
 bool
-State::display_history_index( size_t idx )
+State::display_history_index( size_t idx ) noexcept
 {
   size_t off = LineSave::find( this->hist, this->hist.max, idx );
   if ( off == 0 )
@@ -185,7 +185,7 @@ State::display_history_index( size_t idx )
 }
 
 void
-State::display_history_line( LineSave *ls )
+State::display_history_line( LineSave *ls ) noexcept
 {
   LineSaveBuf *lsb = &this->hist;
   if ( ls != NULL ) {        /* check if hist line was edited */
@@ -213,7 +213,7 @@ State::display_history_line( LineSave *ls )
 }
 
 void
-State::cancel_search( void )
+State::cancel_search( void ) noexcept
 {
   LineSave *ls;
 
@@ -228,7 +228,7 @@ State::cancel_search( void )
 }
 
 bool
-State::show_history_next_page( void )
+State::show_history_next_page( void ) noexcept
 {
   if ( this->show_pg > 0 )
     this->show_pg--;
@@ -236,7 +236,7 @@ State::show_history_next_page( void )
 }
 
 bool
-State::show_history_prev_page( void )
+State::show_history_prev_page( void ) noexcept
 {
   if ( this->show_pg < this->pgcount( this->hist ) - 1 )
     this->show_pg++;
@@ -244,21 +244,21 @@ State::show_history_prev_page( void )
 }
 
 bool
-State::show_history_start( void )
+State::show_history_start( void ) noexcept
 {
   this->show_pg = this->pgcount( this->hist ) - 1;
   return this->show_lsb( SHOW_HISTORY, this->hist );
 }
 
 bool
-State::show_history_end( void )
+State::show_history_end( void ) noexcept
 {
   this->show_pg = 0;
   return this->show_lsb( SHOW_HISTORY, this->hist );
 }
 
 bool
-State::show_history_index( void )
+State::show_history_index( void ) noexcept
 {
   if ( this->hist.idx == 0 || this->hist.idx >= this->hist.cnt )
     return this->show_history_end();
@@ -267,7 +267,7 @@ State::show_history_index( void )
 }
 
 void
-State::save_hist_edit( size_t idx )
+State::save_hist_edit( size_t idx ) noexcept
 {
   size_t eoff, hoff;
   /* check if edit exists and is the same as current edit */
@@ -311,7 +311,7 @@ State::save_hist_edit( size_t idx )
 }
 
 LineSave *
-State::find_edit( size_t idx )
+State::find_edit( size_t idx ) noexcept
 {
   size_t off = LineSave::scan( this->edit, idx );
   if ( off != 0 )
@@ -320,7 +320,7 @@ State::find_edit( size_t idx )
 }
 
 int
-State::add_history( const char *buf,  size_t len )
+State::add_history( const char *buf,  size_t len ) noexcept
 {
   if ( ! this->make_utf32( buf, len, this->cvt, this->cvt_len ) )
     return this->error;
@@ -330,7 +330,7 @@ State::add_history( const char *buf,  size_t len )
 }
 
 int
-State::compress_history( void )
+State::compress_history( void ) noexcept
 {
   this->error = 0;
   if ( ! LineSave::shrink_unique( this->hist ) )
@@ -339,7 +339,7 @@ State::compress_history( void )
 }
 
 bool
-State::get_hist_arg( char32_t *&buf,  size_t &size,  bool nth )
+State::get_hist_arg( char32_t *&buf,  size_t &size,  bool nth ) noexcept
 {
   size_t old_idx = this->hist.idx;
   if ( this->hist.max == 0 )
@@ -401,7 +401,7 @@ State::get_hist_arg( char32_t *&buf,  size_t &size,  bool nth )
 }
 
 void
-State::push_history( const char32_t *buf,  size_t len )
+State::push_history( const char32_t *buf,  size_t len ) noexcept
 {
   while ( len > 0 && isspace( buf[ len - 1 ] ) )
     --len;
@@ -417,7 +417,7 @@ State::push_history( const char32_t *buf,  size_t len )
 }
 
 LineSave *
-State::history_older( void )
+State::history_older( void ) noexcept
 {
   size_t old_idx = this->hist.idx;
 
@@ -437,7 +437,7 @@ State::history_older( void )
 }
 
 LineSave *
-State::history_newer( void )
+State::history_newer( void ) noexcept
 {
   size_t old_idx = this->hist.idx;
 
@@ -457,7 +457,7 @@ State::history_newer( void )
 }
 
 LineSave *
-State::history_top( void )
+State::history_top( void ) noexcept
 {
   if ( this->show_mode == SHOW_HISTORY ) {
     size_t old_idx = this->hist.idx;
@@ -468,7 +468,7 @@ State::history_top( void )
 }
 
 LineSave *
-State::history_middle( void )
+State::history_middle( void ) noexcept
 {
   size_t old_idx = this->hist.idx;
   if ( this->show_mode == SHOW_HISTORY )
@@ -479,7 +479,7 @@ State::history_middle( void )
 }
 
 LineSave *
-State::history_bottom( void )
+State::history_bottom( void ) noexcept
 {
   if ( this->show_mode == SHOW_HISTORY ) {
     size_t old_idx = this->hist.idx;
@@ -490,7 +490,7 @@ State::history_bottom( void )
 }
 
 LineSave *
-State::history_move( size_t old_idx )
+State::history_move( size_t old_idx ) noexcept
 {
   LineSave * hist = NULL;
 

@@ -85,7 +85,7 @@ lc_clear_line( LineCook *state )
 
 using namespace linecook;
 
-State::State( int num_cols,  int num_lines )
+State::State( int num_cols,  int num_lines ) noexcept
 {
   static const char def_brk[]   = " \t\n!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~";
   static const char def_plete[] = " \t\n\\\"';:{[($`?*|";
@@ -102,7 +102,7 @@ State::State( int num_cols,  int num_lines )
   this->set_recipe( lc_default_key_recipe, lc_default_key_recipe_size );
 }
 
-State::~State()
+State::~State() noexcept
 {
   if ( this->line )             ::free( this->line );
   if ( this->in.input_buf )     ::free( this->in.input_buf );
@@ -143,7 +143,7 @@ State::~State()
 }
 
 void
-State::set_word_break( const char *brk,  size_t brk_len )
+State::set_word_break( const char *brk,  size_t brk_len ) noexcept
 {
   ::memset( this->word_brk, 0, sizeof( this->word_brk ) );
   for ( size_t i = 0; i < brk_len; i++ )
@@ -151,7 +151,7 @@ State::set_word_break( const char *brk,  size_t brk_len )
 }
 
 void
-State::set_completion_break( const char *brk,  size_t brk_len )
+State::set_completion_break( const char *brk,  size_t brk_len ) noexcept
 {
   ::memset( this->plete_brk, 0, sizeof( this->plete_brk ) );
   for ( size_t i = 0; i < brk_len; i++ )
@@ -159,7 +159,7 @@ State::set_completion_break( const char *brk,  size_t brk_len )
 }
 
 void
-State::set_quotables( const char *qc,  size_t qc_len,  char quote )
+State::set_quotables( const char *qc,  size_t qc_len,  char quote ) noexcept
 {
   this->quote_char = quote;
   ::memset( this->quotable, 0, sizeof( this->quotable ) );
@@ -168,7 +168,7 @@ State::set_quotables( const char *qc,  size_t qc_len,  char quote )
 }
 
 int
-State::set_geom( int num_cols,  int num_lines )
+State::set_geom( int num_cols,  int num_lines ) noexcept
 {
   this->error = 0;
   if ( (size_t) num_cols != this->cols || (size_t) num_lines != this->lines ) {
@@ -193,7 +193,7 @@ State::set_geom( int num_cols,  int num_lines )
 }
 
 void
-State::reset_state( void )
+State::reset_state( void ) noexcept
 {
   this->left_prompt_needed = true;
   this->prompt.cols -= this->prompt.pad_cols;
@@ -236,7 +236,7 @@ State::reset_state( void )
 }
 
 void
-State::clear_line( void )
+State::clear_line( void ) noexcept
 {
   if ( ! this->refresh_needed && ! this->left_prompt_needed ) {
     this->refresh_needed = true;
@@ -249,7 +249,7 @@ State::clear_line( void )
 }
 
 void
-State::refresh_line( void )
+State::refresh_line( void ) noexcept
 {
   size_t save = this->cursor_pos,
          ext  = this->erase_len;
@@ -279,7 +279,7 @@ State::refresh_line( void )
 }
 
 void
-State::visual_bounds( size_t off,  size_t &start,  size_t &end )
+State::visual_bounds( size_t off,  size_t &start,  size_t &end ) noexcept
 {
   if ( off < this->visual_off ) {
     start = off;
@@ -294,7 +294,7 @@ State::visual_bounds( size_t off,  size_t &start,  size_t &end )
 }
 
 void
-State::refresh_visual_line( void )
+State::refresh_visual_line( void ) noexcept
 {
   size_t save = this->cursor_pos,
          start, end;
@@ -310,9 +310,9 @@ State::refresh_visual_line( void )
     this->cursor_output( &this->line[ end ], this->edited_len - end );
   this->move_cursor( save );
 }
-
+/* main processing loop, eat chars until input empty */
 int
-State::get_line( void ) /* main processing loop, eat chars until input empty */
+State::get_line( void ) noexcept
 {
   if ( this->prompt.is_continue ) {
     this->prompt.is_continue = false;
@@ -320,9 +320,9 @@ State::get_line( void ) /* main processing loop, eat chars until input empty */
   }
   return this->do_get_line();
 }
-
+/* completion entry point */
 int
-State::completion_get_line( void ) /* completion entry point */
+State::completion_get_line( void ) noexcept
 {
   bool do_tab_complete = false;
   if ( this->prompt.is_continue ) {
@@ -386,7 +386,7 @@ State::completion_get_line( void ) /* completion entry point */
 }
 
 int
-State::max_timeout( int time_ms )
+State::max_timeout( int time_ms ) noexcept
 {
   uint64_t ms = 0, left;
   if ( this->bell_cnt ) {
@@ -412,7 +412,7 @@ State::max_timeout( int time_ms )
 }
 
 int
-State::continue_get_line( void ) /* use prompt2 with get_line */
+State::continue_get_line( void ) noexcept /* use prompt2 with get_line */
 {
   if ( ! this->prompt.is_continue ) {
     this->prompt.is_continue = true;
@@ -422,7 +422,7 @@ State::continue_get_line( void ) /* use prompt2 with get_line */
 }
 
 int
-State::do_get_line( void )
+State::do_get_line( void ) noexcept
 {
   size_t save_edited_len  = this->edited_len;
   int    status;
@@ -611,7 +611,7 @@ State::do_get_line( void )
 }
 
 size_t
-State::match_paren( size_t off )
+State::match_paren( size_t off ) noexcept
 {
   size_t   tos = 0;
   int      dir;
@@ -649,7 +649,7 @@ State::match_paren( size_t off )
 }
 
 void
-State::incr_decr( int64_t delta )
+State::incr_decr( int64_t delta ) noexcept
 {
   size_t off    = this->cursor_pos - this->prompt.cols, /* idx in line[] */
          istart = off;
@@ -694,7 +694,7 @@ State::incr_decr( int64_t delta )
 }
 
 bool
-State::do_realloc( void *buf,  size_t &len,  size_t newlen )
+State::do_realloc( void *buf,  size_t &len,  size_t newlen ) noexcept
 {
   void * newbuf;
   if ( newlen >= LINE_BUF_BIG_INCR )
@@ -712,7 +712,7 @@ State::do_realloc( void *buf,  size_t &len,  size_t newlen )
 }
 
 void
-State::show_clear( void )
+State::show_clear( void ) noexcept
 {
   this->show_mode = SHOW_NONE;
   this->erase_len = this->edited_len +
@@ -726,7 +726,7 @@ State::show_clear( void )
 }
 
 void
-State::show_clear_lines( size_t from_row,  size_t to_row )
+State::show_clear_lines( size_t from_row,  size_t to_row ) noexcept
 {
   if ( from_row >= to_row )
     return;
@@ -745,7 +745,7 @@ State::show_clear_lines( size_t from_row,  size_t to_row )
 }
 
 void
-State::incr_show_size( int amt )
+State::incr_show_size( int amt ) noexcept
 {
   ShowMode m = this->show_mode;
   if ( m != SHOW_NONE )
@@ -771,7 +771,7 @@ State::incr_show_size( int amt )
 }
 
 void
-State::push_undo( void )
+State::push_undo( void ) noexcept
 {
   if ( ! this->realloc_lsb( this->undo, this->undo.off +
                              LineSave::size( this->edited_len ) ) )
@@ -791,7 +791,7 @@ State::push_undo( void )
 }
 
 LineSave *
-State::pop_undo( void )
+State::pop_undo( void ) noexcept
 {
   size_t off = 0;
   if ( this->undo.idx > 0 )
@@ -810,7 +810,7 @@ State::pop_undo( void )
 }
 
 LineSave *
-State::revert_undo( void )
+State::revert_undo( void ) noexcept
 {
   if ( this->undo.first > 0 ) {
     LineSave &ls = LineSave::line( this->undo, this->undo.first );
@@ -822,7 +822,7 @@ State::revert_undo( void )
 }
 
 LineSave *
-State::peek_undo( void )
+State::peek_undo( void ) noexcept
 {
   size_t off = 0;
   if ( this->undo.idx > 0 )
@@ -833,7 +833,7 @@ State::peek_undo( void )
 }
 
 LineSave *
-State::push_redo( void )
+State::push_redo( void ) noexcept
 {
   size_t off;
   if ( this->undo.max == this->undo.off )
@@ -850,7 +850,7 @@ State::push_redo( void )
 }
 
 bool
-State::show_undo( void )
+State::show_undo( void ) noexcept
 {
   size_t cur_rows = this->show_rows;
   this->show_mode = SHOW_UNDO;
@@ -866,7 +866,7 @@ State::show_undo( void )
 }
 
 bool
-State::show_lsb( ShowMode m,  LineSaveBuf &lsb )
+State::show_lsb( ShowMode m,  LineSaveBuf &lsb ) noexcept
 {
   size_t lines_per_pg = this->max_show_lines(),
          idx_start    = ( this->show_pg + 1 ) * lines_per_pg;
@@ -881,7 +881,7 @@ State::show_lsb( ShowMode m,  LineSaveBuf &lsb )
   return false;
 }
 
-ShowState::ShowState( State &state )
+ShowState::ShowState( State &state ) noexcept
 {
   this->zero();
   switch ( state.show_mode ) {
@@ -924,7 +924,7 @@ ShowState::ShowState( State &state )
 }
 
 size_t
-State::pgcount( LineSaveBuf &lsb )
+State::pgcount( LineSaveBuf &lsb ) noexcept
 {
   size_t lines_per_pg = this->max_show_lines();
   size_t count = lsb.cnt / lines_per_pg;
@@ -934,7 +934,7 @@ State::pgcount( LineSaveBuf &lsb )
 }
 
 size_t
-State::pgnum( LineSaveBuf &lsb )
+State::pgnum( LineSaveBuf &lsb ) noexcept
 {
   if ( lsb.cnt > 0 ) {
     size_t lines_per_pg = this->max_show_lines();
@@ -950,7 +950,7 @@ State::pgnum( LineSaveBuf &lsb )
 }
 
 bool
-State::show_update( size_t old_idx,  size_t new_idx )
+State::show_update( size_t old_idx,  size_t new_idx ) noexcept
 {
   ShowState  state( *this );
   size_t     save  = this->cursor_pos,
@@ -996,7 +996,7 @@ State::show_update( size_t old_idx,  size_t new_idx )
 }
 
 bool
-State::show_save( size_t cur_idx,  size_t start_idx )
+State::show_save( size_t cur_idx,  size_t start_idx ) noexcept
 {
   ShowState  state( *this );
   LineSave * ls;
@@ -1067,7 +1067,7 @@ State::show_save( size_t cur_idx,  size_t start_idx )
 
 bool
 State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
-                  LineSave **lsptr )
+                  LineSave **lsptr ) noexcept
 {
   LineSave & ls            = LineSave::line( *state.lsb, state.off );
   bool       is_cur_pos    = ( ls.index == cur_idx );
@@ -1130,7 +1130,7 @@ State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
 }
 
 void
-State::reset_yank( void )
+State::reset_yank( void ) noexcept
 {
   if ( this->yank.max > 0 ) {
     if ( this->yank.max > 4 * 1024 ) {
@@ -1154,7 +1154,7 @@ State::reset_yank( void )
 }
 
 void
-State::add_yank( const char32_t *buf,  size_t size )
+State::add_yank( const char32_t *buf,  size_t size ) noexcept
 {
   if ( size == 0 )
     return;
@@ -1173,7 +1173,7 @@ State::add_yank( const char32_t *buf,  size_t size )
 }
 
 bool
-State::get_yank_buf( char32_t *&buf,  size_t &size )
+State::get_yank_buf( char32_t *&buf,  size_t &size ) noexcept
 {
   size = 0;
   if ( this->yank.max > 0 ) {
@@ -1190,7 +1190,7 @@ State::get_yank_buf( char32_t *&buf,  size_t &size )
 }
 
 bool
-State::get_yank_pop( char32_t *&buf,  size_t &size )
+State::get_yank_pop( char32_t *&buf,  size_t &size ) noexcept
 {
   size_t off = 0;
   if ( this->yank.idx > 0 )
@@ -1214,7 +1214,7 @@ State::get_yank_pop( char32_t *&buf,  size_t &size )
 }
 
 bool
-State::show_yank( void )
+State::show_yank( void ) noexcept
 {
   this->show_mode = SHOW_YANK;
   this->show_pg = this->pgcount( this->yank ) - 1;
@@ -1224,7 +1224,7 @@ State::show_yank( void )
 }
 
 void
-State::reset_marks( void )
+State::reset_marks( void ) noexcept
 {
   size_t j = 0;
   /* remove the marks which are not in history */
@@ -1240,7 +1240,7 @@ State::reset_marks( void )
 }
 
 void
-State::fix_marks( size_t mark_idx )
+State::fix_marks( size_t mark_idx ) noexcept
 {
   size_t j = 0;
   for ( size_t i = this->mark_cnt; i > 0; ) {
@@ -1255,7 +1255,7 @@ State::fix_marks( size_t mark_idx )
 }
 
 void
-State::add_mark( size_t mark_off,  size_t mark_idx,  char32_t c )
+State::add_mark( size_t mark_off,  size_t mark_idx,  char32_t c ) noexcept
 {
   for ( size_t i = 0; i < this->mark_cnt; i++ ) {
     if ( c == this->mark[ i ].mark_c ) {
@@ -1279,7 +1279,7 @@ State::add_mark( size_t mark_off,  size_t mark_idx,  char32_t c )
 }
 
 bool
-State::get_mark( size_t &mark_off,  size_t &mark_idx,  char32_t c )
+State::get_mark( size_t &mark_off,  size_t &mark_idx,  char32_t c ) noexcept
 {
   for ( size_t i = 0; i < this->mark_cnt; i++ ) {
     if ( c == this->mark[ i ].mark_c ) {

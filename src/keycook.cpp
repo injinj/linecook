@@ -8,7 +8,7 @@
 using namespace linecook;
 
 void
-State::free_recipe( void )
+State::free_recipe( void ) noexcept
 {
   RecipeNode *n, *next = NULL;
   /* free macros */
@@ -22,7 +22,7 @@ State::free_recipe( void )
 }
 
 int
-State::set_recipe( KeyRecipe *key_rec,  size_t key_rec_count )
+State::set_recipe( KeyRecipe *key_rec,  size_t key_rec_count ) noexcept
 {
   KeyRecipe  * new_rec;
   size_t       cur_size,
@@ -229,7 +229,7 @@ parse_key( char *key,  size_t maxsize,  const char *keyseq )
 }
 
 int
-State::bindkey( char *args[],  size_t argc )
+State::bindkey( char *args[],  size_t argc ) noexcept
 {
   uint8_t valid_mode = VI_EMACS_MODE; /* default: vi insert & emacs */
   uint8_t parse_mode = 0;
@@ -268,7 +268,7 @@ State::bindkey( char *args[],  size_t argc )
 }
 
 void
-State::push_bindkey_recipe( void )
+State::push_bindkey_recipe( void ) noexcept
 {
   size_t len = ::strlen( this->in.cur_recipe->char_sequence );
   RecipeNode *n;
@@ -298,7 +298,7 @@ State::push_bindkey_recipe( void )
 
 int
 State::add_bindkey_recipe( const char *key,  size_t keylen,  char **args,
-                           size_t argc,  uint8_t valid_mode )
+                           size_t argc,  uint8_t valid_mode ) noexcept
 {
   RecipeNode *n;
   size_t i, len = sizeof( RecipeNode ) + keylen + 1 + sizeof( RecipeNode * );
@@ -342,7 +342,7 @@ State::add_bindkey_recipe( const char *key,  size_t keylen,  char **args,
 }
 
 int
-State::remove_bindkey_recipe( const char *key,  size_t keylen )
+State::remove_bindkey_recipe( const char *key,  size_t keylen ) noexcept
 {
   RecipeNode *n;
   for ( n = this->recipe_list.hd; n != NULL; n = n->next ) {
@@ -365,7 +365,7 @@ State::remove_bindkey_recipe( const char *key,  size_t keylen )
 }
 
 void
-State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode )
+State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode ) noexcept
 {
   size_t i;
   /* find the default transition */
@@ -406,7 +406,7 @@ State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode )
 }
 
 void
-State::init_multi_key_transitions( LineKeyMode &km,  uint8_t mode )
+State::init_multi_key_transitions( LineKeyMode &km,  uint8_t mode ) noexcept
 {
   size_t i, j = 0;
   for ( i = 0; i < this->recipe_size; i++ )
@@ -417,7 +417,7 @@ State::init_multi_key_transitions( LineKeyMode &km,  uint8_t mode )
 }
 
 void
-State::filter_macro( LineKeyMode &km,  uint8_t mode,  KeyRecipe &r )
+State::filter_macro( LineKeyMode &km,  uint8_t mode,  KeyRecipe &r ) noexcept
 {
   size_t i;
   if ( ( r.valid_mode & mode ) == 0 )
@@ -435,7 +435,7 @@ State::filter_macro( LineKeyMode &km,  uint8_t mode,  KeyRecipe &r )
 }
 
 void
-State::filter_mode( LineKeyMode &km,  uint8_t &mode,  KeyRecipe &r )
+State::filter_mode( LineKeyMode &km,  uint8_t &mode,  KeyRecipe &r ) noexcept
 {
   if ( r.char_sequence[ 1 ] == '\0' ) {
     size_t off = &r - this->recipe;
@@ -456,7 +456,7 @@ State::filter_mode( LineKeyMode &km,  uint8_t &mode,  KeyRecipe &r )
 
 void
 State::layout_keys( const char *key,  const char *action,  const char *mode,
-                    const char *descr )
+                    const char *descr ) noexcept
 {
   /* col
    * 0              16                 35     42
@@ -489,7 +489,7 @@ State::layout_keys( const char *key,  const char *action,  const char *mode,
 }
 
 bool
-State::show_keys( void )
+State::show_keys( void ) noexcept
 {
   if ( this->keys.cnt == 0 ) {
     char         name[ 40 ],
@@ -559,7 +559,7 @@ State::show_keys( void )
 }
 
 bool
-State::show_keys_start( void )
+State::show_keys_start( void ) noexcept
 {
   this->show_pg  = this->pgcount( this->keys ) - 1;
   this->keys.off = this->keys.first;
@@ -568,7 +568,7 @@ State::show_keys_start( void )
 }
 
 bool
-State::show_keys_end( void )
+State::show_keys_end( void ) noexcept
 {
   this->show_pg = 0;
   this->keys_pg = 0;
@@ -576,7 +576,7 @@ State::show_keys_end( void )
 }
 
 bool
-State::show_keys_next_page( void )
+State::show_keys_next_page( void ) noexcept
 {
   if ( this->show_pg > 0 )
     this->show_pg--;
@@ -585,7 +585,7 @@ State::show_keys_next_page( void )
 }
 
 bool
-State::show_keys_prev_page( void )
+State::show_keys_prev_page( void ) noexcept
 {
   if ( this->show_pg < this->pgcount( this->keys ) - 1 )
     this->show_pg++;
@@ -594,7 +594,7 @@ State::show_keys_prev_page( void )
 }
 
 bool
-State::copy_help( LineSaveBuf &lsb )
+State::copy_help( LineSaveBuf &lsb ) noexcept
 {
   if ( this->help.buf != NULL )
     ::free( this->help.buf );
@@ -608,7 +608,7 @@ State::copy_help( LineSaveBuf &lsb )
 }
 
 bool
-State::show_help( void )
+State::show_help( void ) noexcept
 {
   char32_t help_str[ 4 ];
   help_str[ 0 ] = 'h';
@@ -625,7 +625,7 @@ State::show_help( void )
 }
 
 bool
-State::show_help_start( void )
+State::show_help_start( void ) noexcept
 {
   this->show_pg  = this->pgcount( this->help ) - 1;
   this->help.off = this->help.first;
@@ -633,14 +633,14 @@ State::show_help_start( void )
 }
 
 bool
-State::show_help_end( void )
+State::show_help_end( void ) noexcept
 {
   this->show_pg = 0;
   return this->show_lsb( SHOW_HELP, this->help );
 }
 
 bool
-State::show_help_next_page( void )
+State::show_help_next_page( void ) noexcept
 {
   if ( this->show_pg > 0 )
     this->show_pg--;
@@ -648,7 +648,7 @@ State::show_help_next_page( void )
 }
 
 bool
-State::show_help_prev_page( void )
+State::show_help_prev_page( void ) noexcept
 {
   if ( this->show_pg < this->pgcount( this->help ) - 1 )
     this->show_pg++;

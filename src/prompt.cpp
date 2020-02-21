@@ -66,7 +66,7 @@ static size_t cur_fmt_len( LeftPrompt &pr ) {
 }
 
 ScreenClass
-State::escape_class( const char32_t *code,  size_t &sz )
+State::escape_class( const char32_t *code,  size_t &sz ) noexcept
 {
   size_t i;
   /* title bar escape sequence: <ESC> ] 0 ; title-description <BEL> */
@@ -102,7 +102,7 @@ State::escape_class( const char32_t *code,  size_t &sz )
 }
 
 ScreenClass
-State::screen_class( const char32_t *code,  size_t &sz )
+State::screen_class( const char32_t *code,  size_t &sz ) noexcept
 {
   /* sz must be >= 1 */
   switch ( code[ 0 ] ) {
@@ -127,7 +127,7 @@ State::screen_class( const char32_t *code,  size_t &sz )
 }
 
 bool
-State::format_prompt( void )
+State::format_prompt( void ) noexcept
 {
   static const size_t OUT_SZ = 1024;
   char32_t         out[ OUT_SZ ];
@@ -394,7 +394,7 @@ State::format_prompt( void )
 }
 
 bool
-State::get_prompt_vars( void )
+State::get_prompt_vars( void ) noexcept
 {
   char              tmp[ 1024 ];
   struct addrinfo * res = NULL;
@@ -587,7 +587,7 @@ State::get_prompt_vars( void )
 }
 
 bool
-State::update_date( time_t t )
+State::update_date( time_t t ) noexcept
 {
   LeftPrompt & pr = this->prompt;
   struct tm    val;
@@ -604,7 +604,7 @@ State::update_date( time_t t )
 }
 
 bool
-State::update_cwd( void )
+State::update_cwd( void ) noexcept
 {
   LeftPrompt & pr = this->prompt;
   char         tmp[ 1024 ];
@@ -630,7 +630,7 @@ State::update_cwd( void )
 }
 
 bool
-State::update_user( void )
+State::update_user( void ) noexcept
 {
   LeftPrompt    & pr = this->prompt;
   struct passwd * pw, pwbuf;
@@ -644,7 +644,7 @@ State::update_user( void )
 }
 
 bool
-State::get_prompt_geom( void )
+State::get_prompt_geom( void ) noexcept
 {
   LeftPrompt     & pr    = this->prompt;
   const char32_t * p     = pr.str;
@@ -705,7 +705,7 @@ u32u8cpy( char32_t *str,  const char *s,  size_t n )
 }
 
 bool
-State::update_prompt_time( void )
+State::update_prompt_time( void ) noexcept
 {
   LeftPrompt & pr = this->prompt;
   uint32_t     fl = pr.flags & ~pr.flags_mask;
@@ -780,7 +780,7 @@ State::update_prompt_time( void )
 }
 
 bool
-State::update_prompt( bool force )
+State::update_prompt( bool force ) noexcept
 {
   LeftPrompt & pr = this->prompt;
   bool         b = false;
@@ -880,7 +880,8 @@ State::update_prompt( bool force )
 }
 
 bool
-State::make_utf32( const char *buf,  size_t len,  char32_t *&x,  size_t &xlen )
+State::make_utf32( const char *buf,  size_t len,  char32_t *&x,
+                   size_t &xlen ) noexcept
 {
   char32_t tmp[ 1024 ], * p = tmp;
   size_t i = 0, j = 0;
@@ -965,7 +966,7 @@ isonum( const char *buf,  size_t len,  uint32_t &val )
 
 bool
 State::make_prompt_utf32( const char *buf,  size_t len,  char32_t *&x,
-                          size_t &xlen )
+                          size_t &xlen ) noexcept
 {
   char tmp[ 1024 ], * p = tmp;
   size_t i = 0, j = 0;
@@ -1030,7 +1031,7 @@ State::make_prompt_utf32( const char *buf,  size_t len,  char32_t *&x,
 }
 
 void
-State::set_default_prompt( void )
+State::set_default_prompt( void ) noexcept
 {
   LeftPrompt & pr = this->prompt;
   this->make_utf32( "; ", 2, pr.fmt, pr.fmt_len );
@@ -1044,7 +1045,7 @@ State::set_default_prompt( void )
 
 int
 State::set_prompt( const char *p,  size_t p_len,  const char *p2,
-                   size_t p2_len )
+                   size_t p2_len ) noexcept
 {
   LeftPrompt & pr = this->prompt;
   if ( ! this->make_prompt_utf32( p, p_len, pr.fmt, pr.fmt_len ) ||
@@ -1056,7 +1057,7 @@ State::set_prompt( const char *p,  size_t p_len,  const char *p2,
 }
 
 int
-State::init_lprompt( void )
+State::init_lprompt( void ) noexcept
 {
   if ( ! this->get_prompt_vars() || ! this->format_prompt() ||
        ! this->get_prompt_geom() ) {
@@ -1083,7 +1084,7 @@ State::init_lprompt( void )
 #endif
 
 bool
-State::init_rprompt( LinePrompt &p,  const char *buf,  size_t len )
+State::init_rprompt( LinePrompt &p,  const char *buf,  size_t len ) noexcept
 {
   if ( ! this->make_prompt_utf32( buf, len, p.prompt, p.prompt_len ) ) {
   bad_prompt:;
@@ -1128,7 +1129,7 @@ State::set_right_prompt( const char *ins,    size_t ins_len,
                          const char *visu,   size_t visu_len,
                          const char *ouch,   size_t ouch_len,
                          const char *sel1,   size_t sel1_len,
-                         const char *sel2,   size_t sel2_len )
+                         const char *sel2,   size_t sel2_len ) noexcept
 {
   if ( ! init_rprompt( this->r_ins,     ins,   ins_len  ) ||
        ! init_rprompt( this->r_cmd,     cmd,   cmd_len  ) ||
@@ -1144,7 +1145,7 @@ State::set_right_prompt( const char *ins,    size_t ins_len,
 }
 
 void
-State::output_prompt( void )
+State::output_prompt( void ) noexcept
 {
   if ( this->prompt.len > 0 )
     this->output( this->prompt.str, this->prompt.len );
@@ -1155,7 +1156,7 @@ State::output_prompt( void )
 }
 
 void
-State::output_right_prompt( bool clear )
+State::output_right_prompt( bool clear ) noexcept
 {
   LinePrompt * p;
   if ( this->bell_cnt == 1 ) {
@@ -1200,7 +1201,7 @@ State::output_right_prompt( bool clear )
 }
 
 void
-State::clear_right_prompt( LinePrompt &p )
+State::clear_right_prompt( LinePrompt &p ) noexcept
 {
   size_t rprompt_cols = p.prompt_cols;
   if ( rprompt_cols == 0 )
@@ -1221,7 +1222,7 @@ State::clear_right_prompt( LinePrompt &p )
 }
 
 void
-State::show_right_prompt( LinePrompt &p )
+State::show_right_prompt( LinePrompt &p ) noexcept
 {
   size_t rprompt_cols = p.prompt_cols;
   if ( rprompt_cols == 0 )
@@ -1240,7 +1241,7 @@ State::show_right_prompt( LinePrompt &p )
 }
 
 uint64_t
-State::time_ms( void )
+State::time_ms( void ) noexcept
 {
   struct timeval tv;
   ::gettimeofday( &tv, NULL );
@@ -1248,14 +1249,14 @@ State::time_ms( void )
 }
 
 void
-State::erase_eol_with_right_prompt( void )
+State::erase_eol_with_right_prompt( void ) noexcept
 {
   this->output_str( ANSI_ERASE_EOL, ANSI_ERASE_EOL_SIZE );
   this->right_prompt_needed = true;
 }
 
 void
-State::bell( void )
+State::bell( void ) noexcept
 {
   this->bell_cnt = 2;
   this->bell_time = State::time_ms();

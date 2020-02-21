@@ -634,7 +634,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
 using namespace linecook;
 
 
-TTY::TTY( LineCook *lc )
+TTY::TTY( LineCook *lc ) noexcept
 {
   ::memset( this, 0, sizeof( *this ) );
   this->lc     = lc;
@@ -653,7 +653,7 @@ TTY::TTY( LineCook *lc )
     lc->complete_cb = lc_tty_file_completion;
 }
 
-TTY::~TTY()
+TTY::~TTY() noexcept
 {
   this->lc     = NULL;
   this->in_fd  = -1;
@@ -666,13 +666,13 @@ TTY::~TTY()
 }
 
 void
-TTY::release( void )
+TTY::release( void ) noexcept
 {
   this->close_history();
 }
 
 int
-TTY::set_prompt( TTYPrompt pnum,  const char *p )
+TTY::set_prompt( TTYPrompt pnum,  const char *p ) noexcept
 {
   size_t slen = ( p != NULL ? ::strlen( p ) : 0 );
   if ( slen != this->len( pnum ) ||
@@ -714,18 +714,18 @@ TTY::set_prompt( TTYPrompt pnum,  const char *p )
   return 0;
 }
 
-size_t TTY::len( TTYPrompt pnum ) const {
+size_t TTY::len( TTYPrompt pnum ) const noexcept {
   size_t i = this->off[ pnum ];
   if ( i < sizeof( size_t ) ) return 0;
   return *((size_t *) (void *) &this->prompt_buf[ i - sizeof( size_t ) ]);
 }
-char * TTY::ptr( TTYPrompt pnum ) {
+char * TTY::ptr( TTYPrompt pnum ) noexcept {
   size_t i = this->off[ pnum ];
   return ( i != 0 ? &this->prompt_buf[ i ] : NULL );
 }
 
 int
-TTY::init_fd( int in,  int out )
+TTY::init_fd( int in,  int out ) noexcept
 {
   this->in_fd  = in;
   this->out_fd = out;
@@ -733,7 +733,8 @@ TTY::init_fd( int in,  int out )
 }
 
 size_t
-TTY::load_history_buffer( const char *buf,  size_t n,  size_t &line_cnt )
+TTY::load_history_buffer( const char *buf,  size_t n,
+                          size_t &line_cnt ) noexcept
 {
   const char *eol;
   size_t sz;
@@ -758,7 +759,7 @@ TTY::load_history_buffer( const char *buf,  size_t n,  size_t &line_cnt )
 }
 
 size_t
-TTY::read_history( int rfd,  size_t max_len,  size_t &line_cnt )
+TTY::read_history( int rfd,  size_t max_len,  size_t &line_cnt ) noexcept
 {
   char buf[ 64 * 1024 ]; /* max hist line size */
   size_t amount_consumed = 0, file_off = 0;
@@ -790,7 +791,7 @@ TTY::read_history( int rfd,  size_t max_len,  size_t &line_cnt )
 
 #define ROTATEDBG(x)
 int
-TTY::open_history( const char *fn,  bool reinitialize )
+TTY::open_history( const char *fn,  bool reinitialize ) noexcept
 {
   char   lckpath[ 1024 ],
          path[ 1024 ];
@@ -825,7 +826,7 @@ TTY::open_history( const char *fn,  bool reinitialize )
     /* find the last file.N */
     ::strcpy( path, fn );
     path[ len ] = '.';
-    for ( i = 1; ; i++ ) {
+    for ( i = 1; i < 25; i++ ) { /* max at 25, 25000 lines */
       uint_to_string( i, &path[ len + 1 ] );
       if ( ::access( path, R_OK | W_OK ) != 0 )
         break;
@@ -869,7 +870,7 @@ failed:;
 }
 
 int
-TTY::check_history( void )
+TTY::check_history( void ) noexcept
 {
   TTYHistory &h = this->hist;
   struct stat x, y;
@@ -934,7 +935,7 @@ TTY::check_history( void )
 }
 
 int
-TTY::acquire_history_lck( const char *filename,  char *lckpath )
+TTY::acquire_history_lck( const char *filename,  char *lckpath ) noexcept
 {
   TTYHistory &h = this->hist;
   size_t len;
@@ -963,7 +964,7 @@ TTY::acquire_history_lck( const char *filename,  char *lckpath )
 }
 
 int
-TTY::rotate_history( void )
+TTY::rotate_history( void ) noexcept
 {
   TTYHistory &h = this->hist;
   char        newpath[ 1024 ],
@@ -1034,7 +1035,7 @@ failed:;
 }
 
 int
-TTY::log_hist( char *line,  size_t len )
+TTY::log_hist( char *line,  size_t len ) noexcept
 {
   TTYHistory &h = this->hist;
   struct stat x;
@@ -1072,13 +1073,13 @@ TTY::log_hist( char *line,  size_t len )
 }
 
 int
-TTY::log_history( void )
+TTY::log_history( void ) noexcept
 {
   return this->log_hist( this->line, this->line_len );
 }
 
 int
-TTY::push_history( const char *line,  size_t len )
+TTY::push_history( const char *line,  size_t len ) noexcept
 {
   if ( len > 0 ) {
     if ( line[ len - 1 ] == '\\' )
@@ -1099,7 +1100,7 @@ TTY::push_history( const char *line,  size_t len )
 }
 
 int
-TTY::flush_history( void )
+TTY::flush_history( void ) noexcept
 {
   TTYHistory &h = this->hist;
   int status = this->log_hist( h.hist_buf, h.hist_len );
@@ -1108,7 +1109,7 @@ TTY::flush_history( void )
 }
 
 void
-TTY::break_history( void )
+TTY::break_history( void ) noexcept
 {
   TTYHistory &h = this->hist;
   h.hist_len = 0;
@@ -1116,7 +1117,7 @@ TTY::break_history( void )
 }
 
 int
-TTY::close_history( void )
+TTY::close_history( void ) noexcept
 {
   TTYHistory &h = this->hist;
   int fd = h.fd;
@@ -1131,7 +1132,7 @@ TTY::close_history( void )
 }
 
 int
-TTY::raw_mode( void )
+TTY::raw_mode( void ) noexcept
 {
   if ( this->in_fd == -1 ) { /* if no in_fd */
     this->set( TTYS_IS_RAW );
@@ -1182,7 +1183,7 @@ TTY::raw_mode( void )
 }
 
 int
-TTY::non_block( void )
+TTY::non_block( void ) noexcept
 {
   if ( this->test( TTYS_IS_NONBLOCK ) == 0 ) {
     if ( this->in_fd != -1 ) {
@@ -1205,7 +1206,7 @@ TTY::non_block( void )
 }
 
 int
-TTY::reset_raw( void )
+TTY::reset_raw( void ) noexcept
 {
   if ( this->test( TTYS_IS_RAW ) != 0 ) {
     if ( this->in_fd != -1 ) {
@@ -1220,7 +1221,7 @@ TTY::reset_raw( void )
 }
 
 int
-TTY::reset_non_block( void )
+TTY::reset_non_block( void ) noexcept
 {
   if ( this->test( TTYS_IS_NONBLOCK ) != 0 ) {
     if ( this->in_fd != -1 )
@@ -1233,7 +1234,7 @@ TTY::reset_non_block( void )
 }
 
 int
-TTY::normal_mode( void )
+TTY::normal_mode( void ) noexcept
 {
   bool b;
   b  = ( this->reset_raw() == 0 );
@@ -1242,13 +1243,13 @@ TTY::normal_mode( void )
 }
 
 void
-TTY::clear_line( void )
+TTY::clear_line( void ) noexcept
 {
   lc_clear_line( this->lc );
 }
 
 int
-TTY::push_line( const char *line,  size_t len )
+TTY::push_line( const char *line,  size_t len ) noexcept
 {
   State *state = static_cast<linecook::State *>( this->lc );
   size_t sz = len + this->push_len;
@@ -1261,7 +1262,8 @@ TTY::push_line( const char *line,  size_t len )
 
 int
 TTY::get_completion_cmd( char *cmd,  size_t len,  int *arg_num,  int *arg_count,
-                         int *arg_off,  int *arg_len,  size_t args_size )
+                         int *arg_off,  int *arg_len,
+                         size_t args_size ) noexcept
 {
   int n;
   *arg_num   = 0;
@@ -1276,7 +1278,7 @@ TTY::get_completion_cmd( char *cmd,  size_t len,  int *arg_num,  int *arg_count,
 }
 
 int
-TTY::get_completion_term( char *term,  size_t len )
+TTY::get_completion_term( char *term,  size_t len ) noexcept
 {
   int n;
   if ( (int) len + 1 < lc_complete_term_length( this->lc ) )
@@ -1287,7 +1289,7 @@ TTY::get_completion_term( char *term,  size_t len )
 }
 
 int
-TTY::get_line( void )
+TTY::get_line( void ) noexcept
 {
   static const int fl = TTYS_IS_NONBLOCK | TTYS_IS_RAW;
   int n;
@@ -1390,7 +1392,7 @@ TTY::get_line( void )
 }
 
 int
-TTY::poll_wait( int time_ms )
+TTY::poll_wait( int time_ms ) noexcept
 {
   struct pollfd fdset;
   int n;

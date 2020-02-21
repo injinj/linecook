@@ -11,7 +11,7 @@
 using namespace linecook;
 
 void
-State::restore_save( const LineSaveBuf &lsb,  const LineSave &ls )
+State::restore_save( const LineSaveBuf &lsb,  const LineSave &ls ) noexcept
 {
   if ( ! this->realloc_line( ls.edited_len ) )
     return;
@@ -26,7 +26,7 @@ State::restore_save( const LineSaveBuf &lsb,  const LineSave &ls )
 /* insert ls into ls2 at cursor pos of ls2 */
 void
 State::restore_insert( const LineSaveBuf &lsb,  const LineSave &ls,
-                       const LineSaveBuf &lsb2,  const LineSave &ls2 )
+                       const LineSaveBuf &lsb2,  const LineSave &ls2 ) noexcept
 {
   size_t off, off2;
   if ( ! this->realloc_line( ls.edited_len + ls2.edited_len ) )
@@ -48,7 +48,7 @@ State::restore_insert( const LineSaveBuf &lsb,  const LineSave &ls,
 }
 
 void
-LineSave::reset( LineSaveBuf &lsb )
+LineSave::reset( LineSaveBuf &lsb ) noexcept
 {
   lsb.off   = 0;         
   lsb.max   = 0;
@@ -61,7 +61,7 @@ static const size_t LINE_SAVE_CHARS = sizeof( LineSave ) / sizeof( char32_t );
 
 bool
 LineSave::equals( const LineSaveBuf &lsb,  size_t off,  const char32_t *buf,
-                  size_t len )
+                  size_t len ) noexcept
 {
   if ( off > len ) { /* off must contain both LineSave and line buf len */
     const void * n = (const void *) &lsb.buf[ off - LINE_SAVE_CHARS ];
@@ -73,7 +73,7 @@ LineSave::equals( const LineSaveBuf &lsb,  size_t off,  const char32_t *buf,
 }
 
 int
-LineSave::compare( const LineSaveBuf &lsb,  size_t off,  size_t off2 )
+LineSave::compare( const LineSaveBuf &lsb,  size_t off,  size_t off2 ) noexcept
 {
   if ( off == 0 || off2 == 0 )
     return ( off < off2 ? 1 : ( off > off2 ? -1 : 0 ) );
@@ -86,14 +86,14 @@ LineSave::compare( const LineSaveBuf &lsb,  size_t off,  size_t off2 )
 }
 
 size_t
-LineSave::size( size_t len )
+LineSave::size( size_t len ) noexcept
 {
   return align<size_t>( len, 8 ) + LINE_SAVE_CHARS;
 }
 
 size_t
 LineSave::make( LineSaveBuf &lsb,  const char32_t *buf,  size_t len,
-                size_t cursor_off,  size_t idx )
+                size_t cursor_off,  size_t idx ) noexcept
 {
   char32_t * p = &lsb.buf[ lsb.max ];
   size_t next;
@@ -115,21 +115,21 @@ LineSave::make( LineSaveBuf &lsb,  const char32_t *buf,  size_t len,
 }
 
 LineSave &
-LineSave::line( LineSaveBuf &lsb,  size_t off )
+LineSave::line( LineSaveBuf &lsb,  size_t off ) noexcept
 {
   void * n = (void *) &lsb.buf[ off - LINE_SAVE_CHARS ];
   return *(LineSave *) n;
 }
 
 const LineSave &
-LineSave::line_const( const LineSaveBuf &lsb,  size_t off )
+LineSave::line_const( const LineSaveBuf &lsb,  size_t off ) noexcept
 {
   const void * n = (const void *) &lsb.buf[ off - LINE_SAVE_CHARS ];
   return *(const LineSave *) n;
 }
 
 size_t
-LineSave::card( const LineSaveBuf &lsb )
+LineSave::card( const LineSaveBuf &lsb ) noexcept
 {
   size_t off = lsb.max;
   size_t cnt = 0;
@@ -142,7 +142,7 @@ LineSave::card( const LineSaveBuf &lsb )
 }
 
 size_t
-LineSave::find( const LineSaveBuf &lsb,  size_t off,  size_t i )
+LineSave::find( const LineSaveBuf &lsb,  size_t off,  size_t i ) noexcept
 {
   while ( off > 0 ) {
     const LineSave &ls = LineSave::line_const( lsb, off );
@@ -161,7 +161,7 @@ LineSave::find( const LineSaveBuf &lsb,  size_t off,  size_t i )
 }
 
 size_t
-LineSave::find_gteq( const LineSaveBuf &lsb,  size_t off,  size_t i )
+LineSave::find_gteq( const LineSaveBuf &lsb,  size_t off,  size_t i ) noexcept
 {
   size_t hi = 0;
   while ( off > 0 ) {
@@ -182,7 +182,7 @@ LineSave::find_gteq( const LineSaveBuf &lsb,  size_t off,  size_t i )
 }
 
 size_t
-LineSave::find_lt( const LineSaveBuf &lsb,  size_t off,  size_t i )
+LineSave::find_lt( const LineSaveBuf &lsb,  size_t off,  size_t i ) noexcept
 {
   size_t lo = 0;
   while ( off > 0 ) {
@@ -202,7 +202,7 @@ LineSave::find_lt( const LineSaveBuf &lsb,  size_t off,  size_t i )
 
 size_t
 LineSave::find_substr( const LineSaveBuf &lsb,  size_t off,
-                       const char32_t *str,  size_t len,  int dir )
+                       const char32_t *str,  size_t len,  int dir ) noexcept
 {
   while ( off > 0 ) {
     const LineSave & ls = LineSave::line_const( lsb, off );
@@ -233,7 +233,7 @@ LineSave::find_substr( const LineSaveBuf &lsb,  size_t off,
 size_t
 LineSave::find_prefix( const LineSaveBuf &lsb,  size_t off, const char32_t *str,
                        size_t len,  size_t &prefix_len,  size_t &match_cnt,
-                       size_t &prefix_cnt )
+                       size_t &prefix_cnt ) noexcept
 {
   size_t           match_off  = 0;
   const char32_t * match_line = NULL;
@@ -280,7 +280,8 @@ LineSave::find_prefix( const LineSaveBuf &lsb,  size_t off, const char32_t *str,
 
 size_t
 LineSave::find_longest_prefix( const LineSaveBuf &lsb,  size_t off,
-                               size_t &prefix_len,  size_t &match_cnt )
+                               size_t &prefix_len,
+                               size_t &match_cnt ) noexcept
 {
   size_t           match_off  = 0;
   const char32_t * match_line = NULL;
@@ -312,7 +313,8 @@ LineSave::find_longest_prefix( const LineSaveBuf &lsb,  size_t off,
 }
 
 bool
-LineSave::filter_substr( LineSaveBuf &lsb,  const char32_t *str,  size_t len )
+LineSave::filter_substr( LineSaveBuf &lsb,  const char32_t *str,
+                         size_t len ) noexcept
 {
   LineSaveBuf      lsb2;
   const char32_t * line;
@@ -352,7 +354,7 @@ LineSave::filter_substr( LineSaveBuf &lsb,  const char32_t *str,  size_t len )
 
 bool
 LineSave::filter_glob( LineSaveBuf &lsb,  const char32_t *pattern,
-                       size_t patlen,  bool implicit_anchor )
+                       size_t patlen,  bool implicit_anchor ) noexcept
 {
   pcre2_real_code_32       * re = NULL; /* pcre regex compiled */
   pcre2_real_match_data_32 * md = NULL; /* pcre match context  */
@@ -436,7 +438,7 @@ LineSave::filter_glob( LineSaveBuf &lsb,  const char32_t *pattern,
 }
 
 size_t
-LineSave::scan( const LineSaveBuf &lsb,  size_t i )
+LineSave::scan( const LineSaveBuf &lsb,  size_t i ) noexcept
 {
   size_t off = lsb.max;
   while ( off > 0 ) {
@@ -450,7 +452,7 @@ LineSave::scan( const LineSaveBuf &lsb,  size_t i )
 
 size_t
 LineSave::check_links( LineSaveBuf &lsb,  size_t first,  size_t max_off,
-                       size_t cnt )
+                       size_t cnt ) noexcept
 {
   size_t i, fwd_cnt = 0, bck_cnt = 0, last;
   if ( first == 0 ) {
@@ -504,7 +506,7 @@ LineSave::check_links( LineSaveBuf &lsb,  size_t first,  size_t max_off,
 }
 
 size_t
-LineSave::resize( LineSaveBuf &lsb,  size_t &off,  size_t newsz )
+LineSave::resize( LineSaveBuf &lsb,  size_t &off,  size_t newsz ) noexcept
 {
   size_t     asize   = align<size_t>( newsz, 8 );
   LineSave & ls      = LineSave::line( lsb, off );
@@ -560,7 +562,7 @@ cmpls( const void *ls1,  const void *ls2 )
 }
 
 bool
-LineSave::sort( LineSaveBuf &lsb )
+LineSave::sort( LineSaveBuf &lsb ) noexcept
 {
   LineSaveBuf lsb2;
   LineSave *elbuf[ 1024 ], **el = elbuf;
@@ -608,7 +610,8 @@ LineSave::sort( LineSaveBuf &lsb )
 }
 
 bool
-LineSave::shrink_range( LineSaveBuf &lsb,  size_t off,  size_t to_off )
+LineSave::shrink_range( LineSaveBuf &lsb,  size_t off,
+                        size_t to_off ) noexcept
 {
   LineSaveBuf      lsb2;
   const char32_t * line;
@@ -677,7 +680,7 @@ mmhash64( const void * key, int len, uint64_t seed )
 }
 
 bool
-LineSave::shrink_unique( LineSaveBuf &lsb )
+LineSave::shrink_unique( LineSaveBuf &lsb ) noexcept
 {
   LineSaveBuf      lsb2;
   uint64_t       * ht;

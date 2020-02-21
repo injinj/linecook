@@ -170,50 +170,51 @@ namespace linecook {
 struct TTY : public TTYCook_s {
   void * operator new( size_t, void *ptr ) { return ptr; }
   void operator delete( void *ptr ) { ::free( ptr ); }
-  TTY( LineCook *lc );
-  ~TTY();
-  void release( void );
+  TTY( LineCook *lc ) noexcept;
+  ~TTY() noexcept;
+  void release( void ) noexcept;
 
   int test( int fl ) const { return this->state & fl; }
   void set( int fl )       { this->state |= fl; }
   void clear( int fl )     { this->state &= ~fl; }
-
-  int set_prompt( TTYPrompt pnum,  const char *p ); /* update a prompt */
-  int init_fd( int in,  int out );
+  /* update a prompt */
+  int set_prompt( TTYPrompt pnum,  const char *p ) noexcept;
+  int init_fd( int in,  int out ) noexcept;
 
   /* history, history, so much history */
-  int open_history( const char *fn,  bool reinitialize );
-  size_t load_history_buffer( const char *buf,  size_t n,  size_t &line_cnt );
-  size_t read_history( int rfd,  size_t max_len,  size_t &line_cnt );
-  int check_history( void );
-  int log_history( void );
-  int log_hist( char *line,  size_t len );
-  int push_history( const char *line,  size_t len );
-  int flush_history( void );
-  void break_history( void );
-  int close_history( void );
-  int acquire_history_lck( const char *filename,  char *lckpath );
-  int rotate_history( void );
+  int open_history( const char *fn,  bool reinitialize ) noexcept;
+  size_t load_history_buffer( const char *buf,  size_t n,
+                              size_t &line_cnt ) noexcept;
+  size_t read_history( int rfd,  size_t max_len,  size_t &line_cnt ) noexcept;
+  int check_history( void ) noexcept;
+  int log_history( void ) noexcept;
+  int log_hist( char *line,  size_t len ) noexcept;
+  int push_history( const char *line,  size_t len ) noexcept;
+  int flush_history( void ) noexcept;
+  void break_history( void ) noexcept;
+  int close_history( void ) noexcept;
+  int acquire_history_lck( const char *filename,  char *lckpath ) noexcept;
+  int rotate_history( void ) noexcept;
   /* terminal / tty fd mode change */
-  int raw_mode( void );
-  int non_block( void );
-  int reset_raw( void );
-  int reset_non_block( void );
-  int normal_mode( void );
-  void clear_line( void );
+  int raw_mode( void ) noexcept;
+  int non_block( void ) noexcept;
+  int reset_raw( void ) noexcept;
+  int reset_non_block( void ) noexcept;
+  int normal_mode( void ) noexcept;
+  void clear_line( void ) noexcept;
   /* completion */
   int get_completion_cmd( char *cmd,  size_t len,  int *arg_num,
                           int *arg_count,  int *arg_off,
-                          int *arg_len,  size_t args_size );
-  int get_completion_term( char *term,  size_t len );
+                          int *arg_len,  size_t args_size ) noexcept;
+  int get_completion_term( char *term,  size_t len ) noexcept;
   /* line edit */
-  int push_line( const char *line,  size_t len ); /* push line back */
-  int get_line( void );         /* same as lc_tty_get_line() */
+  int push_line( const char *line,  size_t len ) noexcept; /* push line back */
+  int get_line( void ) noexcept;         /* same as lc_tty_get_line() */
   /* wait for i/o */
-  int poll_wait( int time_ms ); /* same as lc_tty_poll_wait() */
+  int poll_wait( int time_ms ) noexcept; /* same as lc_tty_poll_wait() */
 
-  char * ptr( TTYPrompt pnum ); /* get the prompt associated with enum */
-  size_t len( TTYPrompt pnum ) const;
+  char * ptr( TTYPrompt pnum ) noexcept; /* get the prompt associated w/enum */
+  size_t len( TTYPrompt pnum ) const noexcept;
 };
 
 }

@@ -29,7 +29,7 @@ lc_set_complete_type( LineCook *state,  CompleteType ctype )
 using namespace linecook;
 
 size_t
-State::quote_line_length( const char32_t *buf,  size_t len )
+State::quote_line_length( const char32_t *buf,  size_t len ) noexcept
 {
   if ( ! this->complete_has_quote ) {
     size_t extra = 2;
@@ -50,7 +50,8 @@ State::quote_line_length( const char32_t *buf,  size_t len )
 }
 
 void
-State::quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len )
+State::quote_line_copy( char32_t *out,  const char32_t *buf,
+                        size_t len ) noexcept
 {
   size_t i, j = 0;
   out[ j++ ] = this->quote_char;
@@ -63,7 +64,7 @@ State::quote_line_copy( char32_t *out,  const char32_t *buf,  size_t len )
 }
 
 bool
-State::tab_complete( bool reverse )
+State::tab_complete( bool reverse ) noexcept
 {
   if ( this->show_mode != SHOW_COMPLETION ) {
     this->reset_completions();
@@ -75,7 +76,7 @@ State::tab_complete( bool reverse )
 }
 
 void
-State::copy_complete_string( const char32_t *str,  size_t len )
+State::copy_complete_string( const char32_t *str,  size_t len ) noexcept
 {
   this->comp_len = 0;
   if ( this->realloc_complete( len ) ) {
@@ -87,7 +88,7 @@ State::copy_complete_string( const char32_t *str,  size_t len )
 
 int
 State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
-                          int *arg_len, size_t args_size )
+                          int *arg_len, size_t args_size ) noexcept
 {
   /* this doesn't account for quoting in the args list */
   size_t i = args_size,
@@ -168,7 +169,7 @@ State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
 }
 
 void
-State::fill_completions( void )
+State::fill_completions( void ) noexcept
 {
   char   buf[ 4 * 1024 ],
        * p    = buf;
@@ -206,7 +207,7 @@ failed:
 }
 
 void
-State::reset_completions( void )
+State::reset_completions( void ) noexcept
 {
   this->comp_len      = 0;
   this->complete_off  = 0;
@@ -229,7 +230,7 @@ is_glob( const char32_t *pattern,  size_t patlen )
 }
 
 void
-State::init_completion_term( void )
+State::init_completion_term( void ) noexcept
 {
   size_t off  = this->cursor_pos - this->prompt.cols, /* offset into line[] */
          coff,
@@ -269,7 +270,7 @@ matched_quotes_fwd:;
 }
 
 bool
-State::tab_first_completion( void )
+State::tab_first_completion( void ) noexcept
 {
   const char32_t * pattern;
   size_t patlen,
@@ -448,7 +449,7 @@ State::tab_first_completion( void )
 }
 
 bool
-State::tab_next_completion( bool reverse )
+State::tab_next_completion( bool reverse ) noexcept
 {
   size_t old_idx = this->comp.idx;
   size_t off;
@@ -498,7 +499,7 @@ State::tab_next_completion( bool reverse )
 }
 
 void
-State::completion_accept( void )
+State::completion_accept( void ) noexcept
 {
   /* update line and quote it if necessary, then clear the matches */
   size_t off = LineSave::find( this->comp, this->comp.off, this->comp.idx );
@@ -533,7 +534,7 @@ State::completion_accept( void )
 }
 
 void
-State::completion_update( int delta )
+State::completion_update( int delta ) noexcept
 {
   /* a new char was added to the prefix, match it */
   if ( this->complete_off + this->complete_len + delta <= this->edited_len ) {
@@ -597,7 +598,7 @@ State::completion_update( int delta )
 }
 
 void
-State::completion_prev( void )
+State::completion_prev( void ) noexcept
 {
   size_t old_idx = this->comp.idx;
   bool   found;
@@ -613,7 +614,7 @@ State::completion_prev( void )
 }
 
 void
-State::completion_next( void )
+State::completion_next( void ) noexcept
 {
   size_t old_idx = this->comp.idx;
   bool   found;
@@ -632,7 +633,7 @@ State::completion_next( void )
 }
 
 void
-State::completion_start( void )
+State::completion_start( void ) noexcept
 {
   this->show_pg = this->pgcount( this->comp ) - 1;
   this->show_lsb( SHOW_COMPLETION, this->comp );
@@ -640,7 +641,7 @@ State::completion_start( void )
 }
 
 void
-State::completion_end( void )
+State::completion_end( void ) noexcept
 {
   this->show_pg = 0;
   this->show_lsb( SHOW_COMPLETION, this->comp );
@@ -648,7 +649,7 @@ State::completion_end( void )
 }
 
 void
-State::completion_top( void )
+State::completion_top( void ) noexcept
 {
   size_t old_idx = this->comp.idx;
   if ( old_idx != this->show_start ) {
@@ -660,7 +661,7 @@ State::completion_top( void )
 }
 
 void
-State::completion_bottom( void )
+State::completion_bottom( void ) noexcept
 {
   size_t old_idx = this->comp.idx;
   if ( old_idx != this->show_end ) {
@@ -672,7 +673,7 @@ State::completion_bottom( void )
 }
 
 int
-State::add_completion( const char *buf,  size_t len )
+State::add_completion( const char *buf,  size_t len ) noexcept
 {
   if ( ! this->make_utf32( buf, len, this->cvt, this->cvt_len ) )
     return this->error;
@@ -682,7 +683,7 @@ State::add_completion( const char *buf,  size_t len )
 }
 
 void
-State::push_completion( const char32_t *buf,  size_t len )
+State::push_completion( const char32_t *buf,  size_t len ) noexcept
 {
   if ( ! this->realloc_lsb( this->comp, this->comp.max + LineSave::size( len )))
     return;
@@ -690,7 +691,7 @@ State::push_completion( const char32_t *buf,  size_t len )
 }
 
 void
-State::show_completion_index( void )
+State::show_completion_index( void ) noexcept
 {
   this->show_mode = SHOW_COMPLETION;
   if ( this->comp.idx == 0 ) {
@@ -704,7 +705,7 @@ State::show_completion_index( void )
 }
 
 void
-State::show_completion_prev_page( void )
+State::show_completion_prev_page( void ) noexcept
 {
   if ( this->show_pg < this->pgcount( this->comp ) - 1 )
     this->show_pg++;
@@ -712,7 +713,7 @@ State::show_completion_prev_page( void )
 }
 
 void
-State::show_completion_next_page( void )
+State::show_completion_next_page( void ) noexcept
 {
   if ( this->show_pg > 0 )
     this->show_pg--;
