@@ -48,12 +48,16 @@ INCLUDES   ?= -Iinclude
 DEFINES    ?=
 includes   := $(INCLUDES)
 defines    := $(DEFINES)
-
+# if not linking libstdc++
+ifdef NO_STL
+cppflags   := -std=c++11 -fno-rtti -fno-exceptions
+cpplink    := $(CC)
+else
 cppflags   := -std=c++11
-#cppflags  := -fno-rtti -fno-exceptions
+cpplink    := $(CXX)
+endif
 #cppflags  := -fno-rtti -fno-exceptions -fsanitize=address
 #cpplink   := $(CC) -lasan
-cpplink    := $(CXX)
 cclink     := $(CC)
 
 rpath      := -Wl,-rpath,$(pwd)/$(libd)
