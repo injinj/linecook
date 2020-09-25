@@ -31,6 +31,12 @@ gcc_wflags  := -Wall -Wextra -Werror
 fpicflags   := -fPIC
 soflag      := -shared
 
+ifeq (Darwin,$(lsb_dist))
+dll         := dylib
+else
+dll         := so
+endif
+
 ifdef DEBUG
 default_cflags := -ggdb
 else
@@ -89,19 +95,20 @@ liblinecook_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(liblinecook_file
                      $(addprefix $(dependd)/, $(addsuffix .fpic.d, $(liblinecook_files)))
 liblinecook_dlnk  := $(lnk_lib)
 liblinecook_spec  := $(version)-$(build_num)
+liblinecook_dylib := $(version).$(build_num)
 liblinecook_ver   := $(major_num).$(minor_num)
 
 $(libd)/liblinecook.a: $(liblinecook_objs)
-$(libd)/liblinecook.so: $(liblinecook_dbjs)
+$(libd)/liblinecook.$(dll): $(liblinecook_dbjs)
 
 all_libs    += $(libd)/liblinecook.a
-all_dlls    += $(libd)/liblinecook.so
+all_dlls    += $(libd)/liblinecook.$(dll)
 all_depends += $(liblinecook_deps)
 
 lc_example_files := example
 lc_example_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(lc_example_files)))
 lc_example_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_example_files)))
-lc_example_libs  := $(libd)/liblinecook.so
+lc_example_libs  := $(libd)/liblinecook.$(dll)
 lc_example_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/lc_example: $(lc_example_objs) $(lc_example_libs)
@@ -109,7 +116,7 @@ $(bind)/lc_example: $(lc_example_objs) $(lc_example_libs)
 simple_files := simple
 simple_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(simple_files)))
 simple_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(simple_files)))
-simple_libs  := $(libd)/liblinecook.so
+simple_libs  := $(libd)/liblinecook.$(dll)
 simple_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/simple: $(simple_objs) $(simple_libs)
@@ -117,7 +124,7 @@ $(bind)/simple: $(simple_objs) $(simple_libs)
 lc_hist_cat_files := hist_cat
 lc_hist_cat_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(lc_hist_cat_files)))
 lc_hist_cat_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_hist_cat_files)))
-lc_hist_cat_libs  := $(libd)/liblinecook.so
+lc_hist_cat_libs  := $(libd)/liblinecook.$(dll)
 lc_hist_cat_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/lc_hist_cat: $(lc_hist_cat_objs) $(lc_hist_cat_libs)
@@ -173,7 +180,7 @@ endif
 # target used by rpmbuild, dpkgbuild
 .PHONY: dist_bins
 dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example $(bind)/lc_hist_cat
-	$(remove_rpath) $(libd)/liblinecook.so
+	$(remove_rpath) $(libd)/liblinecook.$(dll)
 	$(remove_rpath) $(bind)/lc_example
 	$(remove_rpath) $(bind)/lc_hist_cat
 
@@ -237,6 +244,10 @@ $(libd)/%.a:
 $(libd)/%.so:
 	$(cpplink) $(soflag) $(rpath) $(cflags) -o $@.$($(*)_spec) -Wl,-soname=$(@F).$($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(cpp_dll_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
 	cd $(libd) && ln -f -s $(@F).$($(*)_spec) $(@F).$($(*)_ver) && ln -f -s $(@F).$($(*)_ver) $(@F)
+
+$(libd)/%.dylib:
+	$(cpplink) -dynamiclib $(cflags) -o $@.$($(*)_dylib).dylib -current_version $($(*)_dylib) -compatibility_version $($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(cpp_dll_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
+	cd $(libd) && ln -f -s $(@F).$($(*)_dylib).dylib $(@F).$($(*)_ver).dylib && ln -f -s $(@F).$($(*)_ver).dylib $(@F)
 
 $(bind)/%:
 	$(cclink) $(cflags) $(rpath) -o $@ $($(*)_objs) -L$(libd) $($(*)_lnk) $(cpp_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib)
