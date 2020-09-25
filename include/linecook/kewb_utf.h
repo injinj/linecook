@@ -11,7 +11,17 @@
 #define __linecook__kewb_utf_h__
 
 #include <stdint.h>
+#if defined(__has_include)
+#if __has_include(<uchar.h>)
 #include <uchar.h>
+#define __linecook_has_uchar_h__
+#endif
+#endif
+
+#ifndef __linecook_has_uchar_h__
+#define char16_t uint16_t
+#define char32_t uint32_t
+#endif
 
 #ifdef __cplusplus
 extern "C" {

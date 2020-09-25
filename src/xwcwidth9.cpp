@@ -23,6 +23,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <linecook/xwcwidth9.h>
 
 struct xwc9_ival {
