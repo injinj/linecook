@@ -175,7 +175,11 @@ $(dependd)/depend.make: $(dependd) $(all_depends)
 ifeq (SunOS,$(lsb_dist))
 remove_rpath = rpath -r
 else
+ifeq (Darwin,$(lsb_dist))
+remove_rpath = true
+else
 remove_rpath = chrpath -d
+endif
 endif
 # target used by rpmbuild, dpkgbuild
 .PHONY: dist_bins
