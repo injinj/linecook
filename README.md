@@ -2,10 +2,10 @@
 
 [![copr status](https://copr.fedorainfracloud.org/coprs/injinj/gold/package/linecook/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/injinj/gold/package/linecook/)
 
-1. [What is Linecook?](#what-is-linecook-)
-2. [Why does Linecook exist?](#why-does-linecook-exist-)
-3. [How do you build/install Linecook?](#how-do-you-build-install-linecook-)
-4. [What editing commands exist in Linecook?](#what-editing-commands-exist-in-linecook-)
+1. [What is Linecook?](#what-is-linecook)
+2. [Why does Linecook exist?](#why-does-linecook-exist)
+3. [How do you build/install Linecook?](#how-do-you-build-install-linecook)
+4. [What editing commands exist in Linecook?](#what-editing-commands-exist-in-linecook)
 
 ## What is Linecook?
 
