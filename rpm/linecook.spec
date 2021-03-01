@@ -12,6 +12,7 @@ Prefix:	        /usr
 BuildRequires:  gcc-c++
 BuildRequires:  chrpath
 BuildRequires:  pcre2-devel
+BuildRequires:  git-core
 Requires:       pcre2
 Requires(post): /sbin/ldconfig
 Requires(postun): /sbin/ldconfig
