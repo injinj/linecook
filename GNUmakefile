@@ -94,7 +94,7 @@ liblinecook_dbjs  := $(addprefix $(objd)/, $(addsuffix .fpic.o, $(liblinecook_fi
 liblinecook_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(liblinecook_files))) \
                      $(addprefix $(dependd)/, $(addsuffix .fpic.d, $(liblinecook_files)))
 liblinecook_dlnk  := $(lnk_lib)
-liblinecook_spec  := $(version)-$(build_num)
+liblinecook_spec  := $(version)-$(build_num)_$(git_hash)
 liblinecook_dylib := $(version).$(build_num)
 liblinecook_ver   := $(major_num).$(minor_num)
 
