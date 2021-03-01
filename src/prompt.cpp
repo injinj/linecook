@@ -1023,7 +1023,10 @@ State::make_prompt_utf32( const char *buf,  size_t len,  char32_t *&x,
       }
       p[ j++ ] = buf[ i++ ];
     }
-    this->make_utf32( p, j, x, xlen );
+    if ( j > 0 )
+      this->make_utf32( p, j, x, xlen );
+    else
+      xlen = 0;
   }
   if ( p != NULL && p != tmp )
     ::free( p );
