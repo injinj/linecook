@@ -827,7 +827,7 @@ TTY::open_history( const char *fn,  bool reinitialize ) noexcept
     /* find the last file.N */
     ::strcpy( path, fn );
     path[ len ] = '.';
-    for ( i = 1; i < 25; i++ ) { /* max at 25, 25000 lines */
+    for ( i = 1; /*i < 25*/; i++ ) { /* XXX max at 25, 25000 lines */
       uint_to_string( i, &path[ len + 1 ] );
       if ( ::access( path, R_OK | W_OK ) != 0 )
         break;

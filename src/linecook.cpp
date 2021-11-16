@@ -274,7 +274,8 @@ State::refresh_line( void ) noexcept
     this->output_show();          /* show the show buffer */
   else
     this->cursor_erase_eol();     /* erase the rest of the line */
-  this->move_cursor( save ); /* move cursor back to save */
+  if ( save > this->prompt.cols )
+    this->move_cursor( save ); /* move cursor back to save */
   //this->output_flush();
 }
 
