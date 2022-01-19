@@ -200,7 +200,7 @@ $ sudo dnf install make gcc-c++ chrpath pcre2-devel rpm-build
 Or
 
 ```console
-$ sudo apt-get install make g++ gcc chrpath libpcre2-dev devscripts
+$ sudo apt-get install make g++ gcc chrpath libpcre2-dev devscripts debhelper
 ```
 
 The build directory is created and populated by the build in
