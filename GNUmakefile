@@ -273,6 +273,7 @@ dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example $(bind)/lc_hist_cat
 	$(remove_rpath) $(libd)/liblinecook.$(dll)
 	$(remove_rpath) $(bind)/lc_example
 	$(remove_rpath) $(bind)/lc_hist_cat
+	$(remove_rpath) $(bind)/print_keys
 
 # target for building installable rpm
 .PHONY: dist_rpm
