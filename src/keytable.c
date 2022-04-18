@@ -1,3 +1,6 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS /* for strcpy() */
+#endif
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -704,6 +707,8 @@ KeyRecipe lc_default_key_recipe[] = {
 { META_CTRL_H     , ACTION_SHOW_HISTORY    , EVILS_MODE      },
 { META_CTRL_K     , ACTION_SHOW_KEYS       , MOVE_MODE       },
 { META_CTRL_L     , ACTION_SHOW_CLEAR      , MOVE_MODE       },
+{ META_CTRL_M     , ACTION_SHOW_MAN        , MOVE_MODE       },
+{ META_CTRL_N     , ACTION_SHOW_HELP       , MOVE_MODE       },
 { META_CTRL_P     , ACTION_SHOW_YANK       , MOVE_MODE       },
 { META_CTRL_U     , ACTION_SHOW_UNDO       , MOVE_MODE       },
 { META_CTRL_V     , ACTION_SHOW_VARS       , EVIL_MODE       },

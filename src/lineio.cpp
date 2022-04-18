@@ -402,19 +402,47 @@ State::fill_input( void ) noexcept
 }
 
 void
+State::color_output( char32_t c, 
+                     void (State::*output_char)( char32_t ) ) noexcept
+{
+  uint32_t pos     = (uint32_t) c >> LC_COLOR_SHIFT;
+  bool     is_norm = (pos & LC_COLOR_NORMAL) != 0,
+           is_bold = (pos & LC_COLOR_BOLD) != 0;
+  c &= LC_COLOR_CHAR_MASK;
+
+  pos &= LC_COLOR_POS_MASK;
+  if ( pos != 0 ) {
+    ColorNode *n = this->color_ht[ pos % LC_COLOR_SIZE ];
+    if ( n != NULL )
+      this->output_str( (char *) n->color_buf, n->len );
+  }
+  if ( is_bold )
+    this->output_str( ANSI_BOLD, ANSI_BOLD_SIZE );
+
+  (this->*output_char)( c );
+
+  if ( is_norm )
+    this->output_str( ANSI_NORMAL, ANSI_NORMAL_SIZE );
+}
+
+void
 State::cursor_output( char32_t c ) noexcept
 {
-  static const size_t pad = 2 + 4;
-  if ( ! this->realloc_output( this->output_off + pad ) )
-    return;
-  int n = ku_utf32_to_utf8( c, &this->output_buf[ this->output_off ] );
-  if ( n > 0 && c != 0 ) {
-    this->output_off += n;
-    this->cursor_pos++;
-    if ( ( this->cursor_pos % this->cols ) == 0 ) {
-      this->output_buf[ this->output_off++ ] = '\r';
-      this->output_buf[ this->output_off++ ] = '\n';
-      this->right_prompt_needed = true;
+  if ( ((uint32_t) c >> LC_COLOR_SHIFT) != 0 )
+    this->color_output( c, &State::cursor_output );
+  else {
+    static const size_t pad = 2 + 4;
+    if ( ! this->realloc_output( this->output_off + pad ) )
+      return;
+    int n = ku_utf32_to_utf8( c, &this->output_buf[ this->output_off ] );
+    if ( n > 0 && c != 0 ) {
+      this->output_off += n;
+      this->cursor_pos++;
+      if ( ( this->cursor_pos % this->cols ) == 0 ) {
+        this->output_buf[ this->output_off++ ] = '\r';
+        this->output_buf[ this->output_off++ ] = '\n';
+        this->right_prompt_needed = true;
+      }
     }
   }
 }
@@ -504,7 +532,7 @@ State::output_show_string( const char32_t *str,  size_t off,
         k = 1;
       }
       if ( len > k && off <= 1 ) {
-        match_len = min<size_t>( len - k, this->comp_len );
+        match_len = min_int<size_t>( len - k, this->comp_len );
         this->output_str( ANSI_HILITE_SELECT, ANSI_HILITE_SELECT_SIZE );
         for ( ; i < match_len; i++ )
           if ( this->comp_buf[ i ] != str[ i + 1 ] )
@@ -580,7 +608,7 @@ State::output_show( void ) noexcept
       this->output_str( "\r\n", 2 );
       this->cursor_pos = pos;
       for ( size_t off = 0; off < this->show_len; ) {
-        size_t len = min<size_t>( this->show_len - off, this->cols );
+        size_t len = min_int<size_t>( this->show_len - off, this->cols );
         off += this->output_show_line( &this->show_buf[ off ], len );
       }
       this->erase_len = this->edited_len;
@@ -594,11 +622,15 @@ State::output_show( void ) noexcept
 void
 State::output( char32_t c ) noexcept /* send char to output */
 {
-  if ( ! this->realloc_output( this->output_off + 4 ) )
-    return;
-  int n = ku_utf32_to_utf8( c, &this->output_buf[ this->output_off ] );
-  if ( n > 0 && c != 0 )
-    this->output_off += n;
+  if ( ((uint32_t) c >> LC_COLOR_SHIFT) != 0 )
+    this->color_output( c, &State::output );
+  else {
+    if ( ! this->realloc_output( this->output_off + 4 ) )
+      return;
+    int n = ku_utf32_to_utf8( c, &this->output_buf[ this->output_off ] );
+    if ( n > 0 && c != 0 )
+      this->output_off += n;
+  }
 }
 
 void
@@ -607,9 +639,14 @@ State::output( const char32_t *str,  size_t len ) noexcept /* send to output */
   if ( ! this->realloc_output( this->output_off + len * 4 ) )
     return;
   for ( size_t i = 0; i < len; i++ ) {
-    int n = ku_utf32_to_utf8( str[ i ], &this->output_buf[ this->output_off ] );
-    if ( n > 0 && str[ i ] != 0 )
-      this->output_off += n;
+    char32_t c = str[ i ];
+    if ( ((uint32_t) c >> LC_COLOR_SHIFT) != 0 )
+      this->color_output( c, &State::output );
+    else {
+      int n = ku_utf32_to_utf8( c, &this->output_buf[ this->output_off ] );
+      if ( n > 0 && c != 0 )
+        this->output_off += n;
+    }
   }
 }
 

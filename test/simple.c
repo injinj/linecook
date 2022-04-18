@@ -1,7 +1,16 @@
 #include <stdio.h>
+#ifndef _MSC_VER
 #include <unistd.h>
+#else
+#include <io.h>
+#endif
 #include <linecook/linecook.h>
 #include <linecook/ttycook.h>
+
+#ifdef _MSC_VER
+#define STDIN_FILENO _fileno( stdin )
+#define STDOUT_FILENO _fileno( stdout )
+#endif
 
 int
 main( void )

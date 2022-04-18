@@ -2,12 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <ctype.h>
 #include <linecook/linecook.h>
 #include <linecook/glob_cvt.h>
 #define PCRE2_CODE_UNIT_WIDTH 32
 #include <pcre2.h>
-
+#ifdef _MSC_VER
+#pragma warning( disable : 4291 )
+typedef ptrdiff_t ssize_t;
+#endif
 using namespace linecook;
 
 void
@@ -298,7 +303,7 @@ LineSave::find_longest_prefix( const LineSaveBuf &lsb,  size_t off,
       match_off  = off;
     }
     else {
-      size_t len = min<size_t>( ls.edited_len, prefix_len );
+      size_t len = min_int<size_t>( ls.edited_len, prefix_len );
       for ( size_t i = 0; i < len; i++ ) {
         if ( casecmp<char32_t>( match_line[ i ], line[ i ] ) != 0 ) {
           prefix_len = i;
@@ -471,13 +476,13 @@ LineSave::check_links( LineSaveBuf &lsb,  size_t first,  size_t max_off,
     LineSave &ls = LineSave::line( lsb, i );
     bck_cnt++;
     if ( ls.next_off != last ) {
-      printf( "next_off != last @%lu\n", i );
+      printf( "next_off != last @%" PRIu64 "\n", i );
       return 0;
     }
     last = i;
     i = ls.line_off;
     if ( i > max_off ) {
-      printf( "line_off > max_off @%lu\n", i );
+      printf( "line_off > max_off @%" PRIu64 "\n", i );
       return 0;
     }
   }
@@ -486,21 +491,21 @@ LineSave::check_links( LineSaveBuf &lsb,  size_t first,  size_t max_off,
     LineSave &ls = LineSave::line( lsb, i );
     fwd_cnt++;
     if ( ls.line_off != last ) {
-      printf( "line_off != last @%lu\n", i );
+      printf( "line_off != last @%" PRIu64 "\n", i );
       return 0;
     }
     last = i;
     i = ls.next_off;
     if ( i > max_off ) {
-      printf( "next_off > max_off @%lu\n", i );
+      printf( "next_off > max_off @%" PRIu64 "\n", i );
       return 0;
     }
   }
   if ( bck_cnt != fwd_cnt ) {
-    printf( "bck %lu != fwd_cnt %lu\n", bck_cnt, fwd_cnt );
+    printf( "bck %" PRIu64 " != fwd_cnt %" PRIu64 "\n", bck_cnt, fwd_cnt );
   }
   if ( cnt != 0 && cnt != fwd_cnt ) {
-    printf( "cnt %lu != fwd_cnt %lu\n", cnt, fwd_cnt );
+    printf( "cnt %" PRIu64 " != fwd_cnt %" PRIu64 "\n", cnt, fwd_cnt );
   }
   return bck_cnt;
 }
@@ -552,11 +557,14 @@ LineSave::resize( LineSaveBuf &lsb,  size_t &off,  size_t newsz ) noexcept
 static int
 cmpls( const void *ls1,  const void *ls2 )
 {
-  const LineSave *lsx = *(LineSave **) ls1,
-                 *lsy = *(LineSave **) ls2;
-  size_t lenx = lsx->edited_len, leny = lsy->edited_len;
-  const char32_t * bufx = &((char32_t *) lsx)[ -align<size_t>( lenx, 8 ) ],
-                 * bufy = &((char32_t *) lsy)[ -align<size_t>( leny, 8 ) ];
+  const LineSave * lsx  = *(LineSave **) ls1,
+                 * lsy  = *(LineSave **) ls2;
+  size_t           lenx = lsx->edited_len,
+                   leny = lsy->edited_len;
+  const char32_t * bufx,
+                 * bufy;
+  bufx = &((char32_t *) lsx)[ -(ssize_t) align<size_t>( lenx, 8 ) ];
+  bufy = &((char32_t *) lsy)[ -(ssize_t) align<size_t>( leny, 8 ) ];
 
   return casecmp<char32_t>( bufx, bufy, lenx, leny );
 }
@@ -639,7 +647,7 @@ LineSave::shrink_range( LineSaveBuf &lsb,  size_t off,
 }
 
 static inline uint64_t /* murmur */
-mmhash64( const void * key, int len, uint64_t seed )
+mmhash64( const void * key, size_t len, uint64_t seed )
 {
   static const uint64_t m = ( (uint64_t) 0xc6a4a793U << 32 ) | 0x5bd1e995;
   static const int r = 47;

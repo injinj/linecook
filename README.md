@@ -489,6 +489,8 @@ This is table that is loaded at startup in [keycook.cpp](src/keycook.cpp).
 | meta-ctrl-h | show_history | EICS | Show the history lines |
 | meta-ctrl-k | show_keys | EICSV | Show the key bindings |
 | meta-ctrl-l | show_clear | EICSV | Clear the show buffer |
+| meta-enter | show_man | EICSV | Show man page of cmd |
+| meta-ctrl-n | show_help | EICSV | Show help option on cmd |
 | meta-ctrl-p | show_yank | EICSV | Show the yank lines |
 | meta-ctrl-u | show_undo | EICSV | Show the undo lines |
 | meta-ctrl-v | show_vars | EIC | Use TAB completion w/env vars |

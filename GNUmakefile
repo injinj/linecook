@@ -86,9 +86,13 @@ all_libs    :=
 all_dlls    :=
 all_depends :=
 
-liblinecook_files := linecook dispatch history complete prompt \
+liblinecook_files1:= linecook dispatch history complete prompt \
                      linesave keycook lineio ttycook kewb_utf \
-                     xwcwidth9 keytable hashaction
+                     xwcwidth9 console_vt
+liblinecook_files2:= keytable hashaction
+liblinecook_files := $(liblinecook_files1) $(liblinecook_files2)
+liblinecook_cfile := $(addprefix src/, $(addsuffix .cpp, $(liblinecook_files1))) \
+                     $(addprefix src/, $(addsuffix .c, $(liblinecook_files2)))
 liblinecook_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(liblinecook_files)))
 liblinecook_dbjs  := $(addprefix $(objd)/, $(addsuffix .fpic.o, $(liblinecook_files)))
 liblinecook_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(liblinecook_files))) \
@@ -106,6 +110,7 @@ all_dlls    += $(libd)/liblinecook.$(dll)
 all_depends += $(liblinecook_deps)
 
 lc_example_files := example
+lc_example_cfile := test/example.c
 lc_example_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(lc_example_files)))
 lc_example_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_example_files)))
 lc_example_libs  := $(libd)/liblinecook.$(dll)
@@ -113,7 +118,11 @@ lc_example_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/lc_example: $(lc_example_objs) $(lc_example_libs)
 
+all_exes    += $(bind)/lc_example
+all_depends += $(lc_example_deps)
+
 simple_files := simple
+simple_cfile := test/simple.c
 simple_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(simple_files)))
 simple_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(simple_files)))
 simple_libs  := $(libd)/liblinecook.$(dll)
@@ -121,7 +130,11 @@ simple_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/simple: $(simple_objs) $(simple_libs)
 
+all_exes    += $(bind)/simple
+all_depends += $(simmple_deps)
+
 lc_hist_cat_files := hist_cat
+lc_hist_cat_cfile := test/hist_cat.c
 lc_hist_cat_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(lc_hist_cat_files)))
 lc_hist_cat_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_hist_cat_files)))
 lc_hist_cat_libs  := $(libd)/liblinecook.$(dll)
@@ -129,18 +142,35 @@ lc_hist_cat_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
 $(bind)/lc_hist_cat: $(lc_hist_cat_objs) $(lc_hist_cat_libs)
 
+all_exes    += $(bind)/lc_hist_cat
+all_depends += $(lc_hist_cat_deps)
+
 print_keys_files := print_keys keytable
+print_keys_cfile := test/print_keys.c src/keytable.c
 print_keys_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(print_keys_files)))
 print_keys_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(print_keys_files)))
 print_keys_lnk   := $(print_keys_libs)
 
 $(bind)/print_keys: $(print_keys_objs) $(print_keys_libs)
 
-all_exes    += $(bind)/lc_example $(bind)/simple $(bind)/lc_hist_cat \
-               $(bind)/print_keys
-all_depends += $(lc_example_deps) $(simple_deps)
+all_exes    += $(bind)/print_keys
+all_depends += $(print_keys_deps)
+
+net_test_files := net_test
+net_test_cfile := test/net_test.cpp
+net_test_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(net_test_files)))
+net_test_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(net_test_files)))
+net_test_libs  := $(libd)/liblinecook.$(dll)
+net_test_lnk   := -L$(libd) -llinecook $(lnk_lib) -lstdc++
+
+$(bind)/net_test: $(net_test_objs) $(net_test_libs)
+
+all_exes    += $(bind)/net_test
+all_depends += $(net_test_deps)
 
 all_dirs := $(bind) $(libd) $(objd) $(dependd)
+
+console_test_cfile := test/console_test.cpp
 
 README.md: $(bind)/print_keys doc/readme.md
 	cat doc/readme.md > README.md
@@ -149,7 +179,63 @@ README.md: $(bind)/print_keys doc/readme.md
 src/hashaction.c: $(bind)/print_keys include/linecook/keycook.h
 	$(bind)/print_keys hash > src/hashaction.c
 
-all: $(all_libs) $(all_dlls) $(all_exes) README.md
+all: $(all_libs) $(all_dlls) $(all_exes) README.md cmake
+
+.PHONY: cmake
+cmake: CMakeLists.txt
+
+.ONESHELL: CMakeLists.txt
+CMakeLists.txt: .copr/Makefile
+	@cat <<'EOF' > $@
+	cmake_minimum_required (VERSION 3.9.0)
+	if (POLICY CMP0111)
+	  cmake_policy(SET CMP0111 OLD)
+	endif ()
+	project (linecook)
+	include_directories (
+	  include
+	)
+	if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	  add_definitions(/DPCRE2_STATIC)
+	  if ($$<CONFIG:Release>)
+	    add_compile_options (/arch:AVX2 /GL /std:c11 /wd5105)
+	  else ()
+	    add_compile_options (/arch:AVX2 /std:c11 /wd5105)
+	  endif ()
+	  if (NOT TARGET pcre2-32-static)
+	    add_library (pcre2-32-static STATIC IMPORTED)
+	    set_property (TARGET pcre2-32-static PROPERTY IMPORTED_LOCATION_DEBUG ../pcre2/build/Debug/pcre2-32-staticd.lib)
+	    set_property (TARGET pcre2-32-static PROPERTY IMPORTED_LOCATION_RELEASE ../pcre2/build/Release/pcre2-32-static.lib)
+	    include_directories (../pcre2/build)
+	  else ()
+	    include_directories ($${CMAKE_BINARY_DIR}/pcre2)
+	  endif ()
+	else ()
+	  add_compile_options ($(cflags))
+	  if (TARGET pcre2-32-static)
+	    include_directories ($${CMAKE_BINARY_DIR}/pcre2)
+	  endif ()
+	endif ()
+	add_library (linecook STATIC $(liblinecook_cfile))
+	if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	  set (ws_lib ws2_32)
+	endif ()
+	if (TARGET pcre2-32-static)
+	  link_libraries (linecook pcre2-32-static $${ws_lib})
+	else ()
+	  link_libraries (linecook -lpcre2-32)
+	endif ()
+	if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	  add_executable (lc_example $(lc_example_cfile))
+	else ()
+	  add_executable (console_test $(console_test_cfile))
+	  add_executable (net_test $(net_test_cfile))
+	  target_link_libraries (net_test ws2_32)
+	endif ()
+	add_executable (simple $(simple_cfile))
+	add_executable (lc_hist_cat $(lc_hist_cat_cfile))
+	add_executable (print_keys $(print_keys_cfile))
+	EOF
 
 # create directories
 $(dependd):

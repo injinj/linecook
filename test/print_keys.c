@@ -1,6 +1,11 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS /* for strcpy() */
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <linecook/keycook.h>
 
 unsigned int
@@ -94,7 +99,7 @@ main( int argc, char *argv[] )
 "  int a;\n"
 "  switch ( h ) {\n" );
     for ( i = ACTION_PENDING + 1; i < ACTION_MACRO; i++ ) {
-      printf( "    case 0x%x: a = %ld; break;\n",
+      printf( "    case 0x%x: a = %" PRId64 "; break;\n",
               hash_action( lc_action_to_name( (KeyAction) i ) ), i );
     }
     printf(

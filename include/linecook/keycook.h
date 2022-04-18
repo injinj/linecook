@@ -251,8 +251,8 @@ extern KeyCode    KEY_CTRL_A        , /* goto beginning of line */
                   META_CTRL_J       , /* unused */
                   META_CTRL_K       , /* show keybindings */
                   META_CTRL_L       , /* clear show */
-                  META_CTRL_M       , /* unsused */
-                  META_CTRL_N       , /* unused */
+                  META_CTRL_M       , /* complete man */
+                  META_CTRL_N       , /* complete help */
                   META_CTRL_O       , /* unused */
                   META_CTRL_P       , /* show yank kill ring */
                   META_CTRL_Q       , /* unused */

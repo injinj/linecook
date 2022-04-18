@@ -31,7 +31,7 @@ using namespace linecook;
 size_t
 State::quote_line_length( const char32_t *buf,  size_t len ) noexcept
 {
-  if ( ! this->complete_has_quote ) {
+  if ( this->complete_has_quote == 0 ) {
     size_t extra = 2;
     bool   needs_quotes = false;
     if ( this->complete_type != COMPLETE_ENV ) {
@@ -46,6 +46,8 @@ State::quote_line_length( const char32_t *buf,  size_t len ) noexcept
     if ( needs_quotes )
       len += extra;
   }
+  else if ( this->complete_has_quote == 1 )
+    len++;
   return len;
 }
 
@@ -54,7 +56,8 @@ State::quote_line_copy( char32_t *out,  const char32_t *buf,
                         size_t len ) noexcept
 {
   size_t i, j = 0;
-  out[ j++ ] = this->quote_char;
+  if ( this->complete_has_quote == 0 )
+    out[ j++ ] = this->quote_char;
   for ( i = 0; i < len; i++ ) {
     if ( char32_eq( this->quote_char, buf[ i ] ) || buf[ i ] == '\\' )
       out[ j++ ] = '\\';
@@ -86,18 +89,50 @@ State::copy_complete_string( const char32_t *str,  size_t len ) noexcept
   }
 }
 
+bool
+State::starts_with_quote( const char32_t *word,  int word_len ) noexcept
+{
+  int cnt = ( word_len > 0 &&
+              char32_eq( this->quote_char, word[ 0 ] ) );
+  if ( cnt > 0 ) {
+    /* check if quote ends */
+    for ( int i = 1; i < word_len; i++ )
+      if ( char32_eq( this->quote_char, word[ i ] ) )
+        cnt++;
+  }
+  return ( cnt & 1 ) != 0;
+}
+
+bool
+State::ends_with_quote( const char32_t *word,  int word_len ) noexcept
+{
+  int cnt = ( word_len > 0 &&
+              char32_eq( this->quote_char, word[ word_len - 1 ] ) );
+  if ( cnt > 0 ) {
+    /* check if quote starts */
+    for ( int i = 0; i < word_len - 1; i++ )
+      if ( char32_eq( this->quote_char, word[ i ] ) )
+        cnt++;
+  }
+  return ( cnt & 1 ) != 0;
+}
+
 int
-State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
+State::get_complete_args( int &arg_num, int &arg_count, int *arg_off,
                           int *arg_len, size_t args_size ) noexcept
 {
   /* this doesn't account for quoting in the args list */
-  size_t i = args_size,
+  size_t i = args_size, j,
          off, end, sz, coff, clen;
   if ( i-- == 0 )
     return -1;
   /* work backwards from complete off, make sure that it doesn't change */
   coff = this->complete_off;
   clen = this->complete_len;
+  if ( coff > this->edited_len ) {
+    coff = this->edited_len;
+    clen = 0;
+  }
   while ( coff > 0 &&
           ! this->is_spc_char( this->line[ coff - 1 ] ) ) {
     coff--;
@@ -107,8 +142,8 @@ State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
           ! this->is_spc_char( this->line[ coff + clen ] ) ) {
     clen++;
   }
-  arg_off[ i ] = coff;
-  arg_len[ i ] = clen;
+  arg_off[ i ] = (int) coff;
+  arg_len[ i ] = (int) clen;
   for ( off = coff; ; ) {
     end = this->skip_prev_space( off ); /* space splitting args */
     if ( end == 0 )
@@ -119,15 +154,14 @@ State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
     if ( i == 0 )
       return -1;
     i -= 1;
-    arg_off[ i ] = off;
-    arg_len[ i ] = end - off;
+    arg_off[ i ] = (int) off;
+    arg_len[ i ] = (int) ( end - off );
   }
   /* calculated args up to complete phrase, now compute after it */
   sz = args_size - i;
   ::memmove( arg_off, &arg_off[ i ], ( sz + 1 ) * sizeof( arg_off[ 0 ] ) );
   ::memmove( arg_len, &arg_len[ i ], ( sz + 1 ) * sizeof( arg_len[ 0 ] ) );
-  arg_num = sz - 1;
-  arg_count = sz;
+  arg_count = (int) sz;
   for ( end = coff + clen; ; ) {
     off = this->skip_next_space( end );
     if ( off == this->edited_len )
@@ -137,10 +171,64 @@ State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
       end++;
     if ( arg_count == (int) args_size )
       return -1;
-    arg_off[ arg_count ] = off;
-    arg_len[ arg_count ] = end - off;
+    arg_off[ arg_count ] = (int) off;
+    arg_len[ arg_count ] = (int) ( end - off );
     arg_count++;
   }
+  /* merge args that are quoted */
+  const char32_t * i_ptr = NULL, * j_ptr = NULL;
+  int i_off = 0, j_off = 0, i_len = 0, j_len = 0;
+
+  for ( i = 0; i < (size_t) ( arg_count - 1 ); i++ ) {
+    i_off = arg_off[ i ];
+    j_off = 0,
+    i_len = arg_len[ i ];
+    j_len = 0;
+    i_ptr = &this->line[ i_off ];
+    j_ptr = NULL;
+
+    if ( this->starts_with_quote( i_ptr, i_len ) ) {
+      for ( j = i + 1; j < (size_t) arg_count; j++ ) {
+        j_off = arg_off[ j ];
+        j_len = arg_len[ j ];
+        j_ptr = &this->line[ j_off ];
+        if ( this->ends_with_quote( j_ptr, j_len ) )
+          break;
+      }
+      /* if no trailing quote, then quoted to the end */
+      if ( j_ptr != NULL ) {
+        arg_len[ i ] = (int) ( &j_ptr[ j_len ] - i_ptr );
+        size_t k = i;
+        while ( j + 1 < (size_t) arg_count ) {
+          k++; j++;
+          arg_off[ i ] = arg_off[ j ];
+          arg_len[ i ] = arg_len[ j ];
+        }
+        arg_count = (int) ( k + 1 );
+        goto break_loop;
+      }
+    }
+  break_loop:;
+  }
+  arg_num = arg_count;
+  for ( i = 0; i < (size_t) arg_count; i++ ) {
+    if ( this->complete_off >= (size_t) arg_off[ i ] &&
+         this->complete_off <= (size_t) ( arg_off[ i ] + arg_len[ i ] ) ) {
+      arg_num = (int) i;
+      break;
+    }
+  }
+  return 0;
+}
+
+int
+State::get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
+                          int *arg_len, size_t args_size ) noexcept
+{
+  size_t off, i;
+  if ( this->get_complete_args( arg_num, arg_count, arg_off, arg_len,
+                                args_size ) != 0 )
+    return -1;
   /* convert offsets/lengths from utf32 to utf8 */
   char p[ 4 ];
   for ( off = 0; off < this->edited_len; off++ )
@@ -213,7 +301,7 @@ State::reset_completions( void ) noexcept
   this->complete_off  = 0;
   this->complete_len  = 0;
   this->complete_type = COMPLETE_ANY;
-  this->complete_has_quote = false;
+  this->complete_has_quote = 0;
   this->complete_has_glob  = false;
   this->complete_is_prefix = false;
   LineSave::reset( this->comp );
@@ -228,7 +316,7 @@ is_glob( const char32_t *pattern,  size_t patlen )
   }
   return false;
 }
-
+#if 0
 void
 State::init_completion_term( void ) noexcept
 {
@@ -267,6 +355,42 @@ matched_quotes_fwd:;
 
   this->complete_off = coff;
   this->complete_len = cend - coff;
+}
+#endif
+void
+State::init_completion_term( void ) noexcept
+{
+  size_t off  = this->cursor_pos - this->prompt.cols, /* offset into line[] */
+         coff, clen;
+  int arg_num, arg_count, arg_off[ 128 ], arg_len[ 128 ];
+  uint8_t matched_quotes_fwd  = 0,
+          matched_quotes_back = 0;
+
+  this->complete_off = off;
+  this->complete_len = 0;
+  if ( this->get_complete_args( arg_num, arg_count, arg_off,
+                                arg_len, 128 ) == 0 ) {
+    coff = (size_t) arg_off[ arg_num ];
+    clen = (size_t) arg_len[ arg_num ];
+
+    if ( clen > 0 && char32_eq( this->quote_char, this->line[ coff ] ) ) {
+      coff++;
+      clen--;
+      matched_quotes_fwd = 1;
+    }
+    if ( clen > 1 && char32_eq( this->quote_char,
+                                this->line[ coff + clen - 1 ] ) ) {
+      matched_quotes_back = 2;
+      clen--;
+    }
+    this->complete_has_quote = matched_quotes_fwd + matched_quotes_back;
+  }
+  else {
+    coff = off;
+    clen = 0;
+  }
+  this->complete_off = coff;
+  this->complete_len = clen;
 }
 
 bool

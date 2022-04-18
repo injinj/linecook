@@ -1,15 +1,29 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS /* for getenv() */
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <ctype.h>
+#include <time.h>
+#ifndef _MSC_VER
 #include <unistd.h>
 #include <pwd.h>
-#include <time.h>
 #include <sys/time.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#else
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <ws2spi.h>
+#include <mstcpip.h>
+#include <windows.h>
+typedef ptrdiff_t ssize_t;
+#endif
 #include <linecook/linecook.h>
 #include <linecook/keycook.h>
 #include <linecook/xwcwidth9.h>
@@ -100,7 +114,7 @@ State::escape_class( const char32_t *code,  size_t &sz ) noexcept
   sz = 0;
   return SCR_ESC;
 }
-
+#if 0
 ScreenClass
 State::screen_class( const char32_t *code,  size_t &sz ) noexcept
 {
@@ -125,7 +139,7 @@ State::screen_class( const char32_t *code,  size_t &sz ) noexcept
       return SCR_DEL;
   }
 }
-
+#endif
 bool
 State::format_prompt( void ) noexcept
 {
@@ -393,6 +407,21 @@ State::format_prompt( void ) noexcept
   return true;
 }
 
+#ifdef _MSC_VER
+static inline void lc_localtime( time_t t, struct tm &tmbuf ) {
+  ::localtime_s( &tmbuf, &t );
+}
+static inline uint32_t lc_geteuid( void ) {
+  return 1;
+}
+#else
+static inline void lc_localtime( time_t t, struct tm &tmbuf ) {
+  ::localtime_r( &t, &tmbuf );
+}
+static inline uint32_t lc_geteuid( void ) {
+  return ::geteuid();
+}
+#endif
 bool
 State::get_prompt_vars( void ) noexcept
 {
@@ -400,9 +429,7 @@ State::get_prompt_vars( void ) noexcept
   struct addrinfo * res = NULL;
   struct tm         val;
   size_t            l, sz;
-  ssize_t           n;
   LeftPrompt      & pr    = this->prompt;
-  char            * s;
   const char32_t  * p     = cur_fmt( pr );
   size_t            p_len = cur_fmt_len( pr );
 
@@ -428,11 +455,11 @@ State::get_prompt_vars( void ) noexcept
             break;
           case '$': /* prompt $ or # */
             pr.flags |= P_HAS_EUID;
-            pr.euid = ::geteuid();
+            pr.euid = lc_geteuid();
             break;
           case 'v': /* version string */
           case 'V':
-            ::strcpy( pr.vers, "1" ); /* XXX */
+            ::memcpy( pr.vers, "1", 2 ); /* XXX */
             pr.vers_len = 1;
             break;
           case 'h': /* host */
@@ -466,16 +493,19 @@ State::get_prompt_vars( void ) noexcept
             }
             break;
           case 'l': /* ttyXX */
-          case 's': /* sh name */
+          case 's': { /* sh name */
+#ifndef _MSC_VER
+            ssize_t n;
+            char  * s;
             n = ::readlink( 
               ( p[ i ] == 'l' ) ? "/proc/self/fd/0" : "/proc/self/exe",
               tmp, sizeof( tmp ) );
-            if ( n < 0 ) {
+            if ( n < 0 ) { /* readlink failed */
               const char *name = ttyname( 0 );
               if ( name != NULL ) {
                 n = ::strlen( name );
                 if ( (size_t) n < sizeof( tmp ) ) {
-                  ::strcpy( tmp, name );
+                  ::memcpy( tmp, name, n + 1 );
                 }
               }
             }
@@ -494,18 +524,22 @@ State::get_prompt_vars( void ) noexcept
                 if ( ! this->realloc_buf8( &pr.ttyname, pr.ttyname_len, l + 1 ))
                   return false;
                 pr.flags |= P_HAS_TTYNAME;
-                ::strcpy( pr.ttyname, s );
+                ::memcpy( pr.ttyname, s, l );
+                pr.ttyname[ l ] = '\0';
                 pr.ttyname_len = l;
               }
               else {
                 if ( ! this->realloc_buf8( &pr.shname, pr.shname_len, l + 1 ) )
                   return false;
                 pr.flags |= P_HAS_SHNAME;
-                ::strcpy( pr.shname, s );
+                ::memcpy( pr.shname, s, l );
+                pr.shname[ l ] = '\0';
                 pr.shname_len = l;
               }
             }
+#endif
             break;
+          }
           case 'O': /* Ok Status */
             pr.flags |= P_HAS_OK_STATUS;
             pr.cur_stat = this->eval_status;
@@ -538,7 +572,7 @@ State::get_prompt_vars( void ) noexcept
           case '@': /* 12 hr:mi ampm time */
             if ( pr.cur_time == 0 )
               ::time( &pr.cur_time );
-            ::localtime_r( &pr.cur_time, &val );
+            lc_localtime( pr.cur_time, val );
             switch ( p[ i ] ) {
               case 'A': pr.flags |= P_HAS_TIME24; break;
               case 't': pr.flags |= P_HAS_TIME24s; break;
@@ -565,7 +599,7 @@ State::get_prompt_vars( void ) noexcept
             }
             break;
           case 'u': /* user */
-            pr.euid = ::geteuid();
+            pr.euid = lc_geteuid();
             if ( ! this->update_user() )
               return false;
             pr.flags |= P_HAS_EUID;
@@ -594,7 +628,7 @@ State::update_date( time_t t ) noexcept
   char         tmp[ 1024 ];
   size_t       l;
 
-  ::localtime_r( &t, &val );
+  lc_localtime( t, val );
   l = ::strftime( tmp, sizeof( tmp ), "%a %b %d", &val );
   if ( l > 0 ) {
     if ( ! this->make_utf32( tmp, l, pr.date, pr.date_len ) )
@@ -603,6 +637,7 @@ State::update_date( time_t t ) noexcept
   return true;
 }
 
+#ifndef _MSC_VER
 bool
 State::update_cwd( void ) noexcept
 {
@@ -642,6 +677,46 @@ State::update_user( void ) noexcept
   }
   return true;
 }
+#else
+bool
+State::update_cwd( void ) noexcept
+{
+  LeftPrompt & pr = this->prompt;
+  char         tmp[ 1024 ];
+  const char * h;
+  size_t       l;
+
+  if ( GetCurrentDirectory( sizeof( tmp ), tmp ) != NULL ) {
+    if ( ! this->make_utf32( tmp, ::strlen( tmp ), pr.cwd, pr.cwd_len ) )
+      return false;
+    for ( l = pr.cwd_len; l > 0; ) {
+      if ( pr.cwd[ --l ] == '\\' )
+        break;
+    }
+    pr.dir_off = l;
+    if ( pr.home_len == 0 ) {
+      if ( (h = ::getenv( "HOMEPATH" )) != NULL ) {
+        if ( ! this->make_utf32( h, ::strlen( h ), pr.home, pr.home_len ) )
+          return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool
+State::update_user( void ) noexcept
+{
+  LeftPrompt & pr = this->prompt;
+  char         tmp[ 1024 ];
+  DWORD        tmplen = 0;
+  if ( GetUserNameA( tmp, &tmplen ) ) {
+    if ( ! this->make_utf32( tmp, tmplen, pr.user, pr.user_len ) )
+      return false;
+  }
+  return true;
+}
+#endif
 
 bool
 State::get_prompt_geom( void ) noexcept
@@ -746,7 +821,7 @@ State::update_prompt_time( void ) noexcept
   /* if a new second elapsed */
   if ( pr.cur_time != ::time( &new_time ) ) {
     struct tm val;
-    ::localtime_r( &new_time, &val );
+    lc_localtime( new_time, val );
     if ( ( fl & ( P_HAS_DATE | P_HAS_TIME12ampm ) ) != 0 ) {
       /* if a new hour elapsed */
       if ( new_time / 3600 != pr.cur_time / 3600 ) {
@@ -795,7 +870,7 @@ State::update_prompt( bool force ) noexcept
     b = true;
   }
   if ( ( pr.flags & P_HAS_EUID ) != 0 ) {
-    uint32_t euid = ::geteuid();
+    uint32_t euid = lc_geteuid();
     if ( euid != pr.euid ) {
       pr.euid = euid;
       if ( ( pr.flags & P_HAS_USER ) != 0 ) {
@@ -1051,12 +1126,25 @@ State::set_prompt( const char *p,  size_t p_len,  const char *p2,
                    size_t p2_len ) noexcept
 {
   LeftPrompt & pr = this->prompt;
+  bool need_refresh = false;
+  if ( pr.cols != 0 ) {
+    this->erase_prompt();
+    this->move_cursor( 0 );
+    this->cursor_pos = 0;
+    this->left_prompt_needed = true;
+    need_refresh = true;
+  }
   if ( ! this->make_prompt_utf32( p, p_len, pr.fmt, pr.fmt_len ) ||
        ! this->make_prompt_utf32( p2, p2_len, pr.fmt2, pr.fmt2_len ) )
     return this->error;
   this->prompt.flags_mask = 0;
 
-  return this->init_lprompt();
+  int status = this->init_lprompt();
+  if ( need_refresh ) {
+    this->refresh_line();
+    this->output_flush();
+  }
+  return status;
 }
 
 int
@@ -1242,7 +1330,7 @@ State::show_right_prompt( LinePrompt &p ) noexcept
   this->cursor_pos += rprompt_cols;
   this->move_cursor( save );
 }
-
+#ifndef _MSC_VER
 uint64_t
 State::time_ms( void ) noexcept
 {
@@ -1250,7 +1338,17 @@ State::time_ms( void ) noexcept
   ::gettimeofday( &tv, NULL );
   return (long) tv.tv_sec * 1000 + (long) tv.tv_usec / 1000;
 }
-
+#else
+uint64_t
+State::time_ms( void ) noexcept
+{
+  FILETIME ft;
+  uint64_t t;
+  GetSystemTimeAsFileTime( &ft );
+  t = ( (uint64_t) ft.dwHighDateTime << 32 ) | (uint64_t) ft.dwLowDateTime;
+  return ( t / 10ULL ) / 1000ULL;
+}
+#endif
 void
 State::erase_eol_with_right_prompt( void ) noexcept
 {

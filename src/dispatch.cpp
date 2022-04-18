@@ -202,7 +202,8 @@ State::dispatch( void ) noexcept
             this->cursor_output( &this->line[ off ], size );
             if ( w < x )
               this->cursor_erase_eol();
-            x = size - ( this->action == ACTION_VI_REPLACE_CHAR ? 0 : w );
+            x = (int) ( size -
+              ( this->action == ACTION_VI_REPLACE_CHAR ? 0 : w ) );
           }
           /* replace char moves back to char, replace mode after char */
           if ( x != 0 )
@@ -274,7 +275,11 @@ State::dispatch( void ) noexcept
         this->output_str( "^C", 2 );  /* show the interrupt */
       this->reset_state();               /* reset state */
       /* send cursor to the next line, which may be multiple rows */
-      this->output_newline( ( this->line_len - off ) / this->cols + 1 );
+      if ( off < this->line_len )
+        off = ( this->line_len - off ) / this->cols;
+      else
+        off = 0;
+      this->output_newline( off + 1 );
       if ( is_interrupt )
         return LINE_STATUS_INTERRUPT;
       return LINE_STATUS_EXEC;

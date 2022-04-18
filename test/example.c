@@ -10,7 +10,7 @@
 #include <linecook/ttycook.h>
 
 static int
-complete( LineCook *lc,  const char *buf,  size_t off,  size_t len )
+complete( LineCook *lc,  const char *buf,  size_t off,  size_t len,  void *arg )
 {
   CompleteType complete_type = lc_get_complete_type( lc );
   if ( complete_type == COMPLETE_ANY ) {
@@ -21,7 +21,7 @@ complete( LineCook *lc,  const char *buf,  size_t off,  size_t len )
         lc_set_complete_type( lc, COMPLETE_DIRS ); /* change to dir mode */
     }
   }
-  return lc_tty_file_completion( lc, buf, off, len );
+  return lc_tty_file_completion( lc, buf, off, len, arg );
 }
 
 static size_t
@@ -89,25 +89,6 @@ init_tty( TTYCook *tty )
                                ANSI_BLUE    "["     ANSI_NORMAL 
                                ANSI_RED     "\\#"   ANSI_NORMAL
                                ANSI_BLUE    "]"     ANSI_NORMAL "\\$ ",
-                    * promp2 = ANSI_BLUE    "> "    ANSI_NORMAL,
-                    * ins    = ANSI_GREEN   "<-"    ANSI_NORMAL,
-                    * cmd    = ANSI_MAGENTA "|="    ANSI_NORMAL,
-                    * emacs  = ANSI_GREEN   "<e"    ANSI_NORMAL,
-                    * srch   = ANSI_CYAN    "/_"    ANSI_NORMAL,
-                    * comp   = ANSI_MAGENTA "TAB"   ANSI_NORMAL,
-                    * visu   = ANSI_CYAN    "[-]"   ANSI_NORMAL,
-/* doge no smoking* * ouch   =           "\\U0001f436 "   * 🐶 * 
-                                         "\\U0001f6ad "   * 🚭 * 
-                                         "\\U0001f354",   * 🍔 */
-/* XxXxX       */   * ouch   = ANSI_RED   "\\u274cx" 
-                                          "\\u274cx" 
-                                          "\\u274c" ANSI_NORMAL,
-/* red skulls */ /* * ouch   = ANSI_RED  "\\xE2\\x98\\xA0 " 
-                                         "\\xE2\\x98\\xA0 " 
-                                         "\\xE2\\x98\\xA0" ANSI_NORMAL, */
-                    /** ouch   = ANSI_RED     "?1!#?" ANSI_NORMAL,*/
-                    * sel1   = ANSI_RED     "["     ANSI_NORMAL,
-                    * sel2   = ANSI_RED     "]"     ANSI_NORMAL,
                     * brk    = " \t\n\\'`><=;|&{()}",
                     * qc     = " \t\n\\\"'@<>=;|&()#$`?*[!:{";
 
@@ -119,17 +100,9 @@ init_tty( TTYCook *tty )
 
   /* init i/o fd, prompt vars, geometry, SIGWINCH */
   if ( lc_tty_init_fd( tty, STDIN_FILENO, STDOUT_FILENO ) != 0 ||
+       lc_tty_set_color_prompts( tty )                    != 0 ||
+       /* overwrite prompt1 */
        lc_tty_set_prompt( tty, TTYP_PROMPT1, prompt )     != 0 ||
-       lc_tty_set_prompt( tty, TTYP_PROMPT2, promp2 )     != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_INS,   ins )        != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_CMD,   cmd )        != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_EMACS, emacs )      != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_SRCH,  srch )       != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_COMP,  comp )       != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_VISU,  visu )       != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_OUCH,  ouch )       != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_SEL1,  sel1 )       != 0 ||
-       lc_tty_set_prompt( tty, TTYP_R_SEL2,  sel2 )       != 0 ||
        lc_tty_init_geom( tty )                            != 0 ||
        lc_tty_init_sigwinch( tty )                        != 0 )
     return -1;

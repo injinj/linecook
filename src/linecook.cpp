@@ -33,14 +33,14 @@ lc_set_geom( LineCook *state,  int cols,  int lines )
 void
 lc_set_word_break( LineCook *state,  const char *brk,  size_t brk_len )
 {
-  return static_cast<linecook::State *>( state )->
+  static_cast<linecook::State *>( state )->
     set_word_break( brk, brk_len );
 }
 
 void
 lc_set_completion_break( LineCook *state,  const char *brk,  size_t brk_len )
 {
-  return static_cast<linecook::State *>( state )->
+  static_cast<linecook::State *>( state )->
     set_completion_break( brk, brk_len );
 }
 
@@ -48,7 +48,7 @@ void
 lc_set_quotables( LineCook *state,  const char *qc,  size_t qc_len,
                   char quote )
 {
-  return static_cast<linecook::State *>( state )->
+  static_cast<linecook::State *>( state )->
     set_quotables( qc, qc_len, quote );
 }
 
@@ -79,7 +79,23 @@ lc_max_timeout( LineCook *state,  int time_ms )
 void
 lc_clear_line( LineCook *state )
 {
-  return static_cast<linecook::State *>( state )->clear_line();
+  static_cast<linecook::State *>( state )->clear_line();
+}
+
+void
+lc_erase_prompt( LineCook *state )
+{
+  static_cast<linecook::State *>( state )->erase_prompt();
+}
+
+void
+lc_refresh_line( LineCook *state )
+{
+  static_cast<linecook::State *>( state )->refresh_line();
+  if ( static_cast<linecook::State *>( state )->right_prompt_needed )
+    static_cast<linecook::State *>( state )->output_right_prompt();
+  static_cast<linecook::State *>( state )->output_flush();
+  static_cast<linecook::State *>( state )->refresh_needed = false;
 }
 } /* extern "C" */
 
@@ -139,6 +155,7 @@ State::~State() noexcept
   if ( this->mark )             ::free( this->mark );
   if ( this->cvt )              ::free( this->cvt );
   if ( this->multichar )        ::free( this->multichar );
+  this->free_colors();
   this->free_recipe();
 }
 
@@ -239,44 +256,63 @@ void
 State::clear_line( void ) noexcept
 {
   if ( ! this->refresh_needed && ! this->left_prompt_needed ) {
-    this->refresh_needed = true;
     this->refresh_pos = this->cursor_pos;
-    this->move_cursor( 0 );
-    this->cursor_erase_eol();
-    this->output_str( ANSI_ERASE_LINE, ANSI_ERASE_LINE_SIZE );
-    this->output_flush();
+    this->erase_prompt();
   }
+}
+
+void
+State::erase_prompt( void ) noexcept
+{
+  this->move_cursor( 0 );
+  this->cursor_erase_eol();
+  this->output_str( ANSI_ERASE_LINE, ANSI_ERASE_LINE_SIZE );
+  for ( size_t i = 0; i < this->prompt.lines; i++ ) {
+    this->output_fmt( ANSI_CURSOR_UP_FMT, 1 );
+    this->output_str( ANSI_ERASE_LINE, ANSI_ERASE_LINE_SIZE );
+  }
+  this->output_flush();
+  this->refresh_needed = true;
 }
 
 void
 State::refresh_line( void ) noexcept
 {
-  size_t save = this->cursor_pos,
-         ext  = this->erase_len;
-  if ( this->refresh_pos != 0 ) {
-    save = this->refresh_pos;
-    this->refresh_pos = 0;
+  if ( this->left_prompt_needed ) {
+    this->left_prompt_needed = false;
+    this->update_prompt( false );
+    this->output_prompt();
+    this->cursor_pos = this->prompt.cols;
+    this->output_right_prompt();
   }
-  this->cursor_erase_eol(); /* fix display flakyness */
-  this->move_cursor( 0 );   /* redisplay prompt */
-  if ( this->prompt.lines > 0 )
-    this->output_fmt( ANSI_CURSOR_UP_FMT, this->prompt.lines );
-  this->output_prompt();
-  this->cursor_pos = this->prompt.cols;
-  if ( this->edited_len > 0 ) {         /* redisplay line */
-    if ( this->is_visual_mode() )
-      this->refresh_visual_line(); /* visual mode highlighted */
+  else {
+    size_t save = this->cursor_pos,
+           ext  = this->erase_len;
+    if ( this->refresh_pos != 0 ) {
+      save = this->refresh_pos;
+      this->refresh_pos = 0;
+    }
+    this->cursor_erase_eol(); /* fix display flakyness */
+    this->move_cursor( 0 );   /* redisplay prompt */
+    if ( this->prompt.lines > 0 )
+      this->output_fmt( ANSI_CURSOR_UP_FMT, this->prompt.lines );
+    this->output_prompt();
+    this->cursor_pos = this->prompt.cols;
+    if ( this->edited_len > 0 ) {         /* redisplay line */
+      if ( this->is_visual_mode() )
+        this->refresh_visual_line(); /* visual mode highlighted */
+      else
+        this->cursor_output( this->line, this->edited_len );
+    }
+    this->erase_len = ext;              /* reclear the cleared space */
+    if ( this->show_mode != SHOW_NONE )
+      this->output_show();          /* show the show buffer */
     else
-      this->cursor_output( this->line, this->edited_len );
+      this->cursor_erase_eol();     /* erase the rest of the line */
+    if ( save > this->prompt.cols )
+      this->move_cursor( save ); /* move cursor back to save */
+    //this->output_flush();
   }
-  this->erase_len = ext;              /* reclear the cleared space */
-  if ( this->show_mode != SHOW_NONE )
-    this->output_show();          /* show the show buffer */
-  else
-    this->cursor_erase_eol();     /* erase the rest of the line */
-  if ( save > this->prompt.cols )
-    this->move_cursor( save ); /* move cursor back to save */
-  //this->output_flush();
 }
 
 void
@@ -667,7 +703,7 @@ State::incr_decr( int64_t delta ) noexcept
                                this->edited_len - istart );
     size_t  d1 = int_digits( ival ),
             d2 = int_digits( ival + delta ),
-            d3 = max<size_t>( d1, d2 );
+            d3 = max_int<size_t>( d1, d2 );
     /* insert a char for an extra digit or '-' sign */
     if ( d1 != d3 ) {
       if ( ! this->realloc_line( this->edited_len + 1 ) )
@@ -1066,6 +1102,94 @@ State::show_save( size_t cur_idx,  size_t start_idx ) noexcept
   return true;
 }
 
+void
+State::free_colors( void ) noexcept
+{
+  if ( this->color_ht != NULL ) {
+    for ( size_t i = 0; i < LC_COLOR_SIZE; i++ ) {
+      if ( this->color_ht[ i ] != NULL )
+        ::free( this->color_ht[ i ] );
+    }
+    ::free( this->color_ht );
+    this->color_ht    = NULL;
+    this->color_clock = 0;
+    this->color_cnt   = 0;
+  }
+}
+
+uint32_t
+State::color_index( const char32_t *seq,  size_t len,
+                    bool &is_norm,  bool &is_bold ) noexcept
+{
+  uint32_t key = 5381;
+  char     buf[ LC_MAX_COLOR_LEN ];
+  if ( len > LC_MAX_COLOR_LEN )
+    return 0;
+  for ( size_t i = 0; i < len; i++ ) {
+    uint8_t c = (uint8_t) seq[ i ];
+    buf[ i ] = (char) c;
+    key = (uint32_t) c ^ ( ( key << 5 ) + key );
+  }
+  if ( this->color_ht == NULL ) {
+    size_t size = sizeof( this->color_ht[ 0 ] ) * LC_COLOR_SIZE;
+    this->color_ht = (ColorNode **) ::malloc( size );
+    ::memset( this->color_ht, 0, size );
+  }
+  ColorNode * n         = NULL;
+  uint32_t    pos       = 0,
+              min_pos   = 0,
+              min_clock = this->color_clock,
+              miss_cnt  = 0;
+  is_norm = is_bold = false;
+  if ( key == 0x7c6950f8U && len == ANSI_NORMAL_SIZE &&
+       ::memcmp( buf, ANSI_NORMAL, ANSI_NORMAL_SIZE ) == 0 ) {
+    is_norm = true;
+    if ( this->color_ht[ 0 ] != NULL )
+      return 0;
+    n = (ColorNode *) ::malloc( sizeof( ColorNode ) );
+    goto make_node;
+  }
+  if ( key == 0x7c695019U && len == ANSI_BOLD_SIZE &&
+       ::memcmp( buf, ANSI_BOLD, ANSI_BOLD_SIZE ) == 0 ) {
+    is_bold = true;
+    if ( this->color_ht[ 1 ] != NULL )
+      return 0;
+    n = (ColorNode *) ::malloc( sizeof( ColorNode ) );
+    goto make_node;
+  }
+  miss_cnt = 0;
+  for ( pos = key % LC_COLOR_SIZE; ; pos = ( pos + 1 ) % LC_COLOR_SIZE ) {
+    if ( pos <= 1 )
+      continue;
+    n = this->color_ht[ pos ];
+    if ( n == NULL ) {
+      n = (ColorNode *) ::malloc( sizeof( ColorNode ) );
+      break;
+    }
+    if ( n->hash == key && n->len == (uint8_t) len &&
+         ::memcmp( n->color_buf, buf, len ) == 0 ) {
+      n->color_clock = this->color_clock++;
+      return pos;
+    }
+    if ( ++miss_cnt == LC_COLOR_SIZE / 8 ) {
+      pos = min_pos;
+      goto make_node;
+    }
+    if ( n->color_clock < min_clock ) {
+      min_clock = n->color_clock;
+      min_pos   = pos;
+    }
+  }
+make_node:;
+  n->hash = key;
+  n->len  = (uint8_t) len;
+  n->color_clock = this->color_clock++;
+  ::memcpy( n->color_buf, buf, len );
+  this->color_ht[ pos ] = n;
+  this->color_cnt++;
+  return pos;
+}
+
 bool
 State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
                   LineSave **lsptr ) noexcept
@@ -1107,6 +1231,72 @@ State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
     }
   }
   if ( i < spc ) {
+    size_t   len = spc - i,
+             start = i,
+             sz, j;
+    uint32_t color_prefix = 0;
+    bool     wrap = false;
+    for ( j = 0; j < ls_edited_len; j += sz ) {
+      sz = 1;
+      if ( ls_line[ j ] != 0 ) {
+        int w = wcwidth9( ls_line[ j ] );
+        if ( w == 2 ) {
+          if ( i + 1 < spc ) {
+            buf[ i++ ] = ls_line[ j ] | color_prefix;
+            buf[ i++ ] = 0;
+            color_prefix = 0;
+          }
+        }
+        else {
+          ScreenClass cl;
+          sz = ls_edited_len - j;
+          if ( (cl = State::screen_class( &ls_line[ j ], sz )) == SCR_CHAR ) {
+            buf[ i++ ] = ls_line[ j ] | color_prefix;
+            color_prefix = 0;
+            if ( i == spc ) {
+              if ( ! state.left_overflow )
+                break;
+              i = start;
+              wrap = true;
+            }
+          }
+          else if ( cl == SCR_COLOR ) {
+            bool is_norm, is_bold;
+            uint32_t prefix =
+              this->color_index( &ls_line[ j ], sz, is_norm, is_bold );
+            if ( prefix == 0 ) {
+              if ( is_norm && i > 0 )
+                buf[ i - 1 ] |= LC_COLOR_NORMAL << LC_COLOR_SHIFT;
+              else if ( is_bold )
+                color_prefix |= LC_COLOR_BOLD << LC_COLOR_SHIFT;
+            }
+            else if ( ( color_prefix &
+                        ( LC_COLOR_POS_MASK << LC_COLOR_SHIFT ) ) == 0 ) {
+              color_prefix |= prefix << LC_COLOR_SHIFT;
+            }
+          }
+        }
+      }
+    }
+    if ( state.left_overflow && wrap ) {
+      size_t left  = ( i - start ) * sizeof( buf[ 0 ] ),
+             right = len * sizeof( buf[ 0 ] ) - left;
+      char32_t tmp[ 80 ], *sav = tmp;
+      if ( left > sizeof( tmp ) )
+        sav = (char32_t *) ::malloc( left );
+      ::memcpy( sav, &buf[ start ], left );
+      ::memmove( &buf[ start ], &buf[ start + i ], right );
+      ::memcpy( &buf[ start + i ], sav, left );
+      if ( sav != tmp )
+        ::free( sav );
+      i = start + len;
+    }
+    else if ( i < spc ) {
+      set<char32_t>( &buf[ i ], ' ', spc - i );
+    }
+  }
+#if 0
+  if ( i < spc ) {
     size_t len   = spc - i,
            white = 0,
            off   = 0;
@@ -1121,6 +1311,7 @@ State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
     set<char32_t>( &buf[ i + len ], ' ', white );
     i += len;
   }
+#endif
   if ( i >= spc ) {
     if ( state.left_overflow )
       buf[ 1 ] = '<';

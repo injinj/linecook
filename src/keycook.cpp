@@ -1,3 +1,6 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS /* for srcpy() */
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -374,7 +377,7 @@ State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode ) noexcept
   for ( i = 0; i < this->recipe_size; i++ ) {
     if ( this->recipe[ i ].char_sequence == NULL ) {
       if ( ( this->recipe[ i ].valid_mode & mode ) != 0 ) {
-        km.def = i;
+        km.def = (uint8_t) i;
         break;
       }
     }
@@ -392,11 +395,11 @@ State::init_single_key_transitions( LineKeyMode &km,  uint8_t mode ) noexcept
 
       if ( ( this->recipe[ i ].valid_mode & mode ) != 0 ) {
         if ( km.recipe[ c ] == km.def ) {
-          km.recipe[ c ] = i; /* transition for char -> this->recipe[ i ] */
+          km.recipe[ c ] = (uint8_t) i; /* tran for char -> this->recipe[ i ] */
         }
         else if ( c2 == 0 ) {/* the single char sequence wins */
           if ( this->recipe[ km.recipe[ c ] ].char_sequence[ 1 ] != 0 )
-            km.recipe[ c ] = i;
+            km.recipe[ c ] = (uint8_t) i;
         }
         if ( c2 != 0 ) /* if is a multichar sequence */
           km.mc_size++;

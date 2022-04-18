@@ -131,23 +131,39 @@ int lc_add_completion( LineCook *state,  const char *line,  size_t len );
 int lc_max_timeout( LineCook *state,  int time_ms );
 /* Clear line and refresh when get_line called again */
 void lc_clear_line( LineCook *state );
+/* Clear prompt lines after LINE_STATUS_EXEC */
+void lc_erase_prompt( LineCook *state );
+/* Rrefresh line, drawing it again */
+void lc_refresh_line( LineCook *state );
 /* Parse the edited line into arg offsets and lengths for completion */
 int lc_get_complete_geom( LineCook *state, int *arg_num,  int *arg_count,
                           int *arg_off,  int *arg_len,  size_t args_size );
 /* Callbacks for complete, hints, read/write terminal */
 typedef int (* LineCompleteCB )( LineCook *state,  const char *buf,
-                                 size_t off,  size_t len );
+                                 size_t off,  size_t len,  void *arg );
 /*typedef char *(* LineHintsCB )( LineCook *state,  const char *buf,
                                 int *color,  int *bold );*/
 /* These return -1 on error, 0 on EAGAIN, > 0 when part or all fullfilled */
-typedef int (* LineReadCB )( LineCook *state,  void *buf,  size_t len );
-typedef int (* LineWriteCB )( LineCook *state,  const void *buf,  size_t len );
+typedef int (* LineReadCB )( LineCook *state,  void *buf,  size_t len,
+                             void *arg );
+typedef int (* LineWriteCB )( LineCook *state,  const void *buf,  size_t len,
+                              void *arg );
 
 /* Source:  https://en.wikipedia.org/wiki/ANSI_escape_code */
 /* Defs ripped from linenoise */
 /* Code to color terminal -- These are only used in example.c */
 #define ANSI_NORMAL               "\033[0m"
 #define ANSI_NORMAL_SIZE          sizeof( ANSI_NORMAL ) - 1
+#define ANSI_BOLD                 "\033[1m"
+#define ANSI_BOLD_SIZE            sizeof( ANSI_BOLD ) - 1
+#define ANSI_ITALIC               "\033[3m"
+#define ANSI_ITALIC_SIZE          sizeof( ANSI_ITALIC ) - 1
+#define ANSI_UNDERLINE            "\033[4m"
+#define ANSI_UNDERLINE_SIZE       sizeof( ANSI_UNDERLINE ) - 1
+#define ANSI_REVERSE              "\033[7m"
+#define ANSI_REVERSE_SIZE         sizeof( ANSI_REVERSE ) - 1
+#define ANSI_STRIKETHROUGH        "\033[9m"
+#define ANSI_STRIKETHROUGH_SIZE   sizeof( ANSI_STRIKETHROUGH ) - 1
 #define ANSI_RED                  "\033[91m"
 #define ANSI_RED_SIZE             sizeof( ANSI_RED ) - 1
 #define ANSI_GREEN                "\033[92m"
@@ -160,6 +176,10 @@ typedef int (* LineWriteCB )( LineCook *state,  const void *buf,  size_t len );
 #define ANSI_MAGENTA_SIZE         sizeof( ANSI_MAGENTA ) - 1
 #define ANSI_CYAN                 "\033[96m"
 #define ANSI_CYAN_SIZE            sizeof( ANSI_CYAN ) - 1
+#define ANSI_24BIT_FG_FMT         "\033[38;2;%d;%d;%dm"
+#define ANSI_24BIT_BG_FMT         "\033[48;2;%d;%d;%dm"
+#define ANSI_256_FG_FMT           "\033[38;5;%dm"
+#define ANSI_256_BG_FMT           "\033[48;5;%dm"
 /* faint, green */
 #define ANSI_DEVOLVE              "\033[2;32m"
 #define ANSI_DEVOLVE_SIZE         sizeof( ANSI_DEVOLVE ) - 1
@@ -216,6 +236,7 @@ typedef int (* LineWriteCB )( LineCook *state,  const void *buf,  size_t len );
 #define ANSI_CURSOR_DOWN_FMT      "\033[%dB"
 #define ANSI_CURSOR_DOWN_ONE      "\033[1B"
 #define ANSI_CURSOR_DOWN_ONE_SIZE sizeof( ANSI_CURSOR_DOWN_ONE ) - 1
+
 #if 0
 /* Not used at the moment ... */
 /* CUP (Cursor position)
@@ -387,6 +408,26 @@ typedef struct RecipeList_s {
   RecipeNode *hd, *tl;
 } RecipeList;
 
+/* use upper bits of char32_t to hold color info */
+#define LC_COLOR_BITS      9
+#define LC_COLOR_SHIFT     21
+#define LC_COLOR_SIZE      ( 1U << LC_COLOR_BITS )
+#define LC_COLOR_NORMAL    ( 1U << 10 )
+#define LC_COLOR_BOLD      ( 1U << 9 )
+#define LC_COLOR_MASK      ( ( 1U << 11 ) - 1 )
+#define LC_COLOR_POS_MASK  ( ( 1U << 9 ) - 1 )
+#define LC_COLOR_CHAR_MASK ( ( 1U << 21 ) - 1 )
+  /* <esc> [ 38 ; 2 ; 123 ; 123 ; 123 ; m   */
+#define LC_MAX_COLOR_LEN 23
+typedef struct ColorNode_s ColorNode;
+struct ColorNode_s { /* cache colors */
+  uint32_t hash,
+           color_clock;
+  uint8_t  color_buf[ LC_MAX_COLOR_LEN ];
+  uint8_t  len;
+                            /*   1   2 34 5 6 7 890 1 234 5 678 9 0 1 = 21 */
+};
+
 /* Current state:  Line contains the current edit, edited_len is the extent
  * until enter pressed, then line_len contains the length */
 struct LineCook_s {
@@ -395,6 +436,9 @@ struct LineCook_s {
   LineReadCB     read_cb;      /* Read from terminal */
   LineWriteCB    write_cb;     /* Write to terminal */
   LineCompleteCB complete_cb;  /* Modify completion db based on input */
+  void         * read_arg,     /* arg for read_cb */
+               * write_arg,    /* arg for write_cb */
+               * complete_arg; /* arg for for completions */
   /*LineHintsCB    hints_cb;     * Hint for current input */
   LineCookInput  in;
 
@@ -530,6 +574,10 @@ struct LineCook_s {
                search;             /* Search term mode */
   KeyRecipe  * last_repeat_recipe; /* Last repeatable recipe */
   RecipeList   recipe_list;
+
+  ColorNode ** color_ht;
+  uint32_t     color_cnt,
+               color_clock;
 };
 
 #ifdef __cplusplus
@@ -678,13 +726,13 @@ struct State : public LineCook_s {
 
   /* Callbacks */
   int read( void *buf, size_t len ) { /* do the C callbacks */
-    return this->read_cb( this, buf, len );
+    return this->read_cb( this, buf, len, this->read_arg );
   }
   int write( const void *buf, size_t len ) {
-    return this->write_cb( this, buf, len );
+    return this->write_cb( this, buf, len, this->write_arg );
   }
   int completion( const char *buf, size_t off, size_t len ) {
-    return this->complete_cb( this, buf, off, len );
+    return this->complete_cb( this, buf, off, len, this->complete_arg );
   }
   /*char *hints( const char *buf,  int &color,  int &bold ) {
     return this->hints_cb( this, buf, &color, &bold );
@@ -725,6 +773,7 @@ struct State : public LineCook_s {
   void            erase_eol_with_right_prompt( void ) noexcept;
   /* Clear line and refresh */
   void clear_line( void ) noexcept;
+  void erase_prompt( void ) noexcept;
   /* Geom */
   int set_geom( int num_cols, int num_lines ) noexcept;
   /* Word break chars */
@@ -951,8 +1000,12 @@ struct State : public LineCook_s {
                       size_t to ) noexcept; /* Utf8 length of this->line */
   int    line_copy( char *out, size_t from,
                     size_t to ) noexcept; /* Utf8 copy line */
+  int    get_complete_args( int &arg_num, int &arg_count, int *arg_off,
+                            int *arg_len, size_t args_size ) noexcept;
   int    get_complete_geom( int &arg_num, int &arg_count, int *arg_off,
                             int *arg_len, size_t args_size ) noexcept;
+  bool   starts_with_quote( const char32_t *word,  int word_len ) noexcept;
+  bool   ends_with_quote( const char32_t *word,  int word_len ) noexcept;
   /* Add to yank buffer */
   void reset_yank( void ) noexcept;
   void add_yank( const char32_t *buf,
@@ -1062,7 +1115,11 @@ struct State : public LineCook_s {
   void fix_marks( size_t mark_idx ) noexcept;
   void add_mark( size_t mark_off, size_t mark_idx, char32_t c ) noexcept;
   bool get_mark( size_t &mark_off, size_t &mark_idx, char32_t c ) noexcept;
-
+  void free_colors( void ) noexcept;
+  uint32_t color_index( const char32_t *seq,  size_t len,
+                        bool &is_norm,  bool &is_bold ) noexcept;
+  void color_output( char32_t c,
+                     void (State::*output_char)( char32_t ) ) noexcept;
   /* Buffer reallocs (buf is a ptr to a ptr) */
   bool do_realloc( void *buf, size_t &len,
                    size_t newlen ) noexcept; /* Expand */
@@ -1110,6 +1167,31 @@ struct State : public LineCook_s {
            this->realloc_buf32( &this->comp_buf, this->comp_buflen, needed );
   }
 };
+
+inline ScreenClass
+State::screen_class( const char32_t *code,  size_t &sz ) noexcept
+{
+  /* sz must be >= 1 */
+  switch ( code[ 0 ] ) {
+    default:
+      sz = 1;
+      if ( code[ 0 ] < ' ' )
+        return SCR_CTRL;
+      return SCR_CHAR;
+    case 27:
+      if ( sz > 1 ) {
+        size_t xsz = sz - 1;
+        ScreenClass cl = State::escape_class( &code[ 1 ], xsz );
+        sz = xsz + 1;
+        return cl;
+      }
+      sz = 1;
+      return SCR_ESC;
+    case 127:
+      sz = 1;
+      return SCR_DEL;
+  }
+}
 
 inline bool State::is_emacs_mode( void ) noexcept
   { return State::test( this->in.mode, EMACS_MODE ) != 0; }
@@ -1210,10 +1292,10 @@ inline void State::toggle_visual_mode( void ) noexcept {
 template <class I> static inline I align( I sz,  I a ) {
   return ( sz + ( a - 1 ) ) & ~( a - 1 );
 }
-template <class I> static inline I min( I a,  I b ) {
+template <class I> static inline I min_int( I a,  I b ) {
   return ( a < b ? a : b );
 }
-template <class I> static inline I max( I a,  I b ) {
+template <class I> static inline I max_int( I a,  I b ) {
   return ( a > b ? a : b );
 }
 
@@ -1232,10 +1314,10 @@ static inline size_t
 uint_to_str( uint64_t v,  char *buf,  size_t digits ) {
   for ( size_t pos = digits; pos > 1; ) {
     const uint64_t q = v / 10, r = v % 10;
-    buf[ --pos ] = '0' + r;
+    buf[ --pos ] = '0' + (char) r;
     v = q;
   }
-  buf[ 0 ] = '0' + v;
+  buf[ 0 ] = '0' + (char) v;
   return digits;
 }
 
@@ -1301,6 +1383,16 @@ str_to_int( const char32_t *str,  size_t len )
 static inline bool
 char32_eq( char c,  char32_t c32 ) {
   return (uint8_t) c == (uint8_t) c32 && c32 < 128;
+}
+
+static inline bool
+char32_compare( const char *c,  const char32_t *c32,  size_t len ) {
+  while ( len > 0 ) {
+    bool eq = (uint8_t) *c == (uint8_t) *c32 && *c32 < 128;
+    if ( ! eq ) return false;
+    c++; c32++; len -= 1;
+  }
+  return true;
 }
 
 template <class T> static inline void
@@ -1399,7 +1491,7 @@ casecmp( const T *a,  const T *b,  size_t len ) {
 
 template <class T> static inline int
 cmp( const T *a,  const T *b,  size_t alen,  size_t blen ) {
-  size_t len = min<size_t>( alen, blen );
+  size_t len = min_int<size_t>( alen, blen );
   for ( size_t i = 0; i < len; i++ )
     if ( a[ i ] != b[ i ] )
       return ( a[ i ] > b[ i ] ? 1 : -1 );
@@ -1408,7 +1500,7 @@ cmp( const T *a,  const T *b,  size_t alen,  size_t blen ) {
 
 template <class T> static inline int
 casecmp( const T *a,  const T *b,  size_t alen,  size_t blen ) {
-  size_t len = min<size_t>( alen, blen );
+  size_t len = min_int<size_t>( alen, blen );
   for ( size_t i = 0; i < len; i++ ) {
     T x = a[ i ], y = b[ i ];
     if ( x != y ) {

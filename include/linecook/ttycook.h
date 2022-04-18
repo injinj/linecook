@@ -1,5 +1,7 @@
 #ifndef __linecook__ttycook_h__
 #define __linecook__ttycook_h__
+/* va_list */
+#include <stdarg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,8 +85,12 @@ typedef struct TTYCook_s {
              lines,
              approx_ticks;  /* approximate time passed since hist check */
   TTYHistory hist;          /* history file data */
+#ifndef _MSC_VER
   void     * raw,           /* termios in raw mode */
            * orig;          /* original termios */
+#else
+  void     * win_vt;
+#endif
   size_t     off[ TTYP_MAX ];  /* offsets into prompt_buf[] for prompts */
   char     * prompt_buf;    /* buffer for prompts above */
   size_t     prompt_len,    /* length of buffer used */
@@ -106,10 +112,14 @@ void lc_tty_set_locale( void );
 TTYCook *lc_tty_create( LineCook *lc );
 /* Free it */
 void lc_tty_release( TTYCook *tty );
-/* Set simple default prompt */
+/* Set simple default prompt (nocolor) */
 int lc_tty_set_default_prompt( TTYCook *tty,  TTYPrompt pnum );
-/* Set all simple default prompts */
+/* Set all simple default prompts (nocolor) */
 int lc_tty_set_default_prompts( TTYCook *tty );
+/* Set simple default prompt w/color */
+int lc_tty_set_color_prompt( TTYCook *tty,  TTYPrompt pnum );
+/* Set all simple default prompts w/color */
+int lc_tty_set_color_prompts( TTYCook *tty );
 /* Set one of the prompts, this buffers the prompts to prevent unnecessary
  * prompt updates */
 int lc_tty_set_prompt( TTYCook *tty,  TTYPrompt pnum,  const char *p );
@@ -159,9 +169,22 @@ int lc_tty_init_geom( TTYCook *tty );
 void lc_tty_get_terminal_geom( int fd,  int *cols,  int *lines );
 /* Clear line and refresh when get_line() called again */
 void lc_tty_clear_line( TTYCook *tty );
+void lc_tty_erase_prompt( TTYCook *tty );
+void lc_tty_refresh_line( TTYCook *tty );
+/* printf to output */
+int lc_tty_print( TTYCook *tty,  const char *fmt,  ... )
+#ifndef _MSC_VER
+    __attribute__((format(printf,2,3)));
+#else
+   ;
+#endif
+int lc_tty_printv( TTYCook *tty,  const char *fmt,  va_list args );
+int lc_tty_write( TTYCook *tty,  const void *buf,  int buflen );
+/* flush prompt to output */
+int lc_tty_show_prompt( TTYCook *tty );
 /* Do file completeion */
 int lc_tty_file_completion( LineCook *lc,  const char *buf,  size_t off,
-                            size_t len );
+                            size_t len,  void *arg );
 #ifdef __cplusplus
 }
 
@@ -202,6 +225,8 @@ struct TTY : public TTYCook_s {
   int reset_non_block( void ) noexcept;
   int normal_mode( void ) noexcept;
   void clear_line( void ) noexcept;
+  void erase_prompt( void ) noexcept;
+  void refresh_line( void ) noexcept;
   /* completion */
   int get_completion_cmd( char *cmd,  size_t len,  int *arg_num,
                           int *arg_count,  int *arg_off,
@@ -209,6 +234,7 @@ struct TTY : public TTYCook_s {
   int get_completion_term( char *term,  size_t len ) noexcept;
   /* line edit */
   int push_line( const char *line,  size_t len ) noexcept; /* push line back */
+  int init_get_line( void ) noexcept;
   int get_line( void ) noexcept;         /* same as lc_tty_get_line() */
   /* wait for i/o */
   int poll_wait( int time_ms ) noexcept; /* same as lc_tty_poll_wait() */

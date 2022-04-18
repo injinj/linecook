@@ -27,7 +27,7 @@ ku_utf8_to_utf32( const char *src,  size_t len,  char32_t *cdpt )
 
     for (;;) {
       if ( curr == End )
-        return i;
+        return (int) i;
       if ( curr == Err )
         return -1;
       if ( i == len )
@@ -156,25 +156,25 @@ ku_utf32_to_utf8_copy( const char32_t *src,  size_t len,  char *dst,
 int
 ku_islocase_utf32( char32_t c )
 {
-  return iswlower( c );
+  return iswlower( (wint_t) c );
 }
 
 int
 ku_isupcase_utf32( char32_t c )
 {
-  return iswupper( c );
+  return iswupper( (wint_t) c );
 }
 
 char32_t
 ku_locase_utf32( char32_t c )
 {
-  return towlower( c );
+  return towlower( (wint_t) c );
 }
 
 char32_t
 ku_upcase_utf32( char32_t c )
 {
-  return towupper( c );
+  return towupper( (wint_t) c );
 }
 
 }

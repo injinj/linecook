@@ -1,12 +1,17 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS /* for getenv() */
+#endif
 #include <stdio.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <ctype.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
+
+#ifndef _MSC_VER
+#include <unistd.h>
 #include <poll.h>
 #include <time.h>
 #include <sys/ioctl.h>
@@ -15,6 +20,77 @@
 #include <termios.h>
 #include <dirent.h>
 #include <pwd.h>
+
+typedef struct stat lc_stat64;
+
+static int lc_unlnk( const char *fn ) { return ::unlink( fn ); }
+static int lc_close( int fd ) { return ::close( fd ); }
+static int lc_fstat( int fd, lc_stat64 *stat ) { return ::fstat( fd, stat ); }
+static ssize_t lc_read( int fd, void *buf, size_t buflen ) {
+  return ::read( fd, buf, buflen );
+}
+static ssize_t lc_write( int fd, const void *buf, size_t buflen ) {
+  return ::write( fd, buf, buflen );
+}
+static int lc_open( const char *fn, int flags, int mode ) {
+  return ::open( fn, flags, mode );
+}
+static int lc_access( const char *fn, int mode ) {
+  return ::access( fn, mode );
+}
+static off_t lc_lseek( int fd, off_t off, int whence ) {
+  return ::lseek( fd, off, whence );
+}
+static off_t lc_stat( const char *fn, lc_stat64 *stat ) {
+  return ::stat( fn, stat );
+}
+static off_t lc_sleep( int ms ) {
+  return ::usleep( ms * 1000 );
+}
+
+#else
+
+#include <windows.h>
+#include <io.h>
+#include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <share.h>
+#include <linecook/console_vt.h>
+
+typedef volatile int sig_atomic_t;
+typedef ptrdiff_t ssize_t;
+typedef struct __stat64 lc_stat64;
+
+static int lc_unlnk( const char *fn ) { return remove( fn ); }
+static int lc_close( int fd ) { return _close( fd ); }
+static int lc_fstat( int fd, lc_stat64 *stat ) { return _fstat64( fd, stat ); }
+static ssize_t lc_read( int fd, void *buf, size_t buflen ) {
+  return _read( fd, buf, (uint32_t) buflen );
+}
+static ssize_t lc_write( int fd, const void *buf, size_t buflen ) {
+  return _write( fd, buf, (uint32_t) buflen );
+}
+#define O_CLOEXEC 0
+static int lc_open( const char *fn, int flags, int mode ) {
+  return _open( fn, flags | _O_BINARY , mode );
+}
+#define R_OK 2
+#define W_OK 4
+static int lc_access( const char *fn, int mode ) {
+  return _access( fn, mode );
+}
+static int64_t lc_lseek( int fd, int64_t off, int whence ) {
+  return _lseeki64( fd, off, whence );
+}
+static off_t lc_stat( const char *fn, lc_stat64 *stat ) {
+  return _stat64( fn, stat );
+}
+static void lc_sleep( int ms ) {
+  Sleep( ms );
+}
+#endif
+
 #include <linecook/linecook.h>
 #include <linecook/ttycook.h>
 
@@ -32,7 +108,21 @@ const char *ttyp_def_prompt[] = {
   "[-]",     /* TTYP_R_VISU   shows visual select */
   "!@!1&",   /* TTYP_R_OUCH   shows bell */
   "[",       /* TTYP_R_SEL1   enclose selection */
-  "]",       /* TTYP_R_SEL2 */
+  "]"        /* TTYP_R_SEL2 */
+};
+
+const char *ttyp_color_prompt[] = {
+  ANSI_YELLOW  "[\\#]" ANSI_NORMAL " " ANSI_GREEN "\\w" ANSI_NORMAL "\\$ ",
+  ANSI_BLUE    "> "    ANSI_NORMAL, /* TTYP_PROMPT2  no colors, text prompts */
+  ANSI_GREEN   "<-i"   ANSI_NORMAL, /* TTYP_R_INS    shows vi insert mode */
+  ANSI_MAGENTA "|=c"   ANSI_NORMAL, /* TTYP_R_CMD    shows vi command mode */
+  ANSI_GREEN   "<-e"   ANSI_NORMAL, /* TTYP_R_EMACS  shows emacs mode */
+  ANSI_CYAN    "/_?"   ANSI_NORMAL, /* TTYP_R_SRCH   shows history search */
+  ANSI_MAGENTA "TAB"   ANSI_NORMAL, /* TTYP_R_COMP   shows TAB completion */
+  ANSI_CYAN    "[-]"   ANSI_NORMAL, /* TTYP_R_VISU   shows visual select */
+  ANSI_RED     "!@!1&" ANSI_NORMAL, /* TTYP_R_OUCH   shows bell */
+  ANSI_RED     "["     ANSI_NORMAL, /* TTYP_R_SEL1   enclose selection */
+  ANSI_RED     "]"     ANSI_NORMAL  /* TTYP_R_SEL2 */
 };
 
 void
@@ -73,6 +163,21 @@ lc_tty_set_default_prompts( TTYCook *tty )
 }
 
 int
+lc_tty_set_color_prompt( TTYCook *tty,  TTYPrompt pnum )
+{
+  return lc_tty_set_prompt( tty, pnum, ttyp_color_prompt[ pnum ] );
+}
+
+int
+lc_tty_set_color_prompts( TTYCook *tty )
+{
+  int i;
+  for ( i = 0; i < TTYP_MAX; i++ )
+    lc_tty_set_prompt( tty, (TTYPrompt) i, ttyp_color_prompt[ i ] );
+  return 0;
+}
+
+int
 lc_tty_set_prompt( TTYCook *tty,  TTYPrompt pnum,  const char *p )
 {
   return static_cast<linecook::TTY *>( tty )->set_prompt( pnum, p );
@@ -95,7 +200,10 @@ geom_changed_on_signal( int )
 int
 lc_tty_init_sigwinch( TTYCook * /*tty*/ )
 {
+#ifndef _MSC_VER
   ::signal( SIGWINCH, geom_changed_on_signal );
+#else
+#endif
   return 0;
 }
 
@@ -210,14 +318,23 @@ lc_tty_init_geom( TTYCook *tty )
 void
 lc_tty_get_terminal_geom( int fd,  int *cols,  int *lines )
 {
-  struct winsize ws;
   const char *l, *c;
 
   *lines = *cols = 0;
+#ifndef _MSC_VER
+  struct winsize ws;
   if ( ::ioctl( fd, TIOCGWINSZ, &ws ) != -1 ) {
     *cols  = ws.ws_col;
     *lines = ws.ws_row;
   }
+#else
+  HANDLE h = (HANDLE) _get_osfhandle( fd );
+  CONSOLE_SCREEN_BUFFER_INFO b;
+  if ( GetConsoleScreenBufferInfo( h, &b ) ) {
+    *cols  = b.srWindow.Right  - b.srWindow.Left;
+    *lines = b.srWindow.Bottom - b.srWindow.Top;
+  }
+#endif
   if ( *lines == 0 || *cols == 0 ) {
     if ( (l = getenv( "LINES" )) != NULL &&
          (c = getenv( "COLUMNS" )) != NULL ) {
@@ -237,34 +354,118 @@ lc_tty_clear_line( TTYCook *tty )
   return static_cast<linecook::TTY *>( tty )->clear_line();
 }
 
-static int
-do_read( LineCook *state,  void *buf,  size_t buflen )
+void
+lc_tty_erase_prompt( TTYCook *tty )
 {
-  linecook::TTY *tty = static_cast<linecook::TTY *>( state->closure );
-  ssize_t n = ::read( tty->in_fd, buf, buflen );
-  if ( n < 0 ) {
-    if ( errno == EAGAIN || errno == EINTR )
-      return 0;
-    return -1;
-  }
+  return static_cast<linecook::TTY *>( tty )->erase_prompt();
+}
+
+void
+lc_tty_refresh_line( TTYCook *tty )
+{
+  return static_cast<linecook::TTY *>( tty )->refresh_line();
+}
+
+int
+lc_tty_print( TTYCook *tty,  const char *fmt,  ... )
+{
+  va_list args;
+  va_start( args, fmt );
+  int n = lc_tty_printv( tty, fmt, args );
+  va_end( args );
   return n;
 }
 
+int
+lc_tty_printv( TTYCook *tty,  const char *fmt,  va_list args )
+{
+  char buf[ 8 * 1024 ];
+  int n = ::vsnprintf( buf, sizeof( buf ), fmt, args );
+  return lc_tty_write( tty, buf, n );
+}
+
+int
+lc_tty_write( TTYCook *tty,  const void *buf,  int buflen )
+{
+  if ( tty->lc_status == LINE_STATUS_EXEC )
+    lc_tty_erase_prompt( tty );
+  else
+    lc_tty_clear_line( tty ); /* flushes output */
+  lc_tty_normal_mode( tty );
+
+  LineCook *lc = static_cast<linecook::TTY *>( tty )->lc;
+  int n = static_cast<linecook::State *>( lc )->write( buf, buflen );
+  if ( tty->lc_status != LINE_STATUS_EXEC )
+    for ( size_t i = 0; i < lc->prompt.lines; i++ )
+      static_cast<linecook::State *>( lc )->write( "\n", 1 );
+
+  lc_tty_raw_mode( tty );
+  lc_tty_refresh_line( tty );
+  return n;
+}
+
+int
+lc_tty_show_prompt( TTYCook *tty )
+{
+  int n;
+  n = static_cast<linecook::TTY *>( tty )->init_get_line();
+  if ( n != 0 )
+    return n;
+  lc_tty_refresh_line( tty );
+  return 0;
+}
+
 static int
-do_write( LineCook *state,  const void *buf,  size_t buflen )
+do_read( LineCook *state,  void *buf,  size_t buflen,  void * ) noexcept
 {
   linecook::TTY *tty = static_cast<linecook::TTY *>( state->closure );
-  ssize_t n = ::write( tty->out_fd, buf, buflen );
+#ifndef _MSC_VER
+  ssize_t n = lc_read( tty->in_fd, buf, buflen );
   if ( n < 0 ) {
     if ( errno == EAGAIN || errno == EINTR )
       return 0;
     return -1;
   }
-  return n;
+  return (int) n;
+#else
+  linecook::ConsoleVT * vt = (linecook::ConsoleVT *) tty->win_vt;
+  if ( vt == NULL )
+    return -1;
+  for (;;) {
+    if ( vt->input_off < vt->input_avail ) {
+      size_t len = vt->input_avail - vt->input_off;
+      if ( len > buflen )
+        len = buflen;
+      ::memcpy( buf, &vt->input_buf[ vt->input_off ], len );
+      vt->input_off += len;
+      return (int) len;
+    }
+    bool b = vt->read_input();
+    if ( vt->sigwinch ) {
+      vt->sigwinch = false;
+      my_geom_changed = 1;
+    }
+    if ( ! b )
+      return 0;
+  }
+#endif
+}
+
+static int
+do_write( LineCook *state,  const void *buf,  size_t buflen,  void * ) noexcept
+{
+  linecook::TTY *tty = static_cast<linecook::TTY *>( state->closure );
+  ssize_t n = lc_write( tty->out_fd, buf, buflen );
+  if ( n < 0 ) {
+    if ( errno == EAGAIN || errno == EINTR )
+      return 0;
+    return -1;
+  }
+  return (int) n;
 }
 
 static size_t
-catp( char *p,  const char *q,  const char *r,  const char *s = NULL )
+catp( char *p,  const char *q,  const char *r,  const char *s = NULL ) noexcept
 {
   size_t i = 0;
   while ( *q != '\0' && i < 1023 )
@@ -335,10 +536,11 @@ is_dotdir( const char *p,  size_t plen )
   return false;
 }
 
+#ifndef _MSC_VER
 extern char ** environ;
 int
 lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
-                        size_t len )
+                        size_t len,  void * )
 {
   DIR           * dirp;
   struct dirent * dp;
@@ -470,7 +672,11 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
         }
         else {
           user[ 0 ] = '\0';
+#ifndef _MSC_VER
           p = getenv( "HOME" ); /* my home */
+#else
+          p = getenv( "HOMEPATH" );
+#endif
           if ( p != NULL && ::strlen( p ) < sizeof( pw_dir ) ) {
             ::strcpy( pw_dir, p );
             p = pw_dir;
@@ -519,7 +725,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
       dirp = ::opendir( dirpath );
       if ( dirp != NULL ) {
         while ( (dp = ::readdir( dirp )) != NULL ) {
-          struct stat s;
+          lc_stat64 s;
 #ifdef __linux__
           unsigned char d_type  = dp->d_type;
           bool          is_link = ( d_type == DT_LNK );
@@ -564,7 +770,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
             if ( is_link || ctype == COMPLETE_EXES || d_type == 0 ) {
               if ( dirpath == path3 )
                 ::strcpy( &path3[ j ], dp->d_name );
-              if ( ::stat( dirpath, &s ) == 0 ) {
+              if ( lc_stat( dirpath, &s ) == 0 ) {
                 switch ( s.st_mode & S_IFMT ) {
                   case S_IFDIR:
                     d_type = X_DIR_TYPE;
@@ -629,6 +835,14 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
   }
   return cnt;
 }
+#else
+int
+lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
+                        size_t len,  void *arg )
+{
+  return 0;
+}
+#endif
 } /* extern "C" */
 
 using namespace linecook;
@@ -658,8 +872,12 @@ TTY::~TTY() noexcept
   this->lc     = NULL;
   this->in_fd  = -1;
   this->out_fd = -1;
+#ifndef _MSC_VER
   if ( this->raw != NULL )        ::free( this->raw );
   if ( this->orig != NULL )       ::free( this->orig );
+#else
+  if ( this->win_vt != NULL )     ::free( this->win_vt );
+#endif
   if ( this->prompt_buf != NULL ) ::free( this->prompt_buf );
   if ( this->push_buf != NULL )   ::free( this->push_buf );
   if ( this->line != NULL )       ::free( this->line );
@@ -771,7 +989,7 @@ TTY::read_history( int rfd,  size_t max_len,  size_t &line_cnt ) noexcept
       sz = sizeof( buf );
     if ( sz == 0 )
       return amount_consumed;
-    n = ::read( rfd, &buf[ off ], sizeof( buf ) - off );
+    n = lc_read( rfd, &buf[ off ], sizeof( buf ) - off );
     if ( n <= 0 )
       return amount_consumed;
     file_off += n;
@@ -817,10 +1035,9 @@ TTY::open_history( const char *fn,  bool reinitialize ) noexcept
 
   if ( this->acquire_history_lck( fn, lckpath ) != 0 )
     goto failed;
-
-  afd = ::open( fn, O_WRONLY | O_APPEND | O_CLOEXEC, 0666 );
+  afd = lc_open( fn, O_WRONLY | O_APPEND | O_CLOEXEC, 0666 );
   if ( afd < 0 ) { /* doesn't exist, create it atomically */
-    afd = ::open( fn, O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_CLOEXEC,
+    afd = lc_open( fn, O_WRONLY | O_CREAT | O_EXCL | O_APPEND | O_CLOEXEC,
                   0666 );
   }
   else if ( reinitialize ) { /* exists, look for hist rotations */
@@ -829,21 +1046,21 @@ TTY::open_history( const char *fn,  bool reinitialize ) noexcept
     path[ len ] = '.';
     for ( i = 1; /*i < 25*/; i++ ) { /* XXX max at 25, 25000 lines */
       uint_to_string( i, &path[ len + 1 ] );
-      if ( ::access( path, R_OK | W_OK ) != 0 )
+      if ( lc_access( path, R_OK | W_OK ) != 0 )
         break;
     }
     /* load files from N to 1 */
     for ( j = i - 1; j > 0; j-- ) {
       uint_to_string( j, &path[ len + 1 ] );
-      rfd = ::open( path, O_RDONLY | O_CLOEXEC );
+      rfd = lc_open( path, O_RDONLY | O_CLOEXEC, 0 );
       if ( rfd >= 0 ) {
         size_t line_cnt = 0;
         this->read_history( rfd, 0, line_cnt );
-        ::close( rfd );
+        lc_close( rfd );
       }
     }
   }
-  ::unlink( lckpath );
+  lc_unlnk( lckpath );
   if ( afd < 0 )
     goto failed;
 
@@ -866,7 +1083,7 @@ failed:;
   ::perror( fn );
   ::free( fncpy );
   if ( afd >= 0 )
-    ::close( afd );
+    lc_close( afd );
   return -1;
 }
 
@@ -874,56 +1091,56 @@ int
 TTY::check_history( void ) noexcept
 {
   TTYHistory &h = this->hist;
-  struct stat x, y;
+  lc_stat64   x, y;
   int rfd, afd;
   bool is_rotated = false;
 
   if ( h.filename == NULL )
     return 0;
-  if ( ::fstat( h.fd, &x ) != 0 )
+  if ( lc_fstat( h.fd, &x ) != 0 )
     return -1;
   /* check rotation and load lines logged since the last read */
   if ( h.fsize < (size_t) x.st_size ||
        ( this->state & TTYS_ROTATE_HISTORY ) != 0 ||
        h.last_rotation_check + 60 < h.last_check ) {
     h.last_rotation_check = h.last_check;
-    rfd = ::open( h.filename, O_RDONLY | O_CLOEXEC );
+    rfd = lc_open( h.filename, O_RDONLY | O_CLOEXEC, 0 );
     if ( rfd >= 0 ) {
       /* check that the files refer to the same ino */
-      if ( ::fstat( rfd, &y ) == 0 && x.st_ino != y.st_ino ) {
+      if ( lc_fstat( rfd, &y ) == 0 && x.st_ino != y.st_ino ) {
         char path[ 1024 ];
-        ::close( rfd );
+        lc_close( rfd );
         rfd = -1;
         is_rotated = true;
         /* try to find the old history to read the rest of that */
         ::strcpy( path, this->hist.filename );
         ::strcat( path, ".1" );
-        rfd = ::open( path, O_RDONLY | O_CLOEXEC );
+        rfd = lc_open( path, O_RDONLY | O_CLOEXEC, 0 );
         if ( rfd >= 0 ) {
           /* if ino matches, this is the old one */
-          if ( ::fstat( rfd, &y ) != 0 || x.st_ino != y.st_ino ) {
-            ::close( rfd );
+          if ( lc_fstat( rfd, &y ) != 0 || x.st_ino != y.st_ino ) {
+            lc_close( rfd );
             rfd = -1;
           }
         }
       }
       /* the files match at this point, read the rest, if any */
       if ( rfd >= 0 ) {
-        if ( (size_t) ::lseek( rfd, h.fsize, SEEK_SET ) == h.fsize ) {
+        if ( (size_t) lc_lseek( rfd, h.fsize, SEEK_SET ) == h.fsize ) {
           size_t sz = this->read_history( rfd, 0, h.line_cnt );
           h.fsize += sz;
           if ( sz > 0 )
             this->state |= TTYS_HIST_UPDATE;
         }
-        ::close( rfd );
+        lc_close( rfd );
       }
     }
     /* open the new history file if rotated */
     if ( is_rotated ) {
       ROTATEDBG(( stderr, "\r\ndetected rotated %s\r\n", h.filename ));
-      afd = ::open( h.filename, O_WRONLY | O_APPEND | O_CLOEXEC, 0666 );
+      afd = lc_open( h.filename, O_WRONLY | O_APPEND | O_CLOEXEC, 0666 );
       if ( afd >= 0 ) {
-        ::close( this->hist.fd );
+        lc_close( this->hist.fd );
         this->hist.fsize      = 0;
         this->hist.line_cnt   = 0;
         this->hist.last_check = 0; /* cause check_history to be called again */
@@ -949,18 +1166,18 @@ TTY::acquire_history_lck( const char *filename,  char *lckpath ) noexcept
   ::strcpy( &lckpath[ len ], ".lck" );
   /* try a maximum of 10 seconds */
   for ( int i = 0; i < 100; i++ ) {
-    tmpfd = ::open( lckpath, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666 );
+    tmpfd = lc_open( lckpath, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0666 );
     if ( tmpfd >= 0 )
       break;
     if ( errno != EEXIST )
       break;
-    ::poll( NULL, 0, 100 );
+    lc_sleep( 100 );
   }
   if ( tmpfd < 0 ) {
     ::perror( lckpath );
     return -1;
   }
-  ::close( tmpfd );
+  lc_close( tmpfd );
   return 0;
 }
 
@@ -971,7 +1188,7 @@ TTY::rotate_history( void ) noexcept
   char        newpath[ 1024 ],
               oldpath[ 1024 ],
               lckpath[ 1024 ];
-  struct stat x, y;
+  lc_stat64   x, y;
   size_t      i, j, len;
   int         status;
 
@@ -981,21 +1198,21 @@ TTY::rotate_history( void ) noexcept
     return 0;
   /* check size of file before and after lock acquire */
   ::strcpy( newpath, h.filename );
-  if ( ::stat( newpath, &x ) != 0 ) {
+  if ( lc_stat( newpath, &x ) != 0 ) {
     this->close_history();
     return this->open_history( newpath, false );
   }
   if ( this->acquire_history_lck( NULL, lckpath ) != 0 )
     return -1;
 
-  if ( ::stat( newpath, &y ) != 0 ) {
+  if ( lc_stat( newpath, &y ) != 0 ) {
     ::perror( newpath );
-    ::unlink( lckpath );
+    lc_unlnk( lckpath );
     return -1;
   }
   /* if file was already rotated, size will be less than old history */
   if ( x.st_size > y.st_size ) {
-    ::unlink( lckpath );
+    lc_unlnk( lckpath );
     this->close_history();
     return this->open_history( newpath, false );
   }
@@ -1005,7 +1222,7 @@ TTY::rotate_history( void ) noexcept
   newpath[ len ] = '.';
   for ( i = 1; ; i++ ) {
     uint_to_string( i, &newpath[ len + 1 ] );
-    if ( ::access( newpath, R_OK | W_OK ) != 0 )
+    if ( lc_access( newpath, R_OK | W_OK ) != 0 )
       break;
   }
   /* rename files from N to N + 1 */
@@ -1023,13 +1240,13 @@ TTY::rotate_history( void ) noexcept
   if ( (status = ::rename( h.filename, newpath )) == 0 ) {
     ::strcpy( newpath, h.filename );
     this->close_history();
-    ::unlink( lckpath );
+    lc_unlnk( lckpath );
     status = this->open_history( newpath, false );
   }
 failed:;
   if ( status != 0 ) {
     ::perror( newpath );
-    ::unlink( lckpath );
+    lc_unlnk( lckpath );
   }
 
   return status;
@@ -1039,7 +1256,7 @@ int
 TTY::log_hist( char *line,  size_t len ) noexcept
 {
   TTYHistory &h = this->hist;
-  struct stat x;
+  lc_stat64 x;
   size_t  i;
   ssize_t n;
 
@@ -1057,8 +1274,8 @@ TTY::log_hist( char *line,  size_t len ) noexcept
     line[ len ] = '\n'; /* replace null with nl temporarily */
     /* anything written between check_history and fstat will not be loaded into
      * the history buffer */
-    n = ::write( h.fd, line, len + 1 );
-    if ( ::fstat( h.fd, &x) == 0 )
+    n = lc_write( h.fd, line, len + 1 );
+    if ( lc_fstat( h.fd, &x) == 0 )
       h.fsize = x.st_size;
     line[ len ] = '\0';
     h.last_check = x.st_mtime;
@@ -1127,7 +1344,7 @@ TTY::close_history( void ) noexcept
     ::free( h.filename );
     if ( h.hist_buf ) ::free( h.hist_buf );
     ::memset( &h, 0, sizeof( TTYHistory ) );
-    return ::close( fd );
+    return lc_close( fd );
   }
   return 0;
 }
@@ -1139,6 +1356,7 @@ TTY::raw_mode( void ) noexcept
     this->set( TTYS_IS_RAW );
     return 0;
   }
+#ifndef _MSC_VER
   if ( this->orig == NULL ) {
     if ( (this->orig = ::malloc( sizeof( struct termios ) )) == NULL )
       return -1;
@@ -1180,12 +1398,28 @@ TTY::raw_mode( void ) noexcept
     this->set( TTYS_IS_RAW );
     lc_tty_init_geom( this );
   }
+#else
+  if ( this->win_vt == NULL ) {
+    if ( (this->win_vt = ::malloc( sizeof( ConsoleVT ) )) == NULL )
+      return -1;
+    ::memset( this->win_vt, 0, sizeof( ConsoleVT ) );
+    if ( ! ((ConsoleVT *) this->win_vt)->init_vt( this->in_fd, this->out_fd ) )
+      return -1;
+  }
+  if ( this->test( TTYS_IS_RAW ) == 0 )  {
+    if ( ! ((ConsoleVT *) this->win_vt)->enable_raw_mode() )
+      return -1;
+    this->set( TTYS_IS_RAW );
+    lc_tty_init_geom( this );
+  }
+#endif
   return 0;
 }
 
 int
 TTY::non_block( void ) noexcept
 {
+#ifndef _MSC_VER
   if ( this->test( TTYS_IS_NONBLOCK ) == 0 ) {
     if ( this->in_fd != -1 ) {
       this->in_mode  = ::fcntl( this->in_fd, F_GETFL );
@@ -1203,6 +1437,7 @@ TTY::non_block( void ) noexcept
     }
     this->set( TTYS_IS_NONBLOCK );
   }
+#endif
   return 0;
 }
 
@@ -1211,10 +1446,17 @@ TTY::reset_raw( void ) noexcept
 {
   if ( this->test( TTYS_IS_RAW ) != 0 ) {
     if ( this->in_fd != -1 ) {
+#ifndef _MSC_VER
       if ( this->orig == NULL )
         return -1;
       struct termios &o = *(struct termios *) this->orig;
       ::tcsetattr( this->in_fd, TCSAFLUSH, &o );
+#else
+    if ( this->win_vt == NULL )
+      return -1;
+    if ( ! ((ConsoleVT *) this->win_vt)->disable_raw_mode() )
+      return -1;
+#endif
     }
     this->clear( TTYS_IS_RAW );
   }
@@ -1224,6 +1466,7 @@ TTY::reset_raw( void ) noexcept
 int
 TTY::reset_non_block( void ) noexcept
 {
+#ifndef _MSC_VER
   if ( this->test( TTYS_IS_NONBLOCK ) != 0 ) {
     if ( this->in_fd != -1 )
       ::fcntl( this->in_fd, F_SETFL, this->in_mode );
@@ -1231,22 +1474,38 @@ TTY::reset_non_block( void ) noexcept
       ::fcntl( this->out_fd, F_SETFL, this->out_mode );
     this->clear( TTYS_IS_NONBLOCK );
   }
+#endif
   return 0;
 }
 
 int
 TTY::normal_mode( void ) noexcept
 {
+#ifndef _MSC_VER
   bool b;
   b  = ( this->reset_raw() == 0 );
   b &= ( this->reset_non_block() == 0 );
-  return b ? 0 : -1;
+  if ( ! b ) return -1;
+#endif
+  return 0;
 }
 
 void
 TTY::clear_line( void ) noexcept
 {
   lc_clear_line( this->lc );
+}
+
+void
+TTY::erase_prompt( void ) noexcept
+{
+  lc_erase_prompt( this->lc );
+}
+
+void
+TTY::refresh_line( void ) noexcept
+{
+  lc_refresh_line( this->lc );
 }
 
 int
@@ -1290,7 +1549,7 @@ TTY::get_completion_term( char *term,  size_t len ) noexcept
 }
 
 int
-TTY::get_line( void ) noexcept
+TTY::init_get_line( void ) noexcept
 {
   static const int fl = TTYS_IS_NONBLOCK | TTYS_IS_RAW;
   int n;
@@ -1346,6 +1605,14 @@ TTY::get_line( void ) noexcept
     lc_set_geom( this->lc, this->cols, this->lines );
     this->clear( TTYS_GEOM_UPDATE | TTYS_HIST_UPDATE );
   }
+  return 0;
+}
+
+int
+TTY::get_line( void ) noexcept
+{
+  if ( this->init_get_line() != 0 )
+    return -1;
   /* fetch the line, if prompt has a time in it, that will update  */
   if ( this->test( TTYS_CONTINUE_LINE ) )
     this->lc_status = lc_continue_get_line( this->lc );
@@ -1395,6 +1662,7 @@ TTY::get_line( void ) noexcept
 int
 TTY::poll_wait( int time_ms ) noexcept
 {
+#ifndef _MSC_VER
   struct pollfd fdset;
   int n;
   /* only poll when on these conditions */
@@ -1429,6 +1697,23 @@ TTY::poll_wait( int time_ms ) noexcept
       this->clear( TTYS_POLL_OUT );
     this->lc_status = LINE_STATUS_OK; /* ready for i/o */
   }
+#else
+  if ( this->lc_status == LINE_STATUS_WR_EAGAIN ||
+       this->lc_status == LINE_STATUS_RD_EAGAIN ) {
+    if ( time_ms > 0 ) {
+      time_ms = lc_max_timeout( this->lc, time_ms );
+      this->approx_ticks += time_ms;
+    }
+    ConsoleVT *vt = (ConsoleVT *) this->win_vt;
+    if ( vt == NULL ) {
+      this->lc_status = LINE_STATUS_RD_FAIL;
+      return -1;
+    }
+    if ( vt->events_avail == 0 )
+      vt->poll_events( time_ms );
+    this->lc_status = LINE_STATUS_OK; /* ready for i/o */
+  }
+#endif
   return 1; /* caller should call get_line() on 1 */
 }
 

@@ -1,10 +1,11 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS /* for getenv() */
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <signal.h>
-#include <errno.h>
-#include <ctype.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 #include <linecook/linecook.h>
 #include <linecook/ttycook.h>
 
@@ -61,7 +62,7 @@ main( int argc, char *argv[] )
       }
       lc_history_line_copy( lc, i, buf );
       if ( num != NULL )
-        printf( "%ld ", i );
+        printf( "%" PRId64 " ", i );
       printf( "%.*s\n", (int) n, buf );
       i = (rev != NULL) ? ( i - 1 ) : ( i + 1 );
     }
