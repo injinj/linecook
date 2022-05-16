@@ -159,8 +159,8 @@ State::get_complete_args( int &arg_num, int &arg_count, int *arg_off,
   }
   /* calculated args up to complete phrase, now compute after it */
   sz = args_size - i;
-  ::memmove( arg_off, &arg_off[ i ], ( sz + 1 ) * sizeof( arg_off[ 0 ] ) );
-  ::memmove( arg_len, &arg_len[ i ], ( sz + 1 ) * sizeof( arg_len[ 0 ] ) );
+  ::memmove( arg_off, &arg_off[ i ], sz * sizeof( arg_off[ 0 ] ) );
+  ::memmove( arg_len, &arg_len[ i ], sz * sizeof( arg_len[ 0 ] ) );
   arg_count = (int) sz;
   for ( end = coff + clen; ; ) {
     off = this->skip_next_space( end );
