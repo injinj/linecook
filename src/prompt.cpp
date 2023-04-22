@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
 #include <unistd.h>
 #include <pwd.h>
 #include <sys/time.h>
@@ -23,6 +23,9 @@
 #include <mstcpip.h>
 #include <windows.h>
 typedef ptrdiff_t ssize_t;
+#endif
+#ifdef LC_SHARED
+#define LC_API __declspec(dllexport)
 #endif
 #include <linecook/linecook.h>
 #include <linecook/keycook.h>
@@ -407,7 +410,7 @@ State::format_prompt( void ) noexcept
   return true;
 }
 
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
 static inline void lc_localtime( time_t t, struct tm &tmbuf ) {
   ::localtime_s( &tmbuf, &t );
 }
@@ -494,7 +497,7 @@ State::get_prompt_vars( void ) noexcept
             break;
           case 'l': /* ttyXX */
           case 's': { /* sh name */
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
             ssize_t n;
             char  * s;
             n = ::readlink( 
@@ -637,7 +640,7 @@ State::update_date( time_t t ) noexcept
   return true;
 }
 
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
 bool
 State::update_cwd( void ) noexcept
 {
@@ -686,7 +689,7 @@ State::update_cwd( void ) noexcept
   const char * h;
   size_t       l;
 
-  if ( GetCurrentDirectory( sizeof( tmp ), tmp ) != NULL ) {
+  if ( GetCurrentDirectory( sizeof( tmp ), tmp ) != 0 ) {
     if ( ! this->make_utf32( tmp, ::strlen( tmp ), pr.cwd, pr.cwd_len ) )
       return false;
     for ( l = pr.cwd_len; l > 0; ) {
@@ -1330,7 +1333,7 @@ State::show_right_prompt( LinePrompt &p ) noexcept
   this->cursor_pos += rprompt_cols;
   this->move_cursor( save );
 }
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
 uint64_t
 State::time_ms( void ) noexcept
 {

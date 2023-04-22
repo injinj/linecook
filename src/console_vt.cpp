@@ -1,4 +1,4 @@
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
 
 #include <stdio.h>
 #include <string.h>
@@ -43,16 +43,16 @@ ConsoleVT::init_vt( int in_fd,  int out_fd ) noexcept
   const intptr_t inptr_handle  = _get_osfhandle( in_fd ),
                  outptr_handle = _get_osfhandle( out_fd );
   if ( inptr_handle == -1 || outptr_handle == -1 ) {
-    fprintf( stderr, "_get_osfhandle() failed: %d\n", GetLastError() );
+    fprintf( stderr, "_get_osfhandle() failed: %ld\n", GetLastError() );
     return false;
   }
 
-  this->in_h  = reinterpret_cast<const HANDLE>( inptr_handle );
-  this->out_h = reinterpret_cast<const HANDLE>( outptr_handle );
+  this->in_h  = reinterpret_cast<HANDLE>( inptr_handle );
+  this->out_h = reinterpret_cast<HANDLE>( outptr_handle );
 
   if ( ! GetConsoleMode( this->in_h, &this->orig_in_mode ) ||
        ! GetConsoleMode( this->out_h, &this->orig_out_mode ) ) {
-    fprintf( stderr, "GetConsoleMode failed: %d\n", GetLastError() );
+    fprintf( stderr, "GetConsoleMode failed: %ld\n", GetLastError() );
     return false;
   }
   return true;
@@ -68,7 +68,7 @@ ConsoleVT::enable_raw_mode( void ) noexcept
 
   if ( ! SetConsoleMode( this->in_h, new_console_mode ) ) {
     // This really should not fail.
-    fprintf( stderr, "set_raw_mode: SetConsoleMode( in_h ) failed: %d",
+    fprintf( stderr, "set_raw_mode: SetConsoleMode( in_h ) failed: %ld",
              GetLastError() );
     return false;
   }
@@ -80,7 +80,7 @@ ConsoleVT::enable_raw_mode( void ) noexcept
 
   if ( ! SetConsoleMode( this->out_h, new_console_mode ) ) {
     // This really should not fail.
-    fprintf( stderr, "set_raw_mode: SetConsoleMode( out_h ) failed: %d",
+    fprintf( stderr, "set_raw_mode: SetConsoleMode( out_h ) failed: %ld",
              GetLastError() );
     return false;
   }
@@ -92,7 +92,7 @@ ConsoleVT::disable_raw_mode( void ) noexcept
 {
   if ( ! SetConsoleMode( this->in_h, this->orig_in_mode ) ||
        ! SetConsoleMode( this->out_h, this->orig_out_mode ) ) {
-    fprintf( stderr, "disable_raw_mode failed: %d\n", GetLastError() );
+    fprintf( stderr, "disable_raw_mode failed: %ld\n", GetLastError() );
     return false;
   }
   return true;

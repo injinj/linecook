@@ -60,5 +60,5 @@ fi
 /sbin/ldconfig
 
 %changelog
-* __DATE__ <gchrisanderson@gmail.com>
+* Sat Jan 01 2000 <gchrisanderson@gmail.com>
 - Hello world

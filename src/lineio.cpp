@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdint.h>
 #include <ctype.h>
+#ifdef LC_SHARED
+#define LC_API __declspec(dllexport)
+#endif
 #include <linecook/linecook.h>
 
 extern "C" {

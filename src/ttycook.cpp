@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#ifndef _MSC_VER
+#if ! defined ( _MSC_VER ) && ! defined( __MINGW32__ )
 #include <unistd.h>
 #include <poll.h>
 #include <time.h>
@@ -75,8 +75,10 @@ static ssize_t lc_write( int fd, const void *buf, size_t buflen ) {
 static int lc_open( const char *fn, int flags, int mode ) {
   return _open( fn, flags | _O_BINARY , mode );
 }
+#ifndef R_OK
 #define R_OK 2
 #define W_OK 4
+#endif
 static int lc_access( const char *fn, int mode ) {
   return _access( fn, mode );
 }
@@ -91,9 +93,11 @@ static void lc_sleep( int ms ) {
 }
 #endif
 
+#ifdef LC_SHARED
+#define LC_API __declspec(dllexport)
+#endif
 #include <linecook/linecook.h>
 #include <linecook/ttycook.h>
-
 
 extern "C" {
 
@@ -191,16 +195,18 @@ lc_tty_init_fd( TTYCook *tty,  int in,  int out )
 
 static sig_atomic_t my_geom_changed;
 
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
 static void
 geom_changed_on_signal( int )
 {
   my_geom_changed = 1;
 }
+#endif
 
 int
 lc_tty_init_sigwinch( TTYCook * /*tty*/ )
 {
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
   ::signal( SIGWINCH, geom_changed_on_signal );
 #else
 #endif
@@ -321,7 +327,7 @@ lc_tty_get_terminal_geom( int fd,  int *cols,  int *lines )
   const char *l, *c;
 
   *lines = *cols = 0;
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
   struct winsize ws;
   if ( ::ioctl( fd, TIOCGWINSZ, &ws ) != -1 ) {
     *cols  = ws.ws_col;
@@ -419,7 +425,7 @@ static int
 do_read( LineCook *state,  void *buf,  size_t buflen,  void * ) noexcept
 {
   linecook::TTY *tty = static_cast<linecook::TTY *>( state->closure );
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
   ssize_t n = lc_read( tty->in_fd, buf, buflen );
   if ( n < 0 ) {
     if ( errno == EAGAIN || errno == EINTR )
@@ -428,26 +434,7 @@ do_read( LineCook *state,  void *buf,  size_t buflen,  void * ) noexcept
   }
   return (int) n;
 #else
-  linecook::ConsoleVT * vt = (linecook::ConsoleVT *) tty->win_vt;
-  if ( vt == NULL )
-    return -1;
-  for (;;) {
-    if ( vt->input_off < vt->input_avail ) {
-      size_t len = vt->input_avail - vt->input_off;
-      if ( len > buflen )
-        len = buflen;
-      ::memcpy( buf, &vt->input_buf[ vt->input_off ], len );
-      vt->input_off += len;
-      return (int) len;
-    }
-    bool b = vt->read_input();
-    if ( vt->sigwinch ) {
-      vt->sigwinch = false;
-      my_geom_changed = 1;
-    }
-    if ( ! b )
-      return 0;
-  }
+  return tty->win_vt_read( buf, buflen );
 #endif
 }
 
@@ -462,22 +449,6 @@ do_write( LineCook *state,  const void *buf,  size_t buflen,  void * ) noexcept
     return -1;
   }
   return (int) n;
-}
-
-static size_t
-catp( char *p,  const char *q,  const char *r,  const char *s = NULL ) noexcept
-{
-  size_t i = 0;
-  while ( *q != '\0' && i < 1023 )
-    p[ i++ ] = *q++;
-  while ( *r != '\0' && i < 1023 )
-    p[ i++ ] = *r++;
-  if ( s != NULL ) {
-    while ( *s != '\0' && i < 1023 )
-      p[ i++ ] = *s++;
-  }
-  p[ i ] = '\0';
-  return i;
 }
 
 struct CompletePathStack {
@@ -526,6 +497,23 @@ struct CompletePathStack {
   }
 };
 
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
+static size_t
+catp( char *p,  const char *q,  const char *r,  const char *s = NULL ) noexcept
+{
+  size_t i = 0;
+  while ( *q != '\0' && i < 1023 )
+    p[ i++ ] = *q++;
+  while ( *r != '\0' && i < 1023 )
+    p[ i++ ] = *r++;
+  if ( s != NULL ) {
+    while ( *s != '\0' && i < 1023 )
+      p[ i++ ] = *s++;
+  }
+  p[ i ] = '\0';
+  return i;
+}
+
 static bool
 is_dotdir( const char *p,  size_t plen )
 {
@@ -536,7 +524,6 @@ is_dotdir( const char *p,  size_t plen )
   return false;
 }
 
-#ifndef _MSC_VER
 extern char ** environ;
 int
 lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
@@ -672,7 +659,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
         }
         else {
           user[ 0 ] = '\0';
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
           p = getenv( "HOME" ); /* my home */
 #else
           p = getenv( "HOMEPATH" );
@@ -837,8 +824,7 @@ lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
 }
 #else
 int
-lc_tty_file_completion( LineCook *state,  const char *buf,  size_t off,
-                        size_t len,  void *arg )
+lc_tty_file_completion( LineCook *,  const char *,  size_t , size_t ,  void * )
 {
   return 0;
 }
@@ -872,11 +858,11 @@ TTY::~TTY() noexcept
   this->lc     = NULL;
   this->in_fd  = -1;
   this->out_fd = -1;
-#ifndef _MSC_VER
-  if ( this->raw != NULL )        ::free( this->raw );
-  if ( this->orig != NULL )       ::free( this->orig );
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
+  if ( this->raw_termios() != NULL )  ::free( this->raw_termios() );
+  if ( this->orig_termios() != NULL ) ::free( this->orig_termios() );
 #else
-  if ( this->win_vt != NULL )     ::free( this->win_vt );
+  if ( this->win_vt() != NULL )   ::free( this->win_vt() );
 #endif
   if ( this->prompt_buf != NULL ) ::free( this->prompt_buf );
   if ( this->push_buf != NULL )   ::free( this->push_buf );
@@ -1356,20 +1342,20 @@ TTY::raw_mode( void ) noexcept
     this->set( TTYS_IS_RAW );
     return 0;
   }
-#ifndef _MSC_VER
-  if ( this->orig == NULL ) {
-    if ( (this->orig = ::malloc( sizeof( struct termios ) )) == NULL )
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
+  if ( this->orig_termios() == NULL ) {
+    if ( (this->orig_termios() = ::malloc( sizeof( struct termios ) )) == NULL )
       return -1;
-    ::memset( this->orig, 0, sizeof( struct termios ) );
+    ::memset( this->orig_termios(), 0, sizeof( struct termios ) );
   }
-  if ( this->raw == NULL ) {
-    if ( (this->raw = ::malloc( sizeof( struct termios ) )) == NULL )
+  if ( this->raw_termios() == NULL ) {
+    if ( (this->raw_termios() = ::malloc( sizeof( struct termios ) )) == NULL )
       return -1;
-    ::memset( this->raw, 0, sizeof( struct termios ) );
+    ::memset( this->raw_termios(), 0, sizeof( struct termios ) );
   }
   if ( this->test( TTYS_IS_RAW ) == 0 )  {
-    struct termios &o = *(struct termios *) this->orig;
-    struct termios &r = *(struct termios *) this->raw;
+    struct termios &o = *(struct termios *) this->orig_termios();
+    struct termios &r = *(struct termios *) this->raw_termios();
 
     if ( ::tcgetattr( this->in_fd, &o ) == -1 ) {
       ::perror( "tcgetattr (terminal raw mode failed)" );
@@ -1399,15 +1385,15 @@ TTY::raw_mode( void ) noexcept
     lc_tty_init_geom( this );
   }
 #else
-  if ( this->win_vt == NULL ) {
-    if ( (this->win_vt = ::malloc( sizeof( ConsoleVT ) )) == NULL )
+  if ( this->win_vt() == NULL ) {
+    if ( (this->win_vt() = ::malloc( sizeof( ConsoleVT ) )) == NULL )
       return -1;
-    ::memset( this->win_vt, 0, sizeof( ConsoleVT ) );
-    if ( ! ((ConsoleVT *) this->win_vt)->init_vt( this->in_fd, this->out_fd ) )
+    ::memset( this->win_vt(), 0, sizeof( ConsoleVT ) );
+    if ( ! ((ConsoleVT *) this->win_vt())->init_vt( this->in_fd, this->out_fd ) )
       return -1;
   }
   if ( this->test( TTYS_IS_RAW ) == 0 )  {
-    if ( ! ((ConsoleVT *) this->win_vt)->enable_raw_mode() )
+    if ( ! ((ConsoleVT *) this->win_vt())->enable_raw_mode() )
       return -1;
     this->set( TTYS_IS_RAW );
     lc_tty_init_geom( this );
@@ -1419,7 +1405,7 @@ TTY::raw_mode( void ) noexcept
 int
 TTY::non_block( void ) noexcept
 {
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
   if ( this->test( TTYS_IS_NONBLOCK ) == 0 ) {
     if ( this->in_fd != -1 ) {
       this->in_mode  = ::fcntl( this->in_fd, F_GETFL );
@@ -1446,15 +1432,15 @@ TTY::reset_raw( void ) noexcept
 {
   if ( this->test( TTYS_IS_RAW ) != 0 ) {
     if ( this->in_fd != -1 ) {
-#ifndef _MSC_VER
-      if ( this->orig == NULL )
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
+      if ( this->orig_termios() == NULL )
         return -1;
-      struct termios &o = *(struct termios *) this->orig;
+      struct termios &o = *(struct termios *) this->orig_termios();
       ::tcsetattr( this->in_fd, TCSAFLUSH, &o );
 #else
-    if ( this->win_vt == NULL )
+    if ( this->win_vt() == NULL )
       return -1;
-    if ( ! ((ConsoleVT *) this->win_vt)->disable_raw_mode() )
+    if ( ! ((ConsoleVT *) this->win_vt())->disable_raw_mode() )
       return -1;
 #endif
     }
@@ -1466,7 +1452,7 @@ TTY::reset_raw( void ) noexcept
 int
 TTY::reset_non_block( void ) noexcept
 {
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
   if ( this->test( TTYS_IS_NONBLOCK ) != 0 ) {
     if ( this->in_fd != -1 )
       ::fcntl( this->in_fd, F_SETFL, this->in_mode );
@@ -1481,7 +1467,7 @@ TTY::reset_non_block( void ) noexcept
 int
 TTY::normal_mode( void ) noexcept
 {
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
   bool b;
   b  = ( this->reset_raw() == 0 );
   b &= ( this->reset_non_block() == 0 );
@@ -1662,7 +1648,7 @@ TTY::get_line( void ) noexcept
 int
 TTY::poll_wait( int time_ms ) noexcept
 {
-#ifndef _MSC_VER
+#if ! defined( _MSC_VER ) && ! defined( __MINGW32__ )
   struct pollfd fdset;
   int n;
   /* only poll when on these conditions */
@@ -1704,7 +1690,7 @@ TTY::poll_wait( int time_ms ) noexcept
       time_ms = lc_max_timeout( this->lc, time_ms );
       this->approx_ticks += time_ms;
     }
-    ConsoleVT *vt = (ConsoleVT *) this->win_vt;
+    ConsoleVT *vt = (ConsoleVT *) this->win_vt();
     if ( vt == NULL ) {
       this->lc_status = LINE_STATUS_RD_FAIL;
       return -1;
@@ -1716,4 +1702,31 @@ TTY::poll_wait( int time_ms ) noexcept
 #endif
   return 1; /* caller should call get_line() on 1 */
 }
+
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
+int
+TTY::win_vt_read( void *buf,  size_t buflen ) noexcept
+{
+  linecook::ConsoleVT * vt = (linecook::ConsoleVT *) this->win_vt();
+  if ( vt == NULL )
+    return -1;
+  for (;;) {
+    if ( vt->input_off < vt->input_avail ) {
+      size_t len = vt->input_avail - vt->input_off;
+      if ( len > buflen )
+        len = buflen;
+      ::memcpy( buf, &vt->input_buf[ vt->input_off ], len );
+      vt->input_off += len;
+      return (int) len;
+    }
+    bool b = vt->read_input();
+    if ( vt->sigwinch ) {
+      vt->sigwinch = false;
+      my_geom_changed = 1;
+    }
+    if ( ! b )
+      return 0;
+  }
+}
+#endif
 

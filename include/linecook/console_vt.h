@@ -1,7 +1,7 @@
 #ifndef __linecook__console_vt_h__
 #define __linecook__console_vt_h__
 
-#if defined( __cplusplus ) && defined( _MSC_VER )
+#if defined( __cplusplus ) && ( defined( _MSC_VER ) || defined( __MINGW32__ ) )
 namespace linecook {
 
 struct ConsoleVT {

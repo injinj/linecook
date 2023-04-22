@@ -5,6 +5,9 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <ctype.h>
+#ifdef LC_SHARED
+#define LC_API __declspec(dllexport)
+#endif
 #include <linecook/linecook.h>
 #include <linecook/glob_cvt.h>
 #define PCRE2_CODE_UNIT_WIDTH 32

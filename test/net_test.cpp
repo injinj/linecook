@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <winsock2.h>
 #include <windows.h>
@@ -22,7 +22,7 @@
 
 using namespace linecook;
 
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
 typedef SOCKET socket_t;
 typedef HANDLE poll_event_t;
 typedef int addrlen_t;
@@ -55,9 +55,11 @@ static void reset_listener_event( poll_event_t event ) {
 static void reset_connection_event( poll_event_t event ) {
   WSAResetEvent( event );
 }
-static void reset_console_event( poll_event_t event ) {}
+static void reset_console_event( poll_event_t ) {}
+#ifdef _MSC_VER
 #define STDIN_FILENO _fileno( stdin )
 #define STDOUT_FILENO _fileno( stdout )
+#endif
 #else
 typedef int socket_t;
 typedef struct pollfd poll_event_t;
@@ -118,6 +120,7 @@ struct Listener : public EventDispatch {
   socket_t  sock;
   Console & console;
 
+  void * operator new( size_t, void *ptr ) { return ptr; }
   Listener( Poller &p, socket_t s, Console &c )
     : EventDispatch( p ), sock( s ), console( c ) {}
   virtual bool         dispatch( void );
@@ -129,6 +132,7 @@ struct Connection : public EventDispatch {
   socket_t  sock;
   Console & console;
 
+  void * operator new( size_t, void *ptr ) { return ptr; }
   Connection( Poller &p, socket_t s, Console &c )
     : EventDispatch( p ), sock( s ), console( c ) {}
 
@@ -178,7 +182,7 @@ Poller::remove( EventDispatch *ev )
 bool
 Poller::next_event( EventDispatch *&ev, int time_ms )
 {
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
   DWORD cnt;
   cnt = WaitForMultipleObjects( this->nevents, this->poll_set, FALSE, time_ms );
   if ( cnt >= WAIT_OBJECT_0 && cnt < WAIT_OBJECT_0 + this->nevents ) {
@@ -208,7 +212,7 @@ Poller::next_event( EventDispatch *&ev, int time_ms )
 poll_event_t
 Console::get_event( void )
 {
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
   return GetStdHandle( STD_INPUT_HANDLE );
 #else
   poll_event_t ev;
@@ -300,7 +304,8 @@ Listener::dispatch( void )
               ntohs( addr.sin_port ) );
 
   this->console.print( "accept from %s\n", buf );
-  this->poll.add( new Connection( this->poll, s, this->console ) );
+  this->poll.add( new ( ::malloc( sizeof( Connection ) ) )
+    Connection( this->poll, s, this->console ) );
   return true;
 }
 
@@ -336,7 +341,7 @@ main( void )
   TTYCook          * tty = lc_tty_create( lc );
   Console            console( poll, *lc, *tty );
 
-#ifdef _MSC_VER
+#if defined( _MSC_VER ) || defined( __MINGW32__ )
   WORD               ver;
   WSADATA            wdata;
   ver = MAKEWORD( 2, 2 );
@@ -365,7 +370,8 @@ main( void )
   lc_tty_show_prompt( tty );
 
   poll.add( &console );
-  poll.add( new Listener( poll, sock, console ) );
+  poll.add( new ( ::malloc( sizeof( Listener ) ) )
+    Listener( poll, sock, console ) );
   while ( ! poll.quit ) {
     EventDispatch *ev;
     if ( poll.next_event( ev, 1000 ) ) {

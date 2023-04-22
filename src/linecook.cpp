@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <wctype.h>
+#ifdef LC_SHARED
+#define LC_API __declspec(dllexport)
+#endif
 #include <linecook/linecook.h>
 #include <linecook/xwcwidth9.h>
 

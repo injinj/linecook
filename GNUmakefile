@@ -1,9 +1,10 @@
+# linecook makefile
 lsb_dist     := $(shell if [ -f /etc/os-release ] ; then \
-                  grep '^NAME=' /etc/os-release | sed 's/.*=\"//' | sed 's/[ \"].*//' ; \
+                  grep '^NAME=' /etc/os-release | sed 's/.*=[\"]*//' | sed 's/[ \"].*//' ; \
                   elif [ -x /usr/bin/lsb_release ] ; then \
                   lsb_release -is ; else echo Linux ; fi)
 lsb_dist_ver := $(shell if [ -f /etc/os-release ] ; then \
-		  grep '^VERSION=' /etc/os-release | sed 's/.*=\"//' | sed 's/ .*//' | sed 's/\"//' ; \
+		  grep '^VERSION=' /etc/os-release | sed 's/.*=[\"]*//' | sed 's/[ \"].*//' ; \
                   elif [ -x /usr/bin/lsb_release ] ; then \
                   lsb_release -rs | sed 's/[.].*//' ; else uname -r | sed 's/[-].*//' ; fi)
 #lsb_dist     := $(shell if [ -x /usr/bin/lsb_release ] ; then lsb_release -is ; else uname -s ; fi)
@@ -33,22 +34,42 @@ endif
 ifeq (-a,$(findstring -a,$(port_extra)))
   default_cflags := -fsanitize=address -ggdb -O3
 endif
-
+ifeq (-mingw,$(findstring -mingw,$(port_extra)))
+  CC    := /usr/bin/x86_64-w64-mingw32-gcc
+  CXX   := /usr/bin/x86_64-w64-mingw32-g++
+  mingw := true
+endif
+# msys2 using ucrt64
+ifeq (MSYS2,$(lsb_dist))
+  mingw := true
+endif
 CC          ?= gcc
-CXX         ?= $(CC) -x c++
+CXX         ?= g++
 cc          := $(CC) -std=c11
 cpp         := $(CXX)
 arch_cflags := -fno-omit-frame-pointer
 gcc_wflags  := -Wall -Wextra -Werror
-fpicflags   := -fPIC
-soflag      := -shared
 
-ifeq (Darwin,$(lsb_dist))
-dll         := dylib
+# if windows cross compile
+ifeq (true,$(mingw))
+dll         := dll
+exe         := .exe
+soflag      := -shared -Wl,--subsystem,windows
+fpicflags   := -fPIC -DLC_SHARED
+sock_lib    := -lws2_32
+dynlink_lib := -lpcre2-32
+NO_STL      := 1
 else
 dll         := so
+exe         :=
+soflag      := -shared
+fpicflags   := -fPIC
+dynlink_lib := -lpcre2-32
 endif
-
+# make apple shared lib
+ifeq (Darwin,$(lsb_dist))
+dll       := dylib
+endif
 # rpmbuild uses RPM_OPT_FLAGS
 ifeq ($(RPM_OPT_FLAGS),)
 CFLAGS ?= $(default_cflags)
@@ -69,13 +90,11 @@ else
 cppflags   := -std=c++11
 cpplink    := $(CXX)
 endif
-#cppflags  := -fno-rtti -fno-exceptions -fsanitize=address
-#cpplink   := $(CC) -lasan
 cclink     := $(CC)
 
 rpath      := -Wl,-rpath,$(pwd)/$(libd)
 cpp_lnk    :=
-lnk_lib    := -lpcre2-32
+lnk_lib    :=
 
 .PHONY: everything
 everything: all
@@ -123,9 +142,9 @@ lc_example_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_example_files)
 lc_example_libs  := $(libd)/liblinecook.$(dll)
 lc_example_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
-$(bind)/lc_example: $(lc_example_objs) $(lc_example_libs)
+$(bind)/lc_example$(exe): $(lc_example_objs) $(lc_example_libs)
 
-all_exes    += $(bind)/lc_example
+all_exes    += $(bind)/lc_example$(exe)
 all_depends += $(lc_example_deps)
 
 simple_files := simple
@@ -135,9 +154,9 @@ simple_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(simple_files)))
 simple_libs  := $(libd)/liblinecook.$(dll)
 simple_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
-$(bind)/simple: $(simple_objs) $(simple_libs)
+$(bind)/simple$(exe): $(simple_objs) $(simple_libs)
 
-all_exes    += $(bind)/simple
+all_exes    += $(bind)/simple$(exe)
 all_depends += $(simmple_deps)
 
 lc_hist_cat_files := hist_cat
@@ -147,9 +166,9 @@ lc_hist_cat_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(lc_hist_cat_file
 lc_hist_cat_libs  := $(libd)/liblinecook.$(dll)
 lc_hist_cat_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
-$(bind)/lc_hist_cat: $(lc_hist_cat_objs) $(lc_hist_cat_libs)
+$(bind)/lc_hist_cat$(exe): $(lc_hist_cat_objs) $(lc_hist_cat_libs)
 
-all_exes    += $(bind)/lc_hist_cat
+all_exes    += $(bind)/lc_hist_cat$(exe)
 all_depends += $(lc_hist_cat_deps)
 
 print_keys_files := print_keys keytable
@@ -158,9 +177,9 @@ print_keys_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(print_keys_files)))
 print_keys_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(print_keys_files)))
 print_keys_lnk   := $(print_keys_libs)
 
-$(bind)/print_keys: $(print_keys_objs) $(print_keys_libs)
+$(bind)/print_keys$(exe): $(print_keys_objs) $(print_keys_libs)
 
-all_exes    += $(bind)/print_keys
+all_exes    += $(bind)/print_keys$(exe)
 all_depends += $(print_keys_deps)
 
 net_test_files := net_test
@@ -168,25 +187,34 @@ net_test_cfile := test/net_test.cpp
 net_test_objs  := $(addprefix $(objd)/, $(addsuffix .o, $(net_test_files)))
 net_test_deps  := $(addprefix $(dependd)/, $(addsuffix .d, $(net_test_files)))
 net_test_libs  := $(libd)/liblinecook.$(dll)
-net_test_lnk   := -L$(libd) -llinecook $(lnk_lib) -lstdc++
+net_test_lnk   := -L$(libd) -llinecook $(lnk_lib)
 
-$(bind)/net_test: $(net_test_objs) $(net_test_libs)
+$(bind)/net_test$(exe): $(net_test_objs) $(net_test_libs)
 
-all_exes    += $(bind)/net_test
+all_exes    += $(bind)/net_test$(exe)
 all_depends += $(net_test_deps)
 
 all_dirs := $(bind) $(libd) $(objd) $(dependd)
 
 console_test_cfile := test/console_test.cpp
 
-README.md: $(bind)/print_keys doc/readme.md
-	cat doc/readme.md > README.md
-	$(bind)/print_keys >> README.md
+README.md: $(bind)/print_keys$(exe) doc/readme.md
+	  cat doc/readme.md > README.md
+	  $(bind)/print_keys$(exe) >> README.md
 
-src/hashaction.c: $(bind)/print_keys include/linecook/keycook.h
-	$(bind)/print_keys hash > src/hashaction.c
+src/hashaction.c: $(bind)/print_keys$(exe) include/linecook/keycook.h
+	$(bind)/print_keys$(exe) hash > src/hashaction.c.1
+	if [ $$? != 0 ] || cmp -s src/hashaction.c src/hashaction.c.1 ; then \
+	  echo no change ; \
+	  rm -f src/hashaction.c.1 ; \
+	  touch src/hashaction.c ; \
+	else \
+	  mv src/hashaction.c.1 src/hashaction.c ; \
+	  cat doc/readme.md > README.md ; \
+	  $(bind)/print_keys$(exe) >> README.md ; \
+	fi
 
-all: $(all_libs) $(all_dlls) $(all_exes) README.md cmake
+all: $(all_libs) $(all_dlls) $(all_exes) cmake
 
 .PHONY: cmake
 cmake: CMakeLists.txt
@@ -276,7 +304,7 @@ endif
 endif
 # target used by rpmbuild, dpkgbuild
 .PHONY: dist_bins
-dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example $(bind)/lc_hist_cat
+dist_bins: $(all_libs) $(all_dlls) $(bind)/lc_example$(exe) $(bind)/lc_hist_cat$(exe)
 	$(remove_rpath) $(libd)/liblinecook.$(dll)
 	$(remove_rpath) $(bind)/lc_example
 	$(remove_rpath) $(bind)/lc_hist_cat
@@ -339,16 +367,18 @@ $(objd)/%.o: test/%.c
 $(libd)/%.a:
 	ar rc $@ $($(*)_objs)
 
-$(libd)/%.so:
-	$(cpplink) $(soflag) $(rpath) $(cflags) -o $@.$($(*)_spec) -Wl,-soname=$(@F).$($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(cpp_dll_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
-	cd $(libd) && ln -f -s $(@F).$($(*)_spec) $(@F).$($(*)_ver) && ln -f -s $(@F).$($(*)_ver) $(@F)
-
+ifeq (Darwin,$(lsb_dist))
 $(libd)/%.dylib:
-	$(cpplink) -dynamiclib $(cflags) -o $@.$($(*)_dylib).dylib -current_version $($(*)_dylib) -compatibility_version $($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(cpp_dll_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
+	$(cpplink) -dynamiclib $(cflags) -o $@.$($(*)_dylib).dylib -current_version $($(*)_dylib) -compatibility_version $($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
 	cd $(libd) && ln -f -s $(@F).$($(*)_dylib).dylib $(@F).$($(*)_ver).dylib && ln -f -s $(@F).$($(*)_ver).dylib $(@F)
+else
+$(libd)/%.$(dll):
+	$(cpplink) $(soflag) $(rpath) $(cflags) -o $@.$($(*)_spec) -Wl,-soname=$(@F).$($(*)_ver) $($(*)_dbjs) $($(*)_dlnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib) && \
+	cd $(libd) && ln -f -s $(@F).$($(*)_spec) $(@F).$($(*)_ver) && ln -f -s $(@F).$($(*)_ver) $(@F)
+endif
 
-$(bind)/%:
-	$(cclink) $(cflags) $(rpath) -o $@ $($(*)_objs) -L$(libd) $($(*)_lnk) $(cpp_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib)
+$(bind)/%$(exe):
+	$(cpplink) $(cflags) $(rpath) -o $@ $($(*)_objs) -L$(libd) $($(*)_lnk) $(cpp_lnk) $(sock_lib) $(math_lib) $(thread_lib) $(malloc_lib) $(dynlink_lib)
 
 $(dependd)/%.d: src/%.cpp
 	$(cpp) $(arch_cflags) $(defines) $(includes) $($(notdir $*)_includes) $($(notdir $*)_defines) -MM $< -MT $(objd)/$(*).o -MF $@

@@ -221,7 +221,7 @@ For Debian style, do this instead.
 ```console
 $ make dist_dpkg
 
-$ sudp dpkg -i dpkgbuild/linecook_1.1.0-14_amd64.deb
+$ sudo dpkg -i dpkgbuild/linecook_1.1.0-14_amd64.deb
 ```
 
 For rpms, the prefix option works, as in --prefix=/opt/rai

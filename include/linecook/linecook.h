@@ -1,6 +1,14 @@
 #ifndef __linecook__linecook_h__
 #define __linecook__linecook_h__
 
+#ifdef LC_SHARED
+#ifndef LC_API
+#define LC_API __declspec(dllexport)
+#endif
+#else
+#define LC_API
+#endif
+
 #include <linecook/kewb_utf.h>
 #include <time.h>
 
@@ -58,85 +66,85 @@ typedef enum CompleteType_e {
 } CompleteType;
 
 /* Allocate the state */
-LineCook *lc_create_state( int cols,  int lines );
+LC_API LineCook *lc_create_state( int cols,  int lines );
 /* Free it */
-void lc_release_state( LineCook *state );
+LC_API void lc_release_state( LineCook *state );
 /* Set or change the current prompt and secondary prompt (line continuation) */
-int lc_set_prompt( LineCook *state,  const char *prompt,  size_t prompt_len,
-                   const char *prompt2,  size_t prompt2_len );
+LC_API int lc_set_prompt( LineCook *state,  const char *prompt,  size_t prompt_len,
+                          const char *prompt2,  size_t prompt2_len );
 /* Set the insert mode cursor */
-int lc_set_right_prompt( LineCook *state,
-                         const char *ins,    size_t ins_len,
-                         const char *cmd,    size_t cmd_len,
-                         const char *emacs,  size_t emacs_len,
-                         const char *srch,   size_t srch_len,
-                         const char *comp,   size_t comp_len,
-                         const char *visu,   size_t visu_len,
-                         const char *ouch,   size_t ouch_len,
-                         const char *sel1,   size_t sel1_len,
-                         const char *sel2,   size_t sel2_len );
+LC_API int lc_set_right_prompt( LineCook *state,
+                                const char *ins,    size_t ins_len,
+                                const char *cmd,    size_t cmd_len,
+                                const char *emacs,  size_t emacs_len,
+                                const char *srch,   size_t srch_len,
+                                const char *comp,   size_t comp_len,
+                                const char *visu,   size_t visu_len,
+                                const char *ouch,   size_t ouch_len,
+                                const char *sel1,   size_t sel1_len,
+                                const char *sel2,   size_t sel2_len );
 /* Change the geometry of terminal (on SIGWINCH usually) */
-int lc_set_geom( LineCook *state,  int cols,  int lines );
+LC_API int lc_set_geom( LineCook *state,  int cols,  int lines );
 /* Set the word break chars */
-void lc_set_word_break( LineCook *state,  const char *brk,  size_t brk_len );
+LC_API void lc_set_word_break( LineCook *state,  const char *brk,  size_t brk_len );
 /* Set the completion word break chars */
-void lc_set_completion_break( LineCook *state,  const char *brk,
-                              size_t brk_len );
+LC_API void lc_set_completion_break( LineCook *state,  const char *brk,
+                                     size_t brk_len );
 /* Set the file name quote chars and quote */
-void lc_set_quotables( LineCook *state,  const char *qc,  size_t qc_len,
-                       char quote );
+LC_API void lc_set_quotables( LineCook *state,  const char *qc,  size_t qc_len,
+                              char quote );
 /* Bind a keys sequence to an action, for example:
  * args[ 0 ] = "\C-y" args[ 1 ] = "&erase-eol"
  * causes ctrl-y to erase from cursor to end of line */
-int lc_bindkey( LineCook *state,  char *args[],  size_t argc );
+LC_API int lc_bindkey( LineCook *state,  char *args[],  size_t argc );
 /* Set the eval status of the last command, for display of status in prompt
  * with the \S escape in lc_set_prompt() above */
-void lc_set_eval_status( LineCook *state,  int status );
+LC_API void lc_set_eval_status( LineCook *state,  int status );
 /* Read and edit a line, returns Line_STATUS above, if LINE_STATUS_OK, then
  * the line is null terminated in state->line with size state->line_len bytes */
-int lc_get_line( LineCook *state );
+LC_API int lc_get_line( LineCook *state );
 /* Continue completion after LINE_STATUS_COMPLETE is returned */
-int lc_completion_get_line( LineCook *state );
+LC_API int lc_completion_get_line( LineCook *state );
 /* Utf8 length of line in this->line, not including null char */
-int lc_line_length( LineCook *state );
+LC_API int lc_line_length( LineCook *state );
 /* Utf8 copy line in this->line, return length copied, not null terminated */
-int lc_line_copy( LineCook *state,  char *out );
+LC_API int lc_line_copy( LineCook *state,  char *out );
 /* Utf8 length of line in this->line, currently editing */
-int lc_edit_length( LineCook *state );
+LC_API int lc_edit_length( LineCook *state );
 /* Utf8 copy line in this->line, return length copied, currently editing */
-int lc_edit_copy( LineCook *state,  char *out );
+LC_API int lc_edit_copy( LineCook *state,  char *out );
 /* Utf8 length of completion in this->line[ complete_off ], complete_len */
-int lc_complete_term_length( LineCook *state );
+LC_API int lc_complete_term_length( LineCook *state );
 /* Utf8 copy completion in this->line[ complete_off ], complete_len */
-int lc_complete_term_copy( LineCook *state,  char *out );
+LC_API int lc_complete_term_copy( LineCook *state,  char *out );
 /* Return the count of lines in history buffer */
-size_t lc_history_count( LineCook *state );
+LC_API size_t lc_history_count( LineCook *state );
 /* Utf8 length of history line at index */
-int lc_history_line_length( LineCook *state,  size_t index );
+LC_API int lc_history_line_length( LineCook *state,  size_t index );
 /* Utf8 copy of history line at index */
-int lc_history_line_copy( LineCook *state,  size_t index,  char *out );
+LC_API int lc_history_line_copy( LineCook *state,  size_t index,  char *out );
 /* Get the current completion type */
-CompleteType lc_get_complete_type( LineCook *state );
+LC_API CompleteType lc_get_complete_type( LineCook *state );
 /* Set the current completion type */
-void lc_set_complete_type( LineCook *state,  CompleteType ctype );
+LC_API void lc_set_complete_type( LineCook *state,  CompleteType ctype );
 /* Read a line continuation */
-int lc_continue_get_line( LineCook *state );
+LC_API int lc_continue_get_line( LineCook *state );
 /* Add line to history */
-int lc_add_history( LineCook *state,  const char *line,  size_t len );
+LC_API int lc_add_history( LineCook *state,  const char *line,  size_t len );
 /* Compress history database to unique items */
-int lc_compress_history( LineCook *state );
+LC_API int lc_compress_history( LineCook *state );
 /* Add line to completion list */
-int lc_add_completion( LineCook *state,  const char *line,  size_t len );
+LC_API int lc_add_completion( LineCook *state,  const char *line,  size_t len );
 /* If any timers are active, calc timeout */
-int lc_max_timeout( LineCook *state,  int time_ms );
+LC_API int lc_max_timeout( LineCook *state,  int time_ms );
 /* Clear line and refresh when get_line called again */
-void lc_clear_line( LineCook *state );
+LC_API void lc_clear_line( LineCook *state );
 /* Clear prompt lines after LINE_STATUS_EXEC */
-void lc_erase_prompt( LineCook *state );
+LC_API void lc_erase_prompt( LineCook *state );
 /* Rrefresh line, drawing it again */
-void lc_refresh_line( LineCook *state );
+LC_API void lc_refresh_line( LineCook *state );
 /* Parse the edited line into arg offsets and lengths for completion */
-int lc_get_complete_geom( LineCook *state, int *arg_num,  int *arg_count,
+LC_API int lc_get_complete_geom( LineCook *state, int *arg_num,  int *arg_count,
                           int *arg_off,  int *arg_len,  size_t args_size );
 /* Callbacks for complete, hints, read/write terminal */
 typedef int (* LineCompleteCB )( LineCook *state,  const char *buf,

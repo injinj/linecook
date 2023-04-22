@@ -76,7 +76,7 @@ init_tty( TTYCook *tty )
    *  \# \$
    * [13]$
    */
-  static const char * prompt = "\\U0001f436 " /* doge */
+  static const char * prompt = //"\\U0001f436 " /* doge */
                              //ANSI_BLUE    "\\u250c\\u2510 " ANSI_NORMAL
                                ANSI_CYAN    "\\u"   ANSI_NORMAL "@"
                                ANSI_MAGENTA "\\h"   ANSI_NORMAL ":"
@@ -146,12 +146,19 @@ main( void )
     if ( n < 0 ) /* if error in one of the above */
       break;
     if ( tty->lc_status == LINE_STATUS_INTERRUPT ) {
+#if defined( __MINGW32__ )
+    do_interrupt:;
+#endif
       lc_tty_set_continue( tty, 0 ); /* cancel continue */
       lc_tty_break_history( tty );   /* cancel buffered line */
     }
     else if ( tty->lc_status == LINE_STATUS_SUSPEND ) {
+#if ! defined( __MINGW32__ )
       lc_tty_normal_mode( tty ); /* set terminal to normal */
       raise( SIGSTOP ); /* suspend */
+#else
+      goto do_interrupt;
+#endif
     }
     else if ( tty->lc_status == LINE_STATUS_COMPLETE ) {
       CompleteType ctype = lc_get_complete_type( lc );

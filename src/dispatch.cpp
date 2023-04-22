@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#ifdef LC_SHARED
+#define LC_API __declspec(dllexport)
+#endif
 #include <linecook/linecook.h>
 #include <linecook/xwcwidth9.h>
 
