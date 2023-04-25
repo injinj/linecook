@@ -1264,7 +1264,7 @@ State::show_line( ShowState &state,  char32_t *buf,  size_t cur_idx,
             }
           }
           else if ( cl == SCR_COLOR ) {
-            bool is_norm, is_bold;
+            bool is_norm = false, is_bold = false;
             uint32_t prefix =
               this->color_index( &ls_line[ j ], sz, is_norm, is_bold );
             if ( prefix == 0 ) {
