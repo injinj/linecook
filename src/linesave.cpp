@@ -106,7 +106,7 @@ LineSave::make( LineSaveBuf &lsb,  const char32_t *buf,  size_t len,
   char32_t * p = &lsb.buf[ lsb.max ];
   size_t next;
 
-  copy<char32_t>( p, buf, len );
+  filter_copy<char32_t>( p, buf, len );
   if ( cursor_off > len )
     cursor_off = 0;
 

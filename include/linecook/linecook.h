@@ -1414,6 +1414,12 @@ copy( T *dest,  const T *src,  size_t len ) {
 }
 
 template <class T> static inline void
+filter_copy( T *dest,  const T *src,  size_t len ) {
+  for ( size_t i = 0; i < len; i++ )
+    dest[ i ] = ( src[ i ] >= ' ' ? src[ i ] : ' ' );
+}
+
+template <class T> static inline void
 set( T *dest,  T c,  size_t len ) {
   for ( size_t i = 0; i < len; i++ )
     dest[ i ] = c;
