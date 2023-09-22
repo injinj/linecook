@@ -32,7 +32,7 @@ ifeq (-g,$(findstring -g,$(port_extra)))
   default_cflags := -ggdb
 endif
 ifeq (-a,$(findstring -a,$(port_extra)))
-  default_cflags := -fsanitize=address -ggdb -O3
+  default_cflags += -fsanitize=address
 endif
 ifeq (-mingw,$(findstring -mingw,$(port_extra)))
   CC    := /usr/bin/x86_64-w64-mingw32-gcc
