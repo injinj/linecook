@@ -8,6 +8,7 @@
 /UB*
 /DEB*
 /SUN*
+/ROCKY*
 # history files
 .*history
 # vim swap files
