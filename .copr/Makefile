@@ -3,6 +3,12 @@ name   := linecook
 spec   := rpm/$(name).spec
 date   := $(shell date +"%a %b %d %Y")
 rpmdir := $(shell pwd)
+# COPR's make_srpm mock chroot is minimal and ships WITHOUT git, so every
+# $(shell git ...) below fails "command not found" -> returns EMPTY -> srctree
+# collapses to just .git -> the tarball drops sources -> %build fails. Ensure
+# git exists at PARSE time, before the := assignments expand (a recipe-time
+# install is too late). No-op wherever git is already present (local builds).
+_ensure_git := $(shell command -v git >/dev/null 2>&1 || dnf -y install git-core >/dev/null 2>&1 || yum -y install git-core >/dev/null 2>&1)
 
 git_hash    := $(shell git rev-parse --short=8 HEAD)
 major_num   := 1
