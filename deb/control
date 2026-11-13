@@ -7,7 +7,7 @@ Standards-Version: 3.9.5
 Homepage: https://www.github.com/injinj/linecook
 
 Package: linecook
-Architecture: amd64
+Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Library for command line editing
  Simple and embeddable, C library for command line editing.

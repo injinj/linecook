@@ -81,12 +81,12 @@ CFLAGS ?= $(build_cflags) $(default_cflags)
 #CFLAGS ?= $(RPM_OPT_FLAGS)
 #endif
 cflags := $(gcc_wflags) $(CFLAGS) $(arch_cflags)
+cxxflags := $(filter-out -Werror=implicit-function-declaration,$(cflags))
 
 INCLUDES   ?= -Iinclude
 DEFINES    ?=
 includes   := $(INCLUDES)
 defines    := $(DEFINES)
-# if not linking libstdc++
 ifdef NO_STL
 cppflags   := -std=c++11 -fno-rtti -fno-exceptions
 cpplink    := $(CC)
@@ -350,19 +350,19 @@ install: dist_bins
 	install -m 644 include/linecook/*.h $(install_prefix)/include/linecook
 
 $(objd)/%.o: src/%.cpp
-	$(cpp) $(cflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
+	$(cpp) $(cxxflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
 
 $(objd)/%.o: src/%.c
 	$(cc) $(cflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
 
 $(objd)/%.fpic.o: src/%.cpp
-	$(cpp) $(cflags) $(fpicflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
+	$(cpp) $(cxxflags) $(fpicflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
 
 $(objd)/%.fpic.o: src/%.c
 	$(cc) $(cflags) $(fpicflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
 
 $(objd)/%.o: test/%.cpp
-	$(cpp) $(cflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
+	$(cpp) $(cxxflags) $(cppflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@
 
 $(objd)/%.o: test/%.c
 	$(cc) $(cflags) $(includes) $(defines) $($(notdir $*)_includes) $($(notdir $*)_defines) -c $< -o $@

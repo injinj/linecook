@@ -1,6 +1,6 @@
 # Readme for Linecook
 
-[![Copr build status](https://copr.fedorainfracloud.org/coprs/injinj/rel/package/linecook/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/injinj/rel/package/linecook/)
+[![copr status](https://copr.fedorainfracloud.org/coprs/injinj/gold/package/linecook/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/injinj/gold/package/linecook/)
 
 1. [What is Linecook?](#what-is-linecook)
 2. [Why does Linecook exist?](#why-does-linecook-exist)
